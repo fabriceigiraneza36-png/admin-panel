@@ -1,0 +1,5 @@
+<!-- This would go in index.html -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+<!-- Alternatively, use a data URI favicon -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' font-weight='bold' fill='%2316a34a'>A</text></svg>" />
