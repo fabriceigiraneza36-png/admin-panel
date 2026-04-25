@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/react';
 import AppRoutes from './routes';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
@@ -46,6 +47,7 @@ function App() {
           />
         </BrowserRouter>
         {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+        <Analytics />
       </QueryClientProvider>
     </ErrorBoundary>
   );
