@@ -1,0 +1,287 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────────────── BASE ───────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface-50 text-slate-800;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  input, textarea, select {
+    outline: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  ::selection {
+    @apply bg-primary-200 text-primary-900;
+  }
+}
+
+/* ───────────────── COMPONENTS ───────────────── */
+@layer components {
+
+  /* CARD */
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-surface-200 overflow-hidden;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:shadow-card-md hover:-translate-y-0.5;
+  }
+
+  /* BUTTON */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           text-sm font-semibold rounded-xl transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700
+           focus:ring-primary-500 shadow-green hover:shadow-green-lg
+           active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-primary-700 border-2 border-primary-200
+           hover:bg-primary-50 hover:border-primary-400
+           focus:ring-primary-400;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-slate-600
+           hover:bg-surface-100 hover:text-slate-800;
+  }
+
+  /* INPUT */
+  .input {
+    @apply w-full px-4 py-2.5 text-sm text-slate-800
+           bg-white border border-surface-300 rounded-xl
+           focus:border-primary-400 focus:ring-2 focus:ring-primary-100;
+  }
+
+  /* BADGE */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full;
+  }
+
+  .badge-green { @apply bg-primary-100 text-primary-800; }
+  .badge-red   { @apply bg-red-100 text-red-700; }
+  .badge-blue  { @apply bg-blue-100 text-blue-700; }
+  .badge-gray  { @apply bg-slate-100 text-slate-600; }
+
+  /* TABLE */
+  .table-container {
+    @apply overflow-x-auto rounded-2xl border border-surface-200;
+  }
+
+  .table tbody tr {
+    @apply border-b border-surface-100 hover:bg-surface-100/40;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    @apply fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-xl w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  /* SIDEBAR */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-surface-100;
+  }
+
+  .sidebar-link.active {
+    @apply bg-primary-50 text-primary-700;
+  }
+}
+
+/* ───────────────── UTILITIES ───────────────── */
+@layer utilities {
+  .glass {
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.8);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #16a34a, #4ade80);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VISIBILITY FIX — Ensure dark text on white backgrounds
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* All inputs must have dark text */
+input,
+textarea,
+select {
+  color: #1a1a1a !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Labels must be readable */
+label,
+.input-label {
+  color: #374151 !important;
+}
+
+/* Cards always white bg + dark text */
+.card,
+.card-hover {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+/* Table cells must have dark text */
+.table tbody td {
+  color: #374151 !important;
+}
+
+.table thead th {
+  color: #065f46 !important;
+  background-color: #f0fdf4 !important;
+}
+
+/* Badges — ensure contrast */
+.badge-green  {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+}
+.badge-red    {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+}
+.badge-yellow {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+.badge-blue   {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+.badge-gray   {
+  background-color: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+/* Buttons — green primary */
+.btn-primary {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #059669, #10b981) !important;
+}
+
+.btn-secondary {
+  color: #065f46 !important;
+  background-color: #ffffff !important;
+  border-color: #a7f3d0 !important;
+}
+
+.btn-ghost {
+  color: #374151 !important;
+}
+
+.btn-danger {
+  color: #ffffff !important;
+  background-color: #ef4444 !important;
+}
+
+/* Page titles */
+.page-title {
+  color: #111827 !important;
+}
+.page-subtitle {
+  color: #6b7280 !important;
+}
+
+/* Modal */
+.modal-content {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+/* Sidebar stays dark green — only fix text inside */
+aside .text-white { color: #ffffff !important; }
+
+/* Notification panel */
+.nav__user-drop-name  { color: #111827 !important; }
+.nav__user-drop-email { color: #6b7280 !important; }
+
+/* Search / filter inputs */
+.input {
+  color: #1a1a1a !important;
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+}
+.input:focus {
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 3px rgba(5,150,105,0.1) !important;
+}
+
+/* Dropdown options */
+select option {
+  color: #1a1a1a !important;
+  background-color: #ffffff !important;
+}
+
+/* Rich text editor */
+.ql-editor {
+  color: #1a1a1a !important;
+  background-color: #ffffff !important;
+}
+
+/* Empty state text */
+.text-slate-400,
+.text-slate-500,
+.text-slate-600 {
+  color: #6b7280 !important;
+}
+.text-slate-700,
+.text-slate-800 {
+  color: #374151 !important;
+}
+.text-slate-900 {
+  color: #111827 !important;
+}
+
+/* Ensure no ghost white text anywhere on white bg */
+body {
+  color: #1a1a1a;
+  background-color: #f9fafb;
+}
