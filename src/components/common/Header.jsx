@@ -188,14 +188,9 @@ export default function Header({ onMenuClick, isMobileOpen }) {
   const { admin, logout } = useAuth()
   const { success: toastSuccess } = useToast()
 
-  /* Socket connection status */
-  let connected = false
-  try {
-    const socket = useSocketContext()
-    connected = socket?.connected || false
-  } catch {
-    connected = false
-  }
+   /* Socket connection status */
+   const { isConnected } = useSocketContext()
+   const connected = isConnected
 
   const notifUnread = useSelector(selectUnreadCount)
   const chatUnread  = useSelector(selectTotalUnread)

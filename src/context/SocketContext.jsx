@@ -1,197 +1,267 @@
+/**
+ * SocketContext.jsx v2.3
+ *
+ * Changes vs v2.2:
+ *  - Connects to BASE_URL (no /api, no namespace suffix)
+ *  - polling-first transport for Render.com cold-start compatibility
+ *  - Strict-mode double-invoke guard via initializedRef
+ *  - Cross-tab token sync
+ */
+
 import React, {
-    createContext, useContext, useEffect, useRef,
-    useState, useCallback,
-} from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { selectIsLoggedIn, selectInitialized } from '@store/authSlice'
-import { addNotification } from '@store/notificationsSlice'
-import { addMessage, upsertSession } from '@store/chatSlice'
-import { SOCKET_URL, SOCKET_EVENTS, NOTIFICATION_TYPES } from '@utils/constants'
-import { getToken } from '@utils/helpers'
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import { io } from "socket.io-client";
 
-const SocketContext = createContext(null)
+// ─── Config ───────────────────────────────────────────────────────────────────
 
-export function SocketProvider({ children }) {
-    const dispatch = useDispatch()
-    const isLoggedIn = useSelector(selectIsLoggedIn)
-    const initialized = useSelector(selectInitialized)
+/**
+ * Socket connects to the BARE origin — no /api, no namespace suffix.
+ * Strip /api if it was accidentally included in VITE_API_URL.
+ */
+const resolveSocketURL = () => {
+  const raw =
+    import.meta.env.VITE_SOCKET_URL ||
+    import.meta.env.VITE_API_URL    ||
+    "https://backend-jd8f.onrender.com";
 
-    const socketRef = useRef(null)
-    const [connected, setConnected] = useState(false)
+  // Remove trailing slashes and any /api suffix
+  return raw.replace(/\/+$/, "").replace(/\/api$/i, "");
+};
 
-    const safeMsg = (val) => {
-        if (!val) return ''
-        if (typeof val === 'string') return val
-        if (typeof val === 'object') return val.message || val.body || JSON.stringify(val)
-        return String(val)
+const SOCKET_URL = resolveSocketURL();
+
+const TOKEN_KEYS = [
+  import.meta.env.VITE_TOKEN_KEY,
+  "altuvera_admin_token",
+  "adminToken",
+  "admin_token",
+  "authToken",
+  "token",
+].filter(Boolean);
+
+const MAX_RECONNECT   = 10;
+const BASE_DELAY_MS   = 2_000;
+const CONNECT_TIMEOUT = 30_000;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const readToken = () => {
+  try {
+    for (const k of TOKEN_KEYS) {
+      const v = localStorage.getItem(k);
+      if (v) return v;
     }
+  } catch { /* localStorage unavailable */ }
+  return null;
+};
 
-    const connect = useCallback(async () => {
-        if (socketRef.current?.connected) return
+// ─── Context ─────────────────────────────────────────────────────────────────
 
-        let io
-        try {
-            const mod = await import('socket.io-client')
-            io = mod.io || mod.default
-        } catch {
-            console.warn('[Socket] socket.io-client not available')
-            return
-        }
+const DEFAULT_CTX = {
+  socket:               null,
+  isConnected:          false,
+  connectionError:      null,
+  reconnectAttempts:    0,
+  maxReconnectAttempts: MAX_RECONNECT,
+  reconnect:            () => {},
+};
 
-        if (!io) return
-
-        const token = getToken()
-
-        const socket = io(SOCKET_URL, {
-            auth: { token: token || undefined },
-            /* ── Force polling on Render.com (WebSockets not always supported on free tier) ── */
-            transports: ['polling', 'websocket'],
-            upgrade: true,
-            reconnection: true,
-            reconnectionDelay: 2000,
-            reconnectionAttempts: 5,
-            timeout: 15000,
-            forceNew: false,
-        })
-
-        socket.on(SOCKET_EVENTS.CONNECT, () => {
-            setConnected(true)
-            console.info('[Socket] Connected')
-        })
-
-        socket.on(SOCKET_EVENTS.DISCONNECT, (reason) => {
-            setConnected(false)
-            console.info('[Socket] Disconnected:', reason)
-        })
-
-        socket.on('connect_error', (err) => {
-            console.warn('[Socket] Error:', err.message)
-            setConnected(false)
-        })
-
-        /* ── Incoming chat from users ── */
-        socket.on(SOCKET_EVENTS.NEW_CHAT, (payload) => {
-            try {
-                dispatch(addMessage({
-                    sessionId: payload.sessionId,
-                    senderType: 'user',
-                    senderName: safeMsg(payload.senderName || payload.fullName),
-                    senderEmail: safeMsg(payload.email),
-                    body: safeMsg(payload.body),
-                    createdAt: new Date().toISOString(),
-                    isRead: false,
-                }))
-                dispatch(upsertSession({
-                    session_id: payload.sessionId,
-                    email: payload.email,
-                    full_name: payload.fullName,
-                    unreadCount: payload.unreadCount || 1,
-                    lastMessage: safeMsg(payload.body),
-                    last_active: new Date().toISOString(),
-                }))
-                dispatch(addNotification({
-                    type: NOTIFICATION_TYPES.CHAT,
-                    title: 'New Chat Message',
-                    message: `${safeMsg(payload.senderName || payload.fullName) || 'Guest'}: ${safeMsg(payload.body).slice(0, 60)}`,
-                    data: payload,
-                }))
-            } catch (err) {
-                console.warn('[Socket] Error handling new-chat-message:', err.message)
-            }
-        })
-
-        /* ── New booking ── */
-        socket.on(SOCKET_EVENTS.NEW_BOOKING, (booking) => {
-            try {
-                dispatch(addNotification({
-                    type: NOTIFICATION_TYPES.BOOKING,
-                    title: 'New Booking',
-                    message: `${safeMsg(booking.full_name)} booked ${safeMsg(booking.destination || 'a trip')}`,
-                    data: booking,
-                }))
-            } catch { }
-        })
-
-        /* ── New contact message ── */
-        socket.on(SOCKET_EVENTS.NEW_MESSAGE, (msg) => {
-            try {
-                dispatch(addNotification({
-                    type: NOTIFICATION_TYPES.MESSAGE,
-                    title: 'New Contact Message',
-                    message: `From ${safeMsg(msg.full_name)}: ${safeMsg(msg.subject || msg.message).slice(0, 50)}`,
-                    data: msg,
-                }))
-            } catch { }
-        })
-
-        /* ── New messaging system events ── */
-        socket.on('msg:new-from-user', (payload) => {
-            try {
-                dispatch(addNotification({
-                    type: NOTIFICATION_TYPES.CHAT,
-                    title: 'New Message',
-                    message: `${safeMsg(payload.senderName) || 'Guest'}: ${safeMsg(payload.message?.body).slice(0, 60)}`,
-                    data: payload,
-                }))
-            } catch { }
-        })
-
-        socketRef.current = socket
-    }, [dispatch])
-
-    const disconnect = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.disconnect()
-            socketRef.current = null
-        }
-        setConnected(false)
-    }, [])
-
-    useEffect(() => {
-        if (!initialized) return
-        if (isLoggedIn) {
-            connect()
-        } else {
-            disconnect()
-        }
-    }, [isLoggedIn, initialized]) // eslint-disable-line
-
-    useEffect(() => {
-        return () => disconnect()
-    }, [disconnect])
-
-    const emit = useCallback((event, ...args) => {
-        socketRef.current?.emit(event, ...args)
-    }, [])
-
-    const joinSession = useCallback((sessionId, cb) => {
-        socketRef.current?.emit(SOCKET_EVENTS.ADMIN_JOIN, { sessionId }, cb)
-    }, [])
-
-    const sendMessage = useCallback((sessionId, body, cb) => {
-        socketRef.current?.emit(SOCKET_EVENTS.ADMIN_SEND, { sessionId, body }, cb)
-    }, [])
-
-    const sendTyping = useCallback((sessionId, isTyping) => {
-        socketRef.current?.emit(SOCKET_EVENTS.CHAT_TYPING, { sessionId, isTyping })
-    }, [])
-
-    return (
-        <SocketContext.Provider value={{
-            socket: socketRef.current,
-            connected,
-            emit,
-            joinSession,
-            sendMessage,
-            sendTyping,
-        }}>
-            {children}
-        </SocketContext.Provider>
-    )
-}
+export const SocketContext = createContext(DEFAULT_CTX);
 
 export const useSocketContext = () => {
-    const ctx = useContext(SocketContext)
-    if (!ctx) throw new Error('useSocketContext must be inside SocketProvider')
-    return ctx
+  const ctx = useContext(SocketContext);
+  if (!ctx) throw new Error("useSocketContext must be inside <SocketProvider>");
+  return ctx;
+};
+
+export const useSocket = useSocketContext;
+
+// ─── Provider ────────────────────────────────────────────────────────────────
+
+export function SocketProvider({ children }) {
+  const [isConnected,       setIsConnected]       = useState(false);
+  const [connectionError,   setConnectionError]   = useState(null);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
+  const socketRef      = useRef(null);
+  const timerRef       = useRef(null);
+  const destroyingRef  = useRef(false);
+  const initializedRef = useRef(false); // strict-mode guard
+
+  // ─── Build socket ─────────────────────────────────────────────────────────
+
+  const buildSocket = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    destroyingRef.current = false;
+    const token = readToken();
+
+    const socket = io(SOCKET_URL, {
+      auth:   { token: token || undefined },
+
+      // polling first → upgrades to websocket once handshake succeeds
+      // prevents the "WebSocket closed before connection established"
+      // race condition on Render.com SSL cold-starts
+      transports:           ["polling", "websocket"],
+      upgrade:              true,
+
+      reconnection:         true,
+      reconnectionAttempts: MAX_RECONNECT,
+      reconnectionDelay:    BASE_DELAY_MS,
+      reconnectionDelayMax: 15_000,
+      randomizationFactor:  0.5,
+
+      timeout:         CONNECT_TIMEOUT,
+      withCredentials: true,
+    });
+
+    socket.on("connect", () => {
+      if (destroyingRef.current) return;
+      console.log("[Socket] Connected:", socket.id);
+      setIsConnected(true);
+      setConnectionError(null);
+      setReconnectAttempts(0);
+    });
+
+    socket.on("disconnect", (reason) => {
+      if (destroyingRef.current) return;
+      console.log("[Socket] Disconnected:", reason);
+      setIsConnected(false);
+
+      if (reason === "io server disconnect") {
+        timerRef.current = setTimeout(() => {
+          if (!destroyingRef.current) socket.connect();
+        }, BASE_DELAY_MS);
+      }
+    });
+
+    socket.on("connect_error", (err) => {
+      if (destroyingRef.current) return;
+      console.error("[Socket] Connection error:", err.message);
+      setConnectionError(err.message);
+      setIsConnected(false);
+    });
+
+    socket.on("reconnect_attempt", (n) => {
+      if (destroyingRef.current) return;
+      console.log(`[Socket] Reconnect attempt ${n}/${MAX_RECONNECT}`);
+      setReconnectAttempts(n);
+      const t = readToken();
+      socket.auth = { token: t || undefined };
+    });
+
+    socket.on("reconnect", (n) => {
+      if (destroyingRef.current) return;
+      console.log(`[Socket] Reconnected after ${n} attempt(s)`);
+      setIsConnected(true);
+      setConnectionError(null);
+      setReconnectAttempts(0);
+    });
+
+    socket.on("reconnect_failed", () => {
+      if (destroyingRef.current) return;
+      console.error("[Socket] Max reconnect attempts reached");
+      setConnectionError("Unable to connect. Please refresh the page.");
+      setReconnectAttempts(MAX_RECONNECT);
+    });
+
+    socket.on("error", (err) => {
+      if (destroyingRef.current) return;
+      console.error("[Socket] Error:", err);
+    });
+
+    socketRef.current = socket;
+  }, []);
+
+  // ─── Manual reconnect ─────────────────────────────────────────────────────
+
+  const reconnect = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setConnectionError(null);
+    setReconnectAttempts(0);
+    setIsConnected(false);
+    timerRef.current = setTimeout(() => buildSocket(), 300);
+  }, [buildSocket]);
+
+  // ─── Mount / unmount ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    buildSocket();
+
+    return () => {
+      destroyingRef.current  = true;
+      initializedRef.current = false;
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [buildSocket]);
+
+  // ─── Cross-tab token changes ───────────────────────────────────────────────
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (!TOKEN_KEYS.includes(e.key)) return;
+
+      const newToken = e.newValue || null;
+      if (socketRef.current) {
+        socketRef.current.auth = { token: newToken || undefined };
+      }
+
+      if (newToken && !isConnected)  reconnect();
+      if (!newToken && isConnected && socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [isConnected, reconnect]);
+
+  // ─── Stable context value ─────────────────────────────────────────────────
+
+  const value = useMemo(
+    () => ({
+      get socket() { return socketRef.current; },
+      isConnected,
+      connectionError,
+      reconnectAttempts,
+      maxReconnectAttempts: MAX_RECONNECT,
+      reconnect,
+    }),
+    [isConnected, connectionError, reconnectAttempts, reconnect],
+  );
+
+  return (
+    <SocketContext.Provider value={value}>
+      {children}
+    </SocketContext.Provider>
+  );
 }
+
+export default SocketContext;

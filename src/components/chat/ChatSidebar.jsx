@@ -27,10 +27,10 @@ export default function ChatSidebar({ sessions, activeId, onSelect, search, onSe
         {filtered.length === 0 ? (
           <p className="text-center text-xs text-slate-400 py-10">No chat sessions</p>
         ) : (
-          filtered.map((s) => (
-            <button key={s.session_id || s.id} onClick={() => onSelect(s.session_id || s.id)}
-              className={`w-full text-left px-4 py-3 hover:bg-primary-50/40 transition-colors
-                ${(s.session_id || s.id) === activeId ? 'bg-primary-50 border-l-2 border-primary-500' : ''}`}>
+           filtered.map((s) => (
+             <button key={s.session_id || s.id} onClick={() => onSelect(s)}
+               className={`w-full text-left px-4 py-3 hover:bg-primary-50/40 transition-colors
+                 ${(s.session_id || s.id) === activeId ? 'bg-primary-50 border-l-2 border-primary-500' : ''}`}>
               <div className="flex items-center gap-3">
                 <Avatar name={s.full_name || s.email || 'Guest'} size="sm" rounded="full" />
                 <div className="flex-1 min-w-0">

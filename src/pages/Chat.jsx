@@ -1,397 +1,496 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import {
-  MessagesSquare, Wifi, WifiOff, Search, Send, Users,
-  MessageCircle, ArrowLeft, Phone, Mail, Shield, Globe,
-  Clock, ChevronRight, Plus, Loader2, User, X,
-} from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useSocketContext }        from '@context/SocketContext'
-import { chatAPI }                 from '@api/chat'
-import { getErrorMessage }         from '@api/client'
-import { useToast }                from '@hooks/useToast'
-import Avatar                      from '@components/common/Avatar'
-import Badge                       from '@components/common/Badge'
-import EmptyState                  from '@components/common/EmptyState'
-import { formatTimeAgo, formatDate, formatTime, getInitials } from '@utils/formatters'
+/**
+ * Chat.jsx — Admin messaging interface
+ * Defensive: every array access guarded with ?? [] so .length never throws
+ */
 
-/* ═══════════════════════════════════════════════════════════════════════
-   MESSAGE BUBBLE
-   ═══════════════════════════════════════════════════════════════════════ */
-function Bubble({ msg }) {
-  const isAdmin = msg.sender_type === 'admin' || msg.senderType === 'admin'
-  const body    = msg.body    || msg.message || ''
-  const name    = msg.sender_name || msg.senderName || (isAdmin ? 'You' : 'User')
-  const time    = msg.created_at  || msg.createdAt   || ''
-  const read    = msg.is_read     || msg.isRead
+import React, {
+  useState, useEffect, useRef,
+  useCallback, useMemo,
+} from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import { Search, Plus, X, Check, MessageSquare } from 'lucide-react'
+import { useChatContext } from '../context/ChatContext'
+import { useSocketContext } from '../context/SocketContext'
+import { useDebounce } from '../hooks/useDebounce'
+import Pagination from '@components/common/Pagination'
+
+const TYPING_TIMEOUT = 3_000
+const PAGE_SIZE      = 20
+
+// ─── Safe array guard — the root cause of every .length crash ─────────────────
+const sa = (v) => (Array.isArray(v) ? v : [])
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// START CONVERSATION MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const StartConversationModal = React.memo(({
+  onClose,
+  allUsers,
+  isLoadingAllUsers,
+  onStart,
+}) => {
+  const [userSearch,   setUserSearch]   = useState('')
+  const [pickedUser,   setPickedUser]   = useState(null)
+  const [firstMessage, setFirstMessage] = useState('')
+  const [submitting,   setSubmitting]   = useState(false)
+
+  const safeUsers = sa(allUsers)
+
+  const filtered = useMemo(() => {
+    if (!userSearch.trim()) return safeUsers
+    const q = userSearch.toLowerCase()
+    return safeUsers.filter((u) =>
+      (u.full_name ?? '').toLowerCase().includes(q) ||
+      (u.email     ?? '').toLowerCase().includes(q),
+    )
+  }, [safeUsers, userSearch])
+
+  const handleSubmit = async () => {
+    if (!pickedUser || submitting) return
+    setSubmitting(true)
+    try {
+      await onStart(pickedUser, firstMessage)
+      onClose()
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
-    <div className={`flex gap-2 ${isAdmin ? 'flex-row-reverse' : ''}`}
-         style={{ animation: 'fadeSlideUp 0.25s ease' }}>
-      <div className="flex-shrink-0 mt-1">
-        <Avatar name={name} size="xs" rounded="full" />
-      </div>
-      <div style={{ maxWidth: '72%' }}>
-        <div
-          className="px-4 py-2.5 text-sm leading-relaxed"
-          style={{
-            borderRadius: isAdmin ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-            background:   isAdmin
-              ? 'linear-gradient(135deg, #059669, #10b981)'
-              : '#f0fdf4',
-            color:        isAdmin ? '#fff' : '#1a1a1a',
-            border:       isAdmin ? 'none' : '1px solid #d1fae5',
-            boxShadow:    isAdmin ? '0 4px 12px rgba(5,150,105,0.2)' : 'none',
-            whiteSpace:   'pre-wrap',
-            wordBreak:    'break-word',
-          }}
-        >
-          {!isAdmin && (
-            <p style={{ fontSize: '10px', fontWeight: 700, color: '#059669',
-                        textTransform: 'uppercase', letterSpacing: '0.04em',
-                        marginBottom: '3px' }}>
-              {name}
-            </p>
-          )}
-          {body}
+    <div className="fixed inset-0 z-50 flex items-center justify-center
+                    bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md
+                      flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4
+                        border-b border-gray-100 flex-shrink-0">
+          <h2 className="font-semibold text-gray-800">New Conversation</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X size={18} className="text-gray-500" />
+          </button>
         </div>
-        <div className={`flex items-center gap-1.5 mt-1 ${isAdmin ? 'justify-end' : ''}`}>
-          <span style={{ fontSize: '10px', color: '#9ca3af' }}>
-            {formatTime(time)}
-          </span>
-          {isAdmin && (
-            <span style={{ fontSize: '11px', color: read ? '#34d399' : '#9ca3af' }}>
-              {read ? '✓✓' : '✓'}
-            </span>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+          {/* Picked user chip */}
+          {pickedUser && (
+            <div className="flex items-center gap-2 bg-emerald-50 border
+                            border-emerald-200 rounded-lg px-3 py-2">
+              <img
+                src={
+                  pickedUser.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    pickedUser.full_name || pickedUser.email || 'U',
+                  )}&background=059669&color=fff`
+                }
+                alt=""
+                className="w-6 h-6 rounded-full object-cover"
+              />
+              <span className="text-sm text-emerald-700 flex-1 truncate">
+                {pickedUser.full_name || pickedUser.email}
+              </span>
+              <button
+                onClick={() => setPickedUser(null)}
+                className="flex-shrink-0"
+              >
+                <X size={14} className="text-emerald-500" />
+              </button>
+            </div>
           )}
+
+          {/* Search */}
+          <div className="relative">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200
+                         rounded-lg focus:outline-none focus:ring-2
+                         focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* User list */}
+          <div className="rounded-lg border border-gray-100 overflow-hidden
+                          max-h-56 overflow-y-auto">
+            {isLoadingAllUsers ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6
+                                border-b-2 border-emerald-500" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6">
+                {userSearch ? 'No users match your search' : 'No users found'}
+              </p>
+            ) : (
+              filtered.map((user) => {
+                const isPicked = pickedUser?.id === user.id
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => setPickedUser(isPicked ? null : user)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5
+                      text-left transition-colors border-b border-gray-50
+                      last:border-0
+                      ${isPicked ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <img
+                      src={
+                        user.avatar_url ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          user.full_name || user.email || 'U',
+                        )}&background=059669&color=fff`
+                      }
+                      alt=""
+                      className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+                      onError={(e) => {
+                        e.target.src =
+                          'https://ui-avatars.com/api/?name=U&background=059669&color=fff'
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {user.full_name || 'No name'}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                    {isPicked && (
+                      <Check size={16} className="text-emerald-500 flex-shrink-0" />
+                    )}
+                  </button>
+                )
+              })
+            )}
+          </div>
+
+          {/* Optional first message */}
+          <textarea
+            placeholder="Optional first message…"
+            value={firstMessage}
+            onChange={(e) => setFirstMessage(e.target.value)}
+            rows={3}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2
+                       text-sm resize-none focus:outline-none focus:ring-2
+                       focus:ring-emerald-500"
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 text-sm text-gray-600 border border-gray-200
+                       rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!pickedUser || submitting}
+            className="flex-1 py-2.5 text-sm text-white bg-emerald-500 rounded-lg
+                       hover:bg-emerald-600 disabled:opacity-50
+                       disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {submitting ? 'Starting…' : 'Start Chat'}
+          </button>
         </div>
       </div>
     </div>
   )
-}
+})
 
-/* ═══════════════════════════════════════════════════════════════════════
-   TYPING INDICATOR
-   ═══════════════════════════════════════════════════════════════════════ */
-function TypingDots() {
-  return (
-    <div className="flex items-end gap-2">
-      <Avatar name="User" size="xs" rounded="full" />
-      <div style={{
-        display: 'flex', gap: '5px', padding: '12px 16px',
-        background: '#f0fdf4', border: '1px solid #d1fae5',
-        borderRadius: '18px 18px 18px 4px',
-      }}>
-        {[0, 1, 2].map((i) => (
-          <span key={i} style={{
-            width: '7px', height: '7px', borderRadius: '50%',
-            background: '#059669', display: 'block',
-            animation: `typingDot 1.4s ease-in-out ${i * 0.18}s infinite`,
-          }} />
-        ))}
-      </div>
-    </div>
-  )
-}
+StartConversationModal.displayName = 'StartConversationModal'
 
-/* ═══════════════════════════════════════════════════════════════════════
-   USER LIST ITEM
-   ═══════════════════════════════════════════════════════════════════════ */
-function UserListItem({ user, isActive, onClick }) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSION LIST ITEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SessionListItem = React.memo(({ session, isSelected, onSelect }) => {
+  const name   = session.userFullName
+    ?? session.userName
+    ?? session.user?.full_name
+    ?? 'Guest User'
+
+  const email  = session.userEmail ?? session.user?.email ?? ''
+  const avatar = session.userAvatar ?? session.user?.avatar_url ?? null
+  const lastMsg = session.lastMessage ?? ''
+  const lastAt  = session.lastMessageAt ?? session.updatedAt ?? null
+  const unread  = Number(session.unreadCount ?? session.unreadAdmin ?? 0)
+  const status  = session.status ?? 'open'
+
   return (
     <button
-      onClick={onClick}
-      className="w-full text-left transition-all duration-150"
-      style={{
-        display:      'flex',
-        alignItems:   'center',
-        gap:          '12px',
-        padding:      '12px 14px',
-        background:   isActive ? '#f0fdf4' : 'transparent',
-        borderLeft:   isActive ? '3px solid #059669' : '3px solid transparent',
-        borderBottom: '1px solid #f3f4f6',
-        cursor:       'pointer',
-      }}
-      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#fafffe' }}
-      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+      onClick={() => onSelect(session)}
+      className={`w-full text-left px-4 py-3 transition-colors border-b
+        border-gray-100 hover:bg-gray-50
+        ${isSelected
+          ? 'bg-emerald-50 border-l-4 border-l-emerald-500'
+          : 'border-l-4 border-l-transparent'}`}
     >
-      {/* Avatar with online dot */}
-      <div className="relative flex-shrink-0">
-        <Avatar
-          src={user.avatar_url}
-          name={user.full_name || user.email}
-          size="sm"
-          rounded="full"
-        />
-        {user.is_online && (
-          <span style={{
-            position: 'absolute', bottom: 0, right: 0,
-            width: '10px', height: '10px', borderRadius: '50%',
-            background: '#22c55e', border: '2px solid #fff',
-          }} />
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold truncate" style={{ color: '#1a1a1a' }}>
-            {user.full_name || user.email?.split('@')[0] || 'User'}
-          </p>
-          {user.last_message_at && (
-            <span className="text-[10px] flex-shrink-0"
-                  style={{ color: '#9ca3af' }}>
-              {formatTimeAgo(user.last_message_at)}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-shrink-0">
+          <img
+            src={
+              avatar ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=059669&color=fff`
+            }
+            alt={name}
+            className="w-10 h-10 rounded-full object-cover"
+            onError={(e) => {
+              e.target.src =
+                'https://ui-avatars.com/api/?name=U&background=059669&color=fff'
+            }}
+          />
+          {status === 'open' && (
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400
+                             border-2 border-white rounded-full" />
+          )}
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500
+                             text-white text-xs rounded-full flex items-center
+                             justify-center font-medium leading-none">
+              {unread > 9 ? '9+' : unread}
             </span>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <p className="text-xs truncate"
-             style={{ color: user.last_message ? '#6b7280' : '#d1d5db' }}>
-            {user.last_message
-              ? user.last_message.slice(0, 40) + (user.last_message.length > 40 ? '…' : '')
-              : user.email || 'No messages yet'}
-          </p>
-          {user.unread_count > 0 && (
-            <span style={{
-              flexShrink: 0, minWidth: '18px', height: '18px',
-              padding: '0 5px', borderRadius: '99px',
-              background: '#059669', color: '#fff',
-              fontSize: '10px', fontWeight: 800,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {user.unread_count > 99 ? '99+' : user.unread_count}
-            </span>
-          )}
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-baseline gap-1">
+            <h3 className="font-medium text-sm text-gray-900 truncate">
+              {name}
+            </h3>
+            {lastAt && (
+              <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">
+                {formatDistanceToNow(new Date(lastAt), { addSuffix: true })}
+              </span>
+            )}
+          </div>
+          <div className="flex justify-between items-center gap-1">
+            <p className="text-xs text-gray-500 truncate">
+              {lastMsg || email || 'No messages yet'}
+            </p>
+            {status === 'closed' && (
+              <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5
+                               rounded flex-shrink-0">
+                Closed
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </button>
   )
-}
+})
 
-/* ═══════════════════════════════════════════════════════════════════════
-   USER INFO PANEL
-   ═══════════════════════════════════════════════════════════════════════ */
-function UserInfoHeader({ user }) {
-  if (!user) return null
+SessionListItem.displayName = 'SessionListItem'
 
-  const fullName = user.full_name || user.email?.split('@')[0] || 'User'
-  const isOnline = user.is_online || (
-    user.last_login && new Date(user.last_login) > new Date(Date.now() - 5 * 60 * 1000)
-  )
+// ═══════════════════════════════════════════════════════════════════════════════
+// MESSAGE BUBBLE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MessageBubble = React.memo(({ message, isOwn }) => {
+  const text = message.body ?? message.content ?? message.message ?? ''
+  const time = message.createdAt ?? message.created_at ?? null
+  const sender = message.senderName ?? message.sender_name ?? null
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '12px',
-      padding: '14px 18px',
-      background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)',
-      borderBottom: '1px solid #d1fae5',
-      flexShrink: 0,
-    }}>
-      <div className="relative flex-shrink-0">
-        <Avatar src={user.avatar_url} name={fullName} size="md" rounded="full" />
-        {isOnline && (
-          <span style={{
-            position: 'absolute', bottom: 0, right: 0,
-            width: '12px', height: '12px', borderRadius: '50%',
-            background: '#22c55e', border: '2px solid #f0fdf4',
-          }} />
+    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}>
+      <div
+        className={`max-w-[72%] rounded-2xl px-4 py-2.5
+          ${isOwn
+            ? 'bg-emerald-500 text-white rounded-br-sm'
+            : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'}`}
+      >
+        {!isOwn && sender && (
+          <p className="text-xs font-semibold mb-1 text-emerald-600">{sender}</p>
         )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold truncate" style={{ color: '#1a1a1a' }}>
-          {fullName}
+        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+          {text}
         </p>
-        <p className="text-xs truncate" style={{ color: '#6b7280' }}>
-          {user.email}
-        </p>
-        <div className="flex items-center gap-2 mt-1">
-          {isOnline ? (
-            <span className="flex items-center gap-1 text-[10px] font-bold"
-                  style={{ color: '#059669' }}>
-              <span style={{
-                width: '6px', height: '6px', borderRadius: '50%',
-                background: '#22c55e', display: 'inline-block',
-              }} />
-              Online
-            </span>
-          ) : (
-            <span className="text-[10px]" style={{ color: '#9ca3af' }}>
-              Last seen {formatTimeAgo(user.last_login)}
-            </span>
-          )}
-          {user.is_verified && (
-            <span className="flex items-center gap-0.5 text-[10px] font-bold"
-                  style={{ color: '#065f46' }}>
-              <Shield size={9} /> Verified
-            </span>
-          )}
-        </div>
+        {time && (
+          <p className={`text-xs mt-1.5 ${isOwn ? 'text-emerald-100' : 'text-gray-400'}`}>
+            {formatDistanceToNow(new Date(time), { addSuffix: true })}
+          </p>
+        )}
       </div>
     </div>
   )
-}
+})
 
-/* ═══════════════════════════════════════════════════════════════════════
-   CHAT PAGE
-   ═══════════════════════════════════════════════════════════════════════ */
-export default function ChatPage() {
-  const toast = useToast()
+MessageBubble.displayName = 'MessageBubble'
 
-  let socketConnected = false
-  try {
-    const ctx = useSocketContext()
-    socketConnected = ctx?.connected || false
-  } catch { socketConnected = false }
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHAT HEADER
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  // State
-  const [users,          setUsers]          = useState([])
-  const [loadingUsers,   setLoadingUsers]   = useState(true)
-  const [userSearch,     setUserSearch]     = useState('')
-  const [activeUser,     setActiveUser]     = useState(null)
-  const [messages,       setMessages]       = useState([])
-  const [loadingMsgs,    setLoadingMsgs]    = useState(false)
-  const [convId,         setConvId]         = useState(null)
-  const [input,          setInput]          = useState('')
-  const [sending,        setSending]        = useState(false)
-  const [showMobileList, setShowMobileList] = useState(true)
+const ChatHeader = React.memo(({ session, onClose }) => {
+  const name   = session?.userFullName
+    ?? session?.userName
+    ?? session?.user?.full_name
+    ?? 'Guest User'
 
-  const bottomRef = useRef(null)
-  const inputRef  = useRef(null)
-  const pollRef   = useRef(null)
+  const email  = session?.userEmail ?? session?.user?.email ?? ''
+  const avatar = session?.userAvatar ?? session?.user?.avatar_url ?? null
 
-  // ── Load users ──
-  const loadUsers = useCallback(async () => {
-    setLoadingUsers(true)
-    try {
-      const { data } = await chatAPI.getUsers({
-        limit:  100,
-        search: userSearch || undefined,
-      })
-      setUsers(data.data || [])
-    } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setLoadingUsers(false)
-    }
-  }, [userSearch, toast])
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200
+                    bg-white flex-shrink-0">
+      <button
+        onClick={onClose}
+        className="p-1.5 hover:bg-gray-100 rounded-lg lg:hidden
+                   flex-shrink-0 transition-colors"
+      >
+        <svg className="w-5 h-5 text-gray-500" fill="none"
+          stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round"
+            strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
 
-  useEffect(() => { loadUsers() }, [loadUsers])
-
-  // Refresh users list every 20 seconds
-  useEffect(() => {
-    const timer = setInterval(loadUsers, 20000)
-    return () => clearInterval(timer)
-  }, [loadUsers])
-
-  // ── Select user & load conversation ──
-  const selectUser = useCallback(async (user) => {
-    setActiveUser(user)
-    setShowMobileList(false)
-    setLoadingMsgs(true)
-    setMessages([])
-    setConvId(null)
-
-    try {
-      const { data } = await chatAPI.getUserConvo(user.id)
-      const d = data.data || data
-
-      if (d.conversation) {
-        setConvId(d.conversation.id)
-        setMessages(d.messages || [])
-      } else {
-        setConvId(null)
-        setMessages([])
-      }
-    } catch (err) {
-      if (err.response?.status !== 404) {
-        toast.error(getErrorMessage(err))
-      }
-    } finally {
-      setLoadingMsgs(false)
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-        inputRef.current?.focus()
-      }, 100)
-    }
-  }, [toast])
-
-  // ── Poll for new messages when conversation is active ──
-  useEffect(() => {
-    if (!convId) return
-    clearInterval(pollRef.current)
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const { data } = await chatAPI.getMessages(convId, { limit: 100 })
-        const newMsgs = data.data || data.messages || []
-        setMessages((prev) => {
-          if (newMsgs.length !== prev.length) return newMsgs
-          const lastNew  = newMsgs[newMsgs.length - 1]?.id
-          const lastPrev = prev[prev.length - 1]?.id
-          return lastNew !== lastPrev ? newMsgs : prev
-        })
-      } catch {}
-    }, 4000)
-
-    return () => clearInterval(pollRef.current)
-  }, [convId])
-
-  // Auto-scroll on new messages
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  // ── Send message ──
-  const handleSend = useCallback(async () => {
-    const body = input.trim()
-    if (!body || !activeUser) return
-
-    setSending(true)
-    try {
-      if (convId) {
-        // Reply in existing conversation
-        await chatAPI.adminReply(convId, { body })
-      } else {
-        // Start new conversation with user
-        const { data } = await chatAPI.startWithUser({
-          userId:  activeUser.id,
-          message: body,
-        })
-        const d = data.data || data
-        setConvId(d.conversation?.id || null)
-      }
-
-      setInput('')
-
-      // Refresh messages
-      setTimeout(async () => {
-        if (convId) {
-          try {
-            const { data } = await chatAPI.getMessages(convId, { limit: 100 })
-            setMessages(data.data || data.messages || [])
-          } catch {}
-        } else {
-          // Re-fetch via user conversation
-          try {
-            const { data } = await chatAPI.getUserConvo(activeUser.id)
-            const d = data.data || data
-            if (d.conversation) {
-              setConvId(d.conversation.id)
-              setMessages(d.messages || [])
-            }
-          } catch {}
+      <img
+        src={
+          avatar ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=059669&color=fff`
         }
-        loadUsers()
-      }, 500)
-    } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setSending(false)
-      inputRef.current?.focus()
+        alt={name}
+        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+        onError={(e) => {
+          e.target.src =
+            'https://ui-avatars.com/api/?name=U&background=059669&color=fff'
+        }}
+      />
+
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-sm text-gray-900 truncate">{name}</h3>
+        {email && <p className="text-xs text-gray-400 truncate">{email}</p>}
+      </div>
+
+      <span className="flex-shrink-0 text-xs text-green-500 font-medium">
+        ● Live
+      </span>
+    </div>
+  )
+})
+
+ChatHeader.displayName = 'ChatHeader'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN CHAT PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const Chat = () => {
+  const {
+    sessions:          rawSessions,
+    isLoadingSessions,
+    allUsers:          rawAllUsers,
+    isLoadingAllUsers,
+    selectedSession,
+    messages:          rawMessages,
+    isLoading,
+    typingUsers,
+    selectSession,
+    closeSession,
+    sendMessage,
+    startSessionWithUser,
+    fetchAllUsers,
+  } = useChatContext()
+
+  // ── Defensive: guarantee arrays even if context value is momentarily undefined
+  const sessions = sa(rawSessions)
+  const allUsers = sa(rawAllUsers)
+  const messages = sa(rawMessages)
+
+  const { socket, isConnected } = useSocketContext()
+
+  // ── Local state ───────────────────────────────────────────────────────────
+  const [newMessage,   setNewMessage]   = useState('')
+  const [showSidebar,  setShowSidebar]  = useState(true)
+  const [search,       setSearch]       = useState('')
+  const [page,         setPage]         = useState(1)
+  const [showModal,    setShowModal]    = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  const debouncedSearch  = useDebounce(search, 300)
+  const messagesEndRef   = useRef(null)
+  const typingTimeoutRef = useRef(null)
+  const textareaRef      = useRef(null)
+
+  // Reset page on filter/search change
+  useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter])
+
+  // Load users when modal opens
+  useEffect(() => {
+    if (showModal && allUsers.length === 0) fetchAllUsers()
+  }, [showModal, allUsers.length, fetchAllUsers])
+
+  // ── Filter + paginate ─────────────────────────────────────────────────────
+  const filteredSessions = useMemo(() => {
+    let list = sessions   // already a safe array
+
+    if (statusFilter !== 'all') {
+      list = list.filter((s) => (s.status ?? 'open') === statusFilter)
     }
-  }, [input, activeUser, convId, toast, loadUsers])
+
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase()
+      list = list.filter((s) =>
+        (s.userFullName ?? s.userName ?? s.user?.full_name ?? '')
+          .toLowerCase().includes(q) ||
+        (s.userEmail ?? s.user?.email ?? '')
+          .toLowerCase().includes(q) ||
+        (s.lastMessage ?? '').toLowerCase().includes(q),
+      )
+    }
+
+    return list
+  }, [sessions, debouncedSearch, statusFilter])
+
+  const totalPages    = Math.max(1, Math.ceil(filteredSessions.length / PAGE_SIZE))
+  const safePage      = Math.min(page, totalPages)
+  const pagedSessions = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE
+    return filteredSessions.slice(start, start + PAGE_SIZE)
+  }, [filteredSessions, safePage])
+
+  // ── Scroll to bottom ──────────────────────────────────────────────────────
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    if (messages.length > 0) scrollToBottom()
+  }, [messages.length, scrollToBottom])
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSelectSession = useCallback((session) => {
+    selectSession(session)
+    setShowSidebar(false)
+  }, [selectSession])
+
+  const handleClose = useCallback(() => {
+    closeSession()
+    setShowSidebar(true)
+  }, [closeSession])
+
+  const handleSend = useCallback((e) => {
+    e?.preventDefault()
+    if (!newMessage.trim()) return
+    sendMessage(newMessage)
+    setNewMessage('')
+    textareaRef.current?.focus()
+  }, [newMessage, sendMessage])
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -400,270 +499,318 @@ export default function ChatPage() {
     }
   }, [handleSend])
 
+  const handleTyping = useCallback(() => {
+    const sessId = selectedSession?.sessionId ?? selectedSession?.id
+    if (!socket || !isConnected || !sessId) return
+    socket.emit('msg:typing', { sessionId: sessId, isTyping: true })
+    clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('msg:typing', { sessionId: sessId, isTyping: false })
+    }, TYPING_TIMEOUT)
+  }, [socket, isConnected, selectedSession])
+
+  useEffect(() => () => clearTimeout(typingTimeoutRef.current), [])
+
+  const someoneTyping = Object.values(typingUsers ?? {}).some(Boolean)
+  const isClosed      = selectedSession?.status === 'closed'
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2"
-              style={{ color: '#111827' }}>
-            <MessagesSquare size={26} className="text-emerald-600" />
-            Live Chat
-          </h1>
-          <p className="text-sm mt-1 flex items-center gap-2"
-             style={{ color: '#6b7280' }}>
-            {socketConnected
-              ? <><Wifi size={12} style={{ color: '#059669' }} /> Connected</>
-              : <><WifiOff size={12} style={{ color: '#ef4444' }} /> Polling mode</>
-            }
-            <span>·</span>
-            <span>{users.length} users</span>
-            <span>·</span>
-            <span>
-              {users.filter((u) => u.unread_count > 0).length} with unread
-            </span>
-          </p>
-        </div>
-      </div>
+    <>
+      <div className="flex h-[calc(100vh-64px)] bg-gray-50 rounded-xl
+                      overflow-hidden border border-gray-200 shadow-sm">
 
-      {/* Chat layout */}
-      <div
-        className="overflow-hidden flex"
-        style={{
-          background:   '#fff',
-          borderRadius: '20px',
-          border:       '1px solid #e5e7eb',
-          height:       'calc(100vh - 220px)',
-          minHeight:    '500px',
-          boxShadow:    '0 4px 20px rgba(0,0,0,0.04)',
-        }}
-      >
-        {/* ── LEFT: User list ── */}
-        <div
-          className={`flex-col ${showMobileList ? 'flex' : 'hidden'} md:flex`}
-          style={{
-            width:       '320px',
-            borderRight: '1px solid #f3f4f6',
-            flexShrink:  0,
-            background:  '#fff',
-          }}
+        {/* ══════════════════════════════════════════════════════════════════
+            SIDEBAR
+        ══════════════════════════════════════════════════════════════════ */}
+        <aside
+          className={`w-full lg:w-80 border-r border-gray-200 bg-white
+            flex flex-col flex-shrink-0
+            ${showSidebar ? 'flex' : 'hidden lg:flex'}`}
         >
-          {/* Search */}
-          <div style={{ padding: '12px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
-            <div className="relative">
-              <Search size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ color: '#9ca3af' }} />
-              <input
-                type="text"
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Search users…"
-                className="w-full py-2 pr-3 text-sm rounded-xl outline-none"
-                style={{
-                  paddingLeft: '34px', color: '#1a1a1a',
-                  background: '#f9fafb', border: '1.5px solid #e5e7eb',
-                }}
-                onFocus={(e) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.06)' }}
-                onBlur={(e)  => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none' }}
-              />
-              {userSearch && (
-                <button onClick={() => setUserSearch('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                        style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-            <p className="mt-2 text-[10px] font-bold uppercase"
-               style={{ color: '#9ca3af', letterSpacing: '0.15em' }}>
-              {loadingUsers ? 'Loading…' : `${users.length} users`}
-            </p>
-          </div>
-
-          {/* User list */}
-          <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
-            {loadingUsers ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 size={24} className="animate-spin" style={{ color: '#059669' }} />
-              </div>
-            ) : users.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <Users size={32} style={{ color: '#d1d5db' }} className="mx-auto mb-3" />
-                <p className="text-sm font-medium" style={{ color: '#9ca3af' }}>
-                  {userSearch ? 'No users found' : 'No registered users yet'}
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-gray-200
+                          flex-shrink-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-800">
+                  Live Chat
+                </h2>
+                <p className="text-xs text-gray-400">
+                  {filteredSessions.length} session
+                  {filteredSessions.length !== 1 ? 's' : ''}
                 </p>
               </div>
-            ) : (
-              users.map((u) => (
-                <UserListItem
-                  key={u.id}
-                  user={u}
-                  isActive={activeUser?.id === u.id}
-                  onClick={() => selectUser(u)}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── RIGHT: Chat window ── */}
-        <div className={`flex-1 flex flex-col ${!showMobileList ? 'flex' : 'hidden'} md:flex`}
-             style={{ background: '#fafffe', minWidth: 0 }}>
-
-          {activeUser ? (
-            <>
-              {/* Mobile back button */}
-              <div className="md:hidden" style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs">
+                  {isConnected
+                    ? <span className="text-green-500 font-medium">● Live</span>
+                    : <span className="text-amber-500 font-medium">● Offline</span>}
+                </span>
                 <button
-                  onClick={() => setShowMobileList(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold w-full"
-                  style={{ color: '#059669', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                  onClick={() => setShowModal(true)}
+                  title="Start new conversation"
+                  className="p-1.5 bg-emerald-500 hover:bg-emerald-600
+                             text-white rounded-lg transition-colors"
                 >
-                  <ArrowLeft size={16} /> Back to users
+                  <Plus size={16} />
                 </button>
               </div>
+            </div>
 
-              {/* User info header */}
-              <UserInfoHeader user={activeUser} />
+            {/* Search */}
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Search sessions…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200
+                           rounded-lg focus:outline-none focus:ring-2
+                           focus:ring-emerald-500 bg-gray-50"
+              />
+            </div>
+
+            {/* Status tabs */}
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+              {['all', 'open', 'closed'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md
+                    transition-colors capitalize
+                    ${statusFilter === s
+                      ? 'bg-white text-gray-800 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Session list */}
+          <div className="flex-1 overflow-y-auto">
+            {isLoadingSessions ? (
+              <div className="flex flex-col items-center justify-center
+                              py-16 gap-3">
+                <div className="animate-spin rounded-full h-8 w-8
+                                border-b-2 border-emerald-500" />
+                <p className="text-xs text-gray-400">Loading sessions…</p>
+              </div>
+            ) : pagedSessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center
+                              py-16 px-6 text-center">
+                <MessageSquare size={40} className="text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-500">
+                  {search || statusFilter !== 'all'
+                    ? 'No matching sessions'
+                    : 'No sessions yet'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {search
+                    ? 'Try a different search'
+                    : 'Start a conversation with a registered user'}
+                </p>
+                {!search && (
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="mt-3 text-xs text-emerald-600
+                               hover:text-emerald-700 font-medium"
+                  >
+                    + New Conversation
+                  </button>
+                )}
+              </div>
+            ) : (
+              pagedSessions.map((session) => {
+                const sessId = session.sessionId ?? session.id ?? session._id
+                const selId  = selectedSession?.sessionId ?? selectedSession?.id
+                return (
+                  <SessionListItem
+                    key={String(sessId)}
+                    session={session}
+                    isSelected={String(sessId) === String(selId)}
+                    onSelect={handleSelectSession}
+                  />
+                )
+              })
+            )}
+          </div>
+
+          {/* Pagination */}
+          {!isLoadingSessions && totalPages > 1 && (
+            <div className="border-t border-gray-100 p-2 flex-shrink-0">
+              <Pagination
+                page={safePage}
+                totalPages={totalPages}
+                total={filteredSessions.length}
+                limit={PAGE_SIZE}
+                hasNext={safePage < totalPages}
+                hasPrev={safePage > 1}
+                onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+                onPrev={() => setPage((p) => Math.max(p - 1, 1))}
+                onGoTo={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
+                showPageSize={false}
+              />
+            </div>
+          )}
+        </aside>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            CHAT AREA
+        ══════════════════════════════════════════════════════════════════ */}
+        <main
+          className={`flex-1 flex flex-col min-w-0
+            ${!showSidebar ? 'flex' : 'hidden lg:flex'}`}
+        >
+          {selectedSession ? (
+            <>
+              <ChatHeader session={selectedSession} onClose={handleClose} />
 
               {/* Messages */}
-              <div style={{
-                flex: 1, overflowY: 'auto', padding: '16px',
-                display: 'flex', flexDirection: 'column', gap: '8px',
-                scrollbarWidth: 'thin', scrollbarColor: '#d1fae5 transparent',
-              }}>
-                {loadingMsgs ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 size={28} className="animate-spin" style={{ color: '#059669' }} />
+              <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-gray-50">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="animate-spin rounded-full h-8 w-8
+                                    border-b-2 border-emerald-500" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageCircle size={40} style={{ color: '#d1fae5' }} className="mx-auto mb-3" />
-                    <p className="text-sm font-semibold" style={{ color: '#6b7280' }}>
-                      No messages yet
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
-                      Send a message to start the conversation
+                  <div className="flex flex-col items-center justify-center
+                                  h-full text-center">
+                    <MessageSquare size={56} className="text-gray-300 mb-4" />
+                    <p className="text-gray-500 font-medium">No messages yet</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Send the first message below
                     </p>
                   </div>
                 ) : (
-                  messages.map((msg, i) => (
-                    <Bubble key={msg.id || i} msg={msg} />
-                  ))
+                  messages.map((msg) => {
+                    const isOwn =
+                      msg.senderType === 'admin' ||
+                      msg.sender_type === 'admin' ||
+                      msg.isAdmin === true ||
+                      msg.role === 'admin'
+                    return (
+                      <MessageBubble
+                        key={msg.id ?? msg._id ?? msg.messageId}
+                        message={msg}
+                        isOwn={isOwn}
+                      />
+                    )
+                  })
                 )}
-                <div ref={bottomRef} />
+
+                {someoneTyping && (
+                  <div className="flex items-center gap-2 pl-2 py-1">
+                    <div className="bg-white border border-gray-200 rounded-2xl
+                                    rounded-bl-sm px-4 py-2.5 shadow-sm">
+                      <div className="flex gap-1 items-center">
+                        {[0, 150, 300].map((delay) => (
+                          <span
+                            key={delay}
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: `${delay}ms` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400">typing…</span>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input */}
-              <div style={{
-                flexShrink: 0, padding: '12px 14px',
-                borderTop: '1px solid #f3f4f6', background: '#fff',
-              }}>
-                <div className="flex items-end gap-2">
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => {
-                      setInput(e.target.value)
-                      e.target.style.height = 'auto'
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type your message…"
-                    rows={1}
-                    className="flex-1 outline-none resize-none"
-                    style={{
-                      padding: '10px 14px', fontSize: '14px',
-                      borderRadius: '14px', border: '1.5px solid #d1fae5',
-                      background: '#f8fffe', color: '#1a1a1a',
-                      minHeight: '42px', maxHeight: '120px',
-                      lineHeight: '1.5', scrollbarWidth: 'none',
-                      transition: 'border-color 0.15s, box-shadow 0.15s',
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#059669'
-                      e.target.style.boxShadow   = '0 0 0 3px rgba(5,150,105,0.08)'
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#d1fae5'
-                      e.target.style.boxShadow   = 'none'
-                    }}
-                  />
-
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim() || sending}
-                    style={{
-                      width: '42px', height: '42px', flexShrink: 0,
-                      borderRadius: '14px', border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.2s',
-                      background: input.trim()
-                        ? 'linear-gradient(135deg, #059669, #10b981)'
-                        : '#e5e7eb',
-                      color: input.trim() ? '#fff' : '#9ca3af',
-                      boxShadow: input.trim()
-                        ? '0 4px 12px rgba(5,150,105,0.3)'
-                        : 'none',
-                      opacity: sending ? 0.6 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (input.trim()) e.currentTarget.style.transform = 'scale(1.08)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)'
-                    }}
-                    title="Send"
-                  >
-                    {sending ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Send size={18} />
-                    )}
-                  </button>
+              {!isClosed ? (
+                <form
+                  onSubmit={handleSend}
+                  className="border-t border-gray-200 p-4 bg-white flex-shrink-0"
+                >
+                  <div className="flex gap-3 items-end">
+                    <textarea
+                      ref={textareaRef}
+                      value={newMessage}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value)
+                        handleTyping()
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type a message… (Enter sends, Shift+Enter = new line)"
+                      rows={1}
+                      className="flex-1 resize-none border border-gray-300 rounded-xl
+                                 px-4 py-2.5 text-sm focus:outline-none focus:ring-2
+                                 focus:ring-emerald-500 focus:border-transparent
+                                 max-h-32 overflow-y-auto"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="p-2.5 bg-emerald-500 text-white rounded-xl
+                                 hover:bg-emerald-600 disabled:opacity-40
+                                 disabled:cursor-not-allowed transition-colors
+                                 flex-shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="border-t border-gray-200 p-4 bg-gray-50
+                                flex-shrink-0 text-center">
+                  <p className="text-sm text-gray-500">This session is closed.</p>
                 </div>
-                <p style={{ fontSize: '10px', color: '#d1d5db', marginTop: '4px', marginLeft: '4px' }}>
-                  <kbd style={{ color: '#9ca3af' }}>Enter</kbd> to send
-                  · <kbd style={{ color: '#9ca3af' }}>Shift+Enter</kbd> for new line
-                </p>
-              </div>
+              )}
             </>
           ) : (
-            /* No user selected */
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center px-6">
-                <div style={{
-                  width: '72px', height: '72px', borderRadius: '24px',
-                  background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 16px',
-                }}>
-                  <MessagesSquare size={32} style={{ color: '#059669' }} />
+                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center
+                                justify-center mx-auto mb-5">
+                  <MessageSquare size={36} className="text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-bold" style={{ color: '#1a1a1a' }}>
-                  Select a user to chat
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  Select a session
                 </h3>
-                <p className="text-sm mt-1" style={{ color: '#9ca3af', maxWidth: '280px' }}>
-                  Choose a user from the list to view their messages or start a new conversation.
+                <p className="text-gray-400 text-sm mb-5">
+                  Choose from the sidebar or start a new conversation
                 </p>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5
+                             bg-emerald-500 text-white rounded-xl
+                             hover:bg-emerald-600 transition-colors
+                             text-sm font-medium"
+                >
+                  <Plus size={16} />
+                  New Conversation
+                </button>
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
 
-      {/* Global animations */}
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes typingDot {
-          0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-          30%           { transform: translateY(-4px); opacity: 1; }
-        }
-      `}</style>
-    </div>
+      {showModal && (
+        <StartConversationModal
+          onClose={() => setShowModal(false)}
+          allUsers={allUsers}
+          isLoadingAllUsers={isLoadingAllUsers}
+          onStart={startSessionWithUser}
+        />
+      )}
+    </>
   )
 }
+
+export default Chat;

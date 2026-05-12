@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run seo:generate && vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },

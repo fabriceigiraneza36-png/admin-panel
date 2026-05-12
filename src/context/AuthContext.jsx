@@ -28,10 +28,8 @@ export function AuthProvider({ children }) {
 
     const token = getToken()
     if (token) {
-      // We have a token — try to validate it
       dispatch(fetchMeThunk())
     } else {
-      // No token — immediately mark as initialized so UI can render
       dispatch(setInitialized())
     }
   }, [dispatch])
@@ -54,21 +52,32 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       admin,
+      user: admin,           // Alias for compatibility
       isLoggedIn,
+      isAuthenticated: isLoggedIn,  // Alias
+      isAdmin: admin?.role === 'admin' || admin?.type === 'admin',
       loading,
+      isLoading: loading,   // Alias
       error,
       initialized,
       login,
       logout,
       dismissError,
+      refreshUser: () => dispatch(fetchMeThunk()),
     }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
+/** Primary hook — use this name */
 export const useAuthContext = () => {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuthContext must be inside AuthProvider')
   return ctx
 }
+
+/** Alias hook — ChatContext uses this name */
+export const useAuth = useAuthContext
+
+export default AuthContext
