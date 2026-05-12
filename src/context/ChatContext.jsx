@@ -141,10 +141,11 @@ export function ChatProvider({ children }) {
       if (!isMountedRef.current) return
 
       const raw = dedupeById(extractList(data))
-      // Normalize: ensure every session has a stable `sessionId` field
+      // Normalize: ensure every session has a stable `sessionId` field.
+      // Use _id (Mongo ObjectId) as the canonical session identifier.
       const normalized = raw.map(s => ({
         ...s,
-        sessionId: s.sessionId ?? s.session_id ?? s.id ?? s._id,
+        sessionId: s.sessionId ?? s.id ?? s._id,
       }))
       setSessions(normalized)
       setError(null)

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Send, Paperclip, Smile, MoreVertical, MessageCircle } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Send, MessageCircle } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import Loader from '@components/common/Loader'
 import EmptyState from '@components/common/EmptyState'
