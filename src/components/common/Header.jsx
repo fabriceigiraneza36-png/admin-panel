@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate }    from 'react-router-dom'
 import { useDispatch, useSelector }    from 'react-redux'
+import { motion, AnimatePresence }     from 'framer-motion'
 import {
-  Menu, Bell, MessageCircle, ChevronDown,
+  Bell, MessageCircle, ChevronDown,
   User, Settings, LogOut, Shield, WifiOff, Wifi,
 } from 'lucide-react'
-import { motion, AnimatePresence }     from 'framer-motion'
 import { useAuth }                     from '@hooks/useAuth'
 import { useToast }                    from '@hooks/useToast'
 import { useSocketContext }            from '@context/SocketContext'
@@ -23,6 +23,66 @@ import { getInitials, getAvatarColor } from '@utils/formatters'
 
 import NotificationPanel from '@components/notifications/NotificationPanel'
 import { NAV_ITEMS }     from '@utils/constants'
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATED HAMBURGER ICON
+   ═══════════════════════════════════════════════════════════════════════════ */
+function AnimatedHamburger({ isOpen, onClick, className }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={isOpen ? 'Close menu' : 'Open menu'}
+      aria-expanded={isOpen}
+      className={`relative w-10 h-10 flex items-center justify-center
+                  rounded-xl transition-all duration-300 ease-out
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500
+                  focus-visible:ring-offset-2 ${className || ''}`}
+      style={{
+        background: isOpen ? 'rgba(5, 150, 105, 0.1)' : 'transparent',
+        color:      isOpen ? '#059669'     : '#6b7280',
+      }}
+    >
+      <motion.svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        style={{ display: 'block' }}
+      >
+        {/* Top bar → becomes X top-left to bottom-right */}
+        <motion.path
+          d="M3 6h18"
+          initial={{ rotate: 0, y: 0 }}
+          animate={{
+            rotate: isOpen ? 135 : 0,
+            y: isOpen ? 5.5 : 0,
+          }}
+          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        />
+        {/* Middle bar → fades out */}
+        <motion.path
+          d="M3 12h18"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: isOpen ? 0 : 1 }}
+          transition={{ duration: 0.2 }}
+        />
+        {/* Bottom bar → becomes X bottom-left to top-right */}
+        <motion.path
+          d="M3 18h18"
+          initial={{ rotate: 0, y: 0 }}
+          animate={{
+            rotate: isOpen ? -135 : 0,
+            y: isOpen ? -5.5 : 0,
+          }}
+          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        />
+      </motion.svg>
+    </button>
+  )
+}
 
 /* ── Page title from pathname ── */
 const getPageTitle = (pathname) => {
@@ -122,7 +182,7 @@ function AdminMenu({ admin, onLogout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    HEADER COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
-export default function Header({ onMenuClick }) {
+export default function Header({ onMenuClick, isMobileOpen }) {
   const location    = useLocation()
   const dispatch    = useDispatch()
   const { admin, logout } = useAuth()
@@ -188,23 +248,12 @@ export default function Header({ onMenuClick }) {
       <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100
                          flex items-center gap-4 px-4 md:px-6 z-30 relative">
 
-        {/* Mobile menu button */}
-        <button
-          onClick={onMenuClick}
-          className="lg:hidden w-9 h-9 flex items-center justify-center
-                     rounded-xl transition-all duration-150"
-          style={{ color: '#6b7280' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f0fdf4'
-            e.currentTarget.style.color      = '#059669'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color      = '#6b7280'
-          }}
-        >
-          <Menu size={20} />
-        </button>
+         {/* Mobile menu button */}
+         <AnimatedHamburger
+           isOpen={isMobileOpen}
+           onClick={onMenuClick}
+           className="lg:hidden"
+         />
 
         {/* Page title */}
         <div className="flex-1 min-w-0">

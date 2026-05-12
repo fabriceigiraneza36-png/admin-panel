@@ -781,7 +781,7 @@ export default function Login() {
                             Tab
                         </kbd>
                         <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 500 }}>
-                            in the email field to autocomplete
+                            in the email field to autocomplete it.
                         </span>
                     </motion.div>
 
@@ -795,7 +795,7 @@ export default function Login() {
                         </p>
                         <p className="text-[11px] mt-1 leading-relaxed"
                             style={{ color: '#047857' }}>
-                            Use the credentials provided by your system administrator.
+                            Use credentials provided by your system administration.
                         </p>
                     </div>
 

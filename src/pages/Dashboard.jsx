@@ -27,7 +27,7 @@ const safeFetch = async (fn) => {
 
 export default function Dashboard() {
   const { admin }  = useAuth()
-  const toast      = useToast()
+  const { error: toastError } = useToast()  // Destructure to get stable reference
   const navigate   = useNavigate()
 
   const [loading,    setLoading]    = useState(true)
@@ -66,15 +66,22 @@ export default function Dashboard() {
       /* ── Helper to extract pagination total ── */
       const getTotal = (res) =>
         res?.data?.pagination?.total ??
+        res?.data?.pagination?.totalItems ??
         res?.data?.total             ??
         res?.data?.count             ??
         0
 
       /* ── Helper to extract data array ── */
       const getData = (res) =>
-        res?.data?.data       ??
-        res?.data?.bookings   ??
-        res?.data?.items      ??
+        res?.data?.data          ??
+        res?.data?.bookings      ??
+        res?.data?.countries     ??
+        res?.data?.destinations  ??
+        res?.data?.users         ??
+        res?.data?.posts         ??
+        res?.data?.subscribers   ??
+        res?.data?.messages      ??
+        res?.data?.items         ??
         []
 
       /* ── Booking stats (if endpoint exists) ── */
@@ -110,13 +117,22 @@ export default function Dashboard() {
     } catch (err) {
       const msg = getErrorMessage(err)
       setError(msg)
-      toast.error(`Dashboard error: ${msg}`)
+      toastError(`Dashboard error: ${msg}`)
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toastError])  // Now depends on stable toastError function
 
   useEffect(() => { load() }, [load])
+
+  /* ── Auto-refresh every 5 minutes ── */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      load()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(interval)
+  }, [load])
 
   /* ── Greeting ── */
   const greeting = () => {
