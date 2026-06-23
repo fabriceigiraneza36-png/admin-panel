@@ -1,36 +1,47 @@
 // admin/src/pages/Packages.jsx
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Package, Plus, Eye, Pencil, Trash2, RefreshCw,
   Globe2, EyeOff, Star, DollarSign, Calendar,
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, Clock, AlertCircle, Send, FileText,
-  Palette, ChevronDown, ChevronUp, Image,
+  Palette, ChevronDown, ChevronUp, Image, Search,
+  TrendingUp, BarChart3, ShoppingBag, Filter,
 } from 'lucide-react'
 
+// ── API — both named exports come from the same file ─────────────────────────
 import { packagesAPI, getErrorMessage } from '@api/packages'
+
+// ── Admin common components ───────────────────────────────────────────────────
 import Table, { TableActions, TableAction } from '@components/common/Table'
-import Pagination                         from '@components/common/Pagination'
+import Pagination                           from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
 import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
-import Badge                              from '@components/common/Badge'
-import Avatar                             from '@components/common/Avatar'
-import ConfirmDialog                      from '@components/common/ConfirmDialog'
-import ImageUpload                        from '@components/common/ImageUpload'
-import TagInput                           from '@components/common/TagInput'
-import { useModal }                       from '@hooks/useModal'
-import { useToast }                       from '@hooks/useToast'
-import { usePagination }                  from '@hooks/usePagination'
-import { useDebounce }                    from '@hooks/useDebounce'
-import { formatNumber, formatTimeAgo }    from '@utils/formatters'
+import Badge                                from '@components/common/Badge'
+import Avatar                               from '@components/common/Avatar'
+import ConfirmDialog                        from '@components/common/ConfirmDialog'
+import ImageUpload                          from '@components/common/ImageUpload'
+import TagInput                             from '@components/common/TagInput'
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+import { useModal }      from '@hooks/useModal'
+import { useToast }      from '@hooks/useToast'
+import { usePagination } from '@hooks/usePagination'
+import { useDebounce }   from '@hooks/useDebounce'
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+import { formatNumber, formatTimeAgo, formatDate } from '@utils/formatters'
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════════════════════
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'KES', 'TZS', 'UGX']
 
 const CATEGORIES = [
-  'Safari', 'Beach & Coastal', 'Mountain & Trekking', 'Cultural & Heritage',
-  'Wildlife', 'Adventure', 'Honeymoon', 'Family', 'Photography', 'Budget',
+  'Safari', 'Beach & Coastal', 'Mountain & Trekking',
+  'Cultural & Heritage', 'Wildlife', 'Adventure',
+  'Honeymoon', 'Family', 'Photography', 'Budget',
 ]
 
 const CARD_THEMES = [
@@ -63,7 +74,9 @@ const INFO_FIELD_TYPES = [
   { value: 'file',     label: 'File Upload'   },
 ]
 
-const BOOKING_STATUSES = ['pending', 'needs_info', 'confirmed', 'cancelled', 'completed']
+const BOOKING_STATUSES = [
+  'pending', 'needs_info', 'confirmed', 'cancelled', 'completed',
+]
 
 const INFO_REQUEST_THEMES = [
   { value: 'default', label: 'Default'      },
@@ -73,39 +86,41 @@ const INFO_REQUEST_THEMES = [
   { value: 'sunset',  label: 'Warm Sunset'  },
 ]
 
-// ── Initial form states ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// INITIAL FORM STATES
+// ══════════════════════════════════════════════════════════════════════════════
 
 const INIT_PACKAGE = {
   title: '', slug: '', short_description: '', description: '', content: '',
   category: '', destination: '', country: '',
   price: '', price_label: 'per person', currency: 'USD',
   pricing_tiers: [], discount_percent: 0, is_price_visible: true,
-  duration_days: '', duration_nights: '', max_travelers: '', min_travelers: 1,
-  group_size_label: '',
+  duration_days: '', duration_nights: '',
+  max_travelers: '', min_travelers: 1, group_size_label: '',
   images: [], cover_image_url: '', thumbnail_url: '', video_url: '',
-  gallery: [],
-  features: [], inclusions: [], exclusions: [], highlights: [],
-  itinerary: [], faqs: [], tags: [],
+  gallery: [], features: [], inclusions: [], exclusions: [],
+  highlights: [], itinerary: [], faqs: [], tags: [],
   available_months: [], departure_dates: [], availability_note: '',
   is_published: false, is_featured: false, is_sold_out: false,
   badge_label: '', badge_color: '#047857',
   meta_title: '', meta_description: '',
-  card_theme: 'default', accent_color: '#047857', card_bg_image: '',
-  sort_order: 0,
+  card_theme: 'default', accent_color: '#047857',
+  card_bg_image: '', sort_order: 0,
 }
 
 const INIT_INFO_REQUEST = {
-  title: '', description: '',
-  fields: [],
+  title: '', description: '', fields: [],
   theme: 'default', accent_color: '#047857',
   header_image: '', custom_css: '',
   user_id: '', target_email: '', target_name: '',
   booking_id: '', expires_hours: 72,
 }
 
-// ── Helper: parse JSON fields safely ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
 
-const parseJsonField = (val, fallback = []) => {
+const parseJson = (val, fallback = []) => {
   if (!val) return fallback
   if (Array.isArray(val)) return val
   if (typeof val === 'string') {
@@ -114,17 +129,71 @@ const parseJsonField = (val, fallback = []) => {
   return fallback
 }
 
-// ── Status icon helper ────────────────────────────────────────────────────────
+const fmtPrice = (price, currency = 'USD') => {
+  if (!price && price !== 0) return '—'
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency', currency, maximumFractionDigits: 0,
+    }).format(price)
+  } catch {
+    return `${currency} ${Number(price).toLocaleString()}`
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Status icon ───────────────────────────────────────────────────────────────
 
 function StatusIcon({ status, size = 14 }) {
-  const map = {
-    pending:    <Clock       size={size} className="text-amber-500"   />,
-    confirmed:  <CheckCircle size={size} className="text-emerald-500" />,
-    cancelled:  <XCircle     size={size} className="text-red-500"     />,
-    completed:  <CheckCircle size={size} className="text-blue-500"    />,
-    needs_info: <AlertCircle size={size} className="text-orange-500"  />,
+  const cfg = {
+    pending:    { icon: Clock,        cls: 'text-amber-500'   },
+    confirmed:  { icon: CheckCircle,  cls: 'text-emerald-500' },
+    cancelled:  { icon: XCircle,      cls: 'text-red-500'     },
+    completed:  { icon: CheckCircle,  cls: 'text-blue-500'    },
+    needs_info: { icon: AlertCircle,  cls: 'text-orange-500'  },
   }
-  return map[status] || null
+  const c = cfg[status]
+  if (!c) return null
+  const Icon = c.icon
+  return <Icon size={size} className={c.cls} />
+}
+
+// ── Accordion section ─────────────────────────────────────────────────────────
+
+function Section({ id, title, icon: SectionIcon, open, onToggle, children }) {
+  return (
+    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center justify-between px-5 py-4
+          bg-gradient-to-r from-slate-50 to-white hover:from-slate-100
+          transition-colors group"
+      >
+        <span className="flex items-center gap-2.5 font-semibold text-slate-700
+          group-hover:text-slate-900 text-sm">
+          {SectionIcon && (
+            <span className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-100
+              flex items-center justify-center shrink-0">
+              <SectionIcon size={14} className="text-emerald-600" />
+            </span>
+          )}
+          {title}
+        </span>
+        {open
+          ? <ChevronUp  size={16} className="text-slate-400" />
+          : <ChevronDown size={16} className="text-slate-400" />
+        }
+      </button>
+      {open && (
+        <div className="p-5 space-y-4 border-t border-slate-100">
+          {children}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── JsonListEditor ────────────────────────────────────────────────────────────
@@ -149,21 +218,22 @@ function JsonListEditor({ label, value = [], onChange, placeholder = 'Add item�
           placeholder={placeholder}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
         />
-        <button type="button" onClick={add} className="btn-primary btn-sm px-3">
+        <button type="button" onClick={add}
+          className="btn-primary btn-sm px-3 shrink-0">
           <Plus size={14} />
         </button>
       </div>
       {value.length > 0 && (
-        <div className="space-y-1 max-h-32 overflow-y-auto">
+        <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-xl
+          border border-slate-100 p-2 bg-slate-50">
           {value.map((item, i) => (
             <div key={i}
-              className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5">
-              <span className="flex-1 text-sm text-slate-700">{item}</span>
-              <button
-                type="button"
+              className="flex items-center gap-2 bg-white rounded-lg
+                px-3 py-2 border border-slate-100 shadow-sm">
+              <span className="flex-1 text-sm text-slate-700 truncate">{item}</span>
+              <button type="button"
                 onClick={() => onChange(value.filter((_, j) => j !== i))}
-                className="text-slate-400 hover:text-red-500 transition-colors"
-              >
+                className="text-slate-300 hover:text-red-500 transition-colors shrink-0">
                 <XCircle size={14} />
               </button>
             </div>
@@ -179,7 +249,7 @@ function JsonListEditor({ label, value = [], onChange, placeholder = 'Add item�
 function ItineraryEditor({ value = [], onChange }) {
   const add    = () => onChange([...value, { day: value.length + 1, title: '', description: '' }])
   const upd    = (i, k, v) => onChange(value.map((d, j) => j === i ? { ...d, [k]: v } : d))
-  const remove = (i)       => onChange(value.filter((_, j) => j !== i))
+  const remove = (i) => onChange(value.filter((_, j) => j !== i))
 
   return (
     <div className="input-group">
@@ -189,12 +259,13 @@ function ItineraryEditor({ value = [], onChange }) {
           <Plus size={13} /> Add Day
         </button>
       </div>
-      <div className="space-y-3 max-h-64 overflow-y-auto">
+      <div className="space-y-3 max-h-72 overflow-y-auto">
         {value.map((day, i) => (
-          <div key={i} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+          <div key={i}
+            className="border border-slate-200 rounded-xl p-3 bg-slate-50">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50
-                px-2 py-1 rounded-lg shrink-0">
+              <span className="text-xs font-bold text-emerald-700
+                bg-emerald-100 px-2.5 py-1 rounded-lg shrink-0">
                 Day {day.day || i + 1}
               </span>
               <input
@@ -204,7 +275,7 @@ function ItineraryEditor({ value = [], onChange }) {
                 onChange={e => upd(i, 'title', e.target.value)}
               />
               <button type="button" onClick={() => remove(i)}
-                className="text-slate-400 hover:text-red-500 shrink-0 transition-colors">
+                className="text-slate-400 hover:text-red-500 transition-colors shrink-0">
                 <XCircle size={14} />
               </button>
             </div>
@@ -217,9 +288,13 @@ function ItineraryEditor({ value = [], onChange }) {
           </div>
         ))}
         {!value.length && (
-          <p className="text-center text-slate-400 text-sm py-4">
-            No itinerary days yet. Click "Add Day" to start.
-          </p>
+          <div className="text-center py-6 border-2 border-dashed
+            border-slate-200 rounded-xl">
+            <Calendar size={20} className="text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">
+              No itinerary days. Click "Add Day" to start.
+            </p>
+          </div>
         )}
       </div>
     </div>
@@ -231,7 +306,7 @@ function ItineraryEditor({ value = [], onChange }) {
 function PricingTierEditor({ value = [], onChange, currency = 'USD' }) {
   const add    = () => onChange([...value, { label: '', price: '', description: '' }])
   const upd    = (i, k, v) => onChange(value.map((t, j) => j === i ? { ...t, [k]: v } : t))
-  const remove = (i)       => onChange(value.filter((_, j) => j !== i))
+  const remove = (i) => onChange(value.filter((_, j) => j !== i))
 
   return (
     <div className="input-group">
@@ -244,34 +319,22 @@ function PricingTierEditor({ value = [], onChange, currency = 'USD' }) {
       <div className="space-y-2">
         {value.map((tier, i) => (
           <div key={i}
-            className="grid grid-cols-3 gap-2 items-start border border-slate-200
-              rounded-xl p-3 bg-slate-50">
-            <input
-              className="input text-sm"
-              placeholder="Label (e.g. Budget)"
-              value={tier.label}
-              onChange={e => upd(i, 'label', e.target.value)}
-            />
+            className="grid grid-cols-3 gap-2 items-center border
+              border-slate-200 rounded-xl p-3 bg-slate-50">
+            <input className="input text-sm" placeholder="Label (e.g. Budget)"
+              value={tier.label} onChange={e => upd(i, 'label', e.target.value)} />
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2
                 text-slate-400 text-xs font-bold pointer-events-none">
                 {currency}
               </span>
-              <input
-                className="input text-sm pl-10"
-                type="number"
-                placeholder="0"
-                value={tier.price}
-                onChange={e => upd(i, 'price', e.target.value)}
-              />
+              <input className="input text-sm pl-10" type="number" placeholder="0"
+                value={tier.price} onChange={e => upd(i, 'price', e.target.value)} />
             </div>
             <div className="flex gap-1">
-              <input
-                className="input text-sm flex-1"
-                placeholder="Description"
+              <input className="input text-sm flex-1" placeholder="Description"
                 value={tier.description}
-                onChange={e => upd(i, 'description', e.target.value)}
-              />
+                onChange={e => upd(i, 'description', e.target.value)} />
               <button type="button" onClick={() => remove(i)}
                 className="text-slate-400 hover:text-red-500 shrink-0 transition-colors">
                 <XCircle size={14} />
@@ -280,8 +343,8 @@ function PricingTierEditor({ value = [], onChange, currency = 'USD' }) {
           </div>
         ))}
         {!value.length && (
-          <p className="text-xs text-slate-400 italic">
-            No pricing tiers. The base price above will be used.
+          <p className="text-xs text-slate-400 italic px-1">
+            No tiers — the base price above will be used.
           </p>
         )}
       </div>
@@ -292,44 +355,43 @@ function PricingTierEditor({ value = [], onChange, currency = 'USD' }) {
 // ── InfoFieldBuilder ──────────────────────────────────────────────────────────
 
 function InfoFieldBuilder({ value = [], onChange }) {
-  const add = () =>
-    onChange([...value, {
-      id: `field_${Date.now()}`, label: '', type: 'text',
-      required: false, placeholder: '', options: [],
-    }])
+  const add = () => onChange([...value, {
+    id: `field_${Date.now()}`, label: '', type: 'text',
+    required: false, placeholder: '', options: [],
+  }])
   const upd    = (i, k, v) => onChange(value.map((f, j) => j === i ? { ...f, [k]: v } : f))
-  const remove = (i)       => onChange(value.filter((_, j) => j !== i))
+  const remove = (i) => onChange(value.filter((_, j) => j !== i))
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <label className="input-label mb-0 font-semibold">Form Fields *</label>
+        <label className="input-label mb-0 font-semibold">
+          Form Fields *
+        </label>
         <button type="button" onClick={add} className="btn-primary btn-sm">
           <Plus size={13} /> Add Field
         </button>
       </div>
-      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+      <div className="space-y-3 max-h-80 overflow-y-auto pr-0.5">
         {value.map((field, i) => (
           <div key={field.id || i}
             className="border border-slate-200 rounded-xl p-3
-              bg-gradient-to-r from-slate-50 to-white">
+              bg-gradient-to-br from-slate-50 to-white">
             <div className="grid grid-cols-2 gap-2 mb-2">
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Label *</label>
-                <input
-                  className="input text-sm"
-                  placeholder="Field label"
+                <label className="text-xs text-slate-500 mb-1 block font-medium">
+                  Label *
+                </label>
+                <input className="input text-sm" placeholder="Field label"
                   value={field.label}
-                  onChange={e => upd(i, 'label', e.target.value)}
-                />
+                  onChange={e => upd(i, 'label', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">Type</label>
-                <select
-                  className="input text-sm"
-                  value={field.type}
-                  onChange={e => upd(i, 'type', e.target.value)}
-                >
+                <label className="text-xs text-slate-500 mb-1 block font-medium">
+                  Type
+                </label>
+                <select className="input text-sm" value={field.type}
+                  onChange={e => upd(i, 'type', e.target.value)}>
                   {INFO_FIELD_TYPES.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
@@ -337,52 +399,45 @@ function InfoFieldBuilder({ value = [], onChange }) {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <input
-                className="input text-sm"
-                placeholder="Placeholder text"
+              <input className="input text-sm" placeholder="Placeholder text"
                 value={field.placeholder}
-                onChange={e => upd(i, 'placeholder', e.target.value)}
-              />
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={field.required}
+                onChange={e => upd(i, 'placeholder', e.target.value)} />
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer
+                  text-sm text-slate-600">
+                  <input type="checkbox" checked={field.required}
                     onChange={e => upd(i, 'required', e.target.checked)}
-                    className="w-4 h-4 rounded text-primary-600"
-                  />
+                    className="w-4 h-4 rounded text-primary-600" />
                   Required
                 </label>
                 <button type="button" onClick={() => remove(i)}
-                  className="ml-auto text-slate-400 hover:text-red-500 transition-colors">
+                  className="text-slate-400 hover:text-red-500 transition-colors">
                   <Trash2 size={14} />
                 </button>
               </div>
             </div>
             {['select', 'radio'].includes(field.type) && (
               <div>
-                <label className="text-xs text-slate-500 mb-1 block">
+                <label className="text-xs text-slate-500 mb-1 block font-medium">
                   Options (comma-separated)
                 </label>
-                <input
-                  className="input text-sm"
+                <input className="input text-sm"
                   placeholder="Option 1, Option 2, Option 3"
                   value={(field.options || []).join(', ')}
                   onChange={e =>
                     upd(i, 'options',
                       e.target.value.split(',').map(o => o.trim()).filter(Boolean))
-                  }
-                />
+                  } />
               </div>
             )}
           </div>
         ))}
         {!value.length && (
-          <div className="text-center py-6 border-2 border-dashed
-            border-slate-200 rounded-xl">
-            <FileText size={24} className="text-slate-300 mx-auto mb-2" />
+          <div className="text-center py-8 border-2 border-dashed
+            border-slate-200 rounded-xl bg-slate-50">
+            <FileText size={28} className="text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">
-              No fields yet. Click "Add Field" above.
+              No fields yet. Click "Add Field" to begin.
             </p>
           </div>
         )}
@@ -396,8 +451,17 @@ function InfoFieldBuilder({ value = [], onChange }) {
 function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
   const [expanded, setExpanded] = useState(false)
 
+  const statusColors = {
+    pending:    'bg-amber-50 border-amber-200 text-amber-700',
+    confirmed:  'bg-emerald-50 border-emerald-200 text-emerald-700',
+    cancelled:  'bg-red-50 border-red-200 text-red-700',
+    completed:  'bg-blue-50 border-blue-200 text-blue-700',
+    needs_info: 'bg-orange-50 border-orange-200 text-orange-700',
+  }
+
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
+    <div className="border border-slate-200 rounded-xl overflow-hidden
+      hover:border-slate-300 transition-colors">
       <div
         className="flex items-center gap-3 p-3 cursor-pointer
           hover:bg-slate-50 transition-colors"
@@ -408,119 +472,157 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
           <p className="font-semibold text-slate-800 text-sm truncate">
             {booking.guest_name || booking.user_full_name || '—'}
           </p>
-          <p className="text-xs text-slate-400">{booking.guest_email || '—'}</p>
+          <p className="text-xs text-slate-400 truncate">
+            {booking.guest_email || '—'}
+          </p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-emerald-600">
-            {booking.currency || 'USD'} {formatNumber(booking.total_price || 0)}
+            {fmtPrice(booking.total_price, booking.currency)}
           </p>
           <p className="text-xs text-slate-400">{booking.booking_ref || '—'}</p>
         </div>
-        <Badge status={booking.status} label={booking.status} />
-        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border
+          capitalize shrink-0 ${statusColors[booking.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+          {booking.status}
+        </span>
+        {expanded
+          ? <ChevronUp size={14} className="text-slate-400 shrink-0" />
+          : <ChevronDown size={14} className="text-slate-400 shrink-0" />
+        }
       </div>
 
       {expanded && (
-        <div className="border-t border-slate-100 p-3 bg-slate-50 space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="text-slate-400">Travel Date: </span>
-              <span className="font-medium">{booking.travel_date || '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400">Travelers: </span>
-              <span className="font-medium">
-                {booking.travelers_count || booking.adults || '—'}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-400">Phone: </span>
-              <span className="font-medium">{booking.guest_phone || '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400">Priority: </span>
-              <span className="font-medium capitalize">
-                {booking.priority || 'normal'}
-              </span>
-            </div>
+        <div className="border-t border-slate-100 p-4 bg-slate-50 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Travel Date', value: booking.travel_date   || '—' },
+              { label: 'Travelers',   value: booking.travelers_count || booking.adults || '—' },
+              { label: 'Phone',       value: booking.guest_phone   || '—' },
+              { label: 'Priority',    value: booking.priority      || 'normal' },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-white rounded-lg p-2.5 border border-slate-100">
+                <p className="text-xs text-slate-400 mb-0.5">{label}</p>
+                <p className="text-sm font-semibold text-slate-700 capitalize">{value}</p>
+              </div>
+            ))}
           </div>
 
           {booking.special_requests && (
-            <div className="text-sm">
-              <span className="text-slate-400">Requests: </span>
-              <p className="text-slate-600 mt-0.5">{booking.special_requests}</p>
+            <div className="bg-white rounded-lg p-3 border border-slate-100">
+              <p className="text-xs text-slate-400 mb-1">Special Requests</p>
+              <p className="text-sm text-slate-600">{booking.special_requests}</p>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {booking.status === 'pending' && (
-              <button
-                onClick={() => onConfirm(booking)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold
-                  bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
-              >
-                <CheckCircle size={12} /> Confirm
+              <button onClick={() => onConfirm(booking)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold
+                  bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl
+                  transition-colors shadow-sm">
+                <CheckCircle size={13} /> Confirm Booking
               </button>
             )}
             {['pending', 'needs_info', 'confirmed'].includes(booking.status) && (
-              <button
-                onClick={() => onCancel(booking)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold
-                  bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-              >
-                <XCircle size={12} /> Cancel
+              <button onClick={() => onCancel(booking)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold
+                  bg-red-500 hover:bg-red-600 text-white rounded-xl
+                  transition-colors shadow-sm">
+                <XCircle size={13} /> Cancel
               </button>
             )}
-            <button
-              onClick={() => onInfoRequest(booking)}
-              className="btn-secondary btn-sm text-xs flex items-center gap-1"
-            >
-              <FileText size={12} /> Request Info
+            <button onClick={() => onInfoRequest(booking)}
+              className="btn-secondary btn-sm text-xs flex items-center gap-1.5">
+              <FileText size={13} /> Request Info
             </button>
-            <select
-              className="text-xs border border-slate-200 rounded-lg
-                px-2 py-1.5 bg-white cursor-pointer"
-              value={booking.status}
-              onChange={e => onUpdate(booking, { status: e.target.value })}
-            >
-              {BOOKING_STATUSES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <div className="ml-auto">
+              <select
+                className="text-xs border border-slate-200 rounded-xl
+                  px-3 py-2 bg-white cursor-pointer font-medium
+                  focus:ring-2 focus:ring-primary-300 outline-none"
+                value={booking.status}
+                onChange={e => onUpdate(booking, { status: e.target.value })}
+              >
+                {BOOKING_STATUSES.map(s => (
+                  <option key={s} value={s} className="capitalize">{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-// ── Section accordion ─────────────────────────────────────────────────────────
-
-function Section({ id, title, icon: SectionIcon, children, openSections, onToggle }) {
-  const isOpen = openSections[id]
-  return (
-    <div className="border border-slate-200 rounded-2xl overflow-hidden">
-      <button
-        type="button"
-        onClick={() => onToggle(id)}
-        className="w-full flex items-center justify-between px-5 py-3.5
-          bg-slate-50 hover:bg-slate-100 transition-colors"
-      >
-        <span className="flex items-center gap-2 font-semibold text-slate-700">
-          {SectionIcon && <SectionIcon size={16} className="text-emerald-600" />}
-          {title}
-        </span>
-        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-      {isOpen && (
-        <div className="p-5 space-y-4">{children}</div>
       )}
     </div>
   )
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
+// STATS BAR
+// ══════════════════════════════════════════════════════════════════════════════
+
+function StatsBar({ stats }) {
+  if (!stats) return null
+  const items = [
+    {
+      label: 'Total',
+      value: stats.packages?.total || 0,
+      icon: Package,
+      color: 'text-slate-600',
+      bg:    'bg-slate-100',
+    },
+    {
+      label: 'Published',
+      value: stats.packages?.published || 0,
+      icon: Globe2,
+      color: 'text-emerald-600',
+      bg:    'bg-emerald-100',
+    },
+    {
+      label: 'Bookings',
+      value: stats.bookings?.total || 0,
+      icon: BookOpen,
+      color: 'text-blue-600',
+      bg:    'bg-blue-100',
+    },
+    {
+      label: 'Pending',
+      value: stats.bookings?.pending || 0,
+      icon: Clock,
+      color: 'text-amber-600',
+      bg:    'bg-amber-100',
+    },
+    {
+      label: 'Unread Msgs',
+      value: stats.messages?.unread || 0,
+      icon: MessageSquare,
+      color: 'text-purple-600',
+      bg:    'bg-purple-100',
+    },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {items.map(({ label, value, icon: Icon, color, bg }) => (
+        <div key={label}
+          className="card p-4 flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl ${bg} flex items-center
+            justify-center shrink-0`}>
+            <Icon size={16} className={color} />
+          </div>
+          <div>
+            <p className="text-xl font-black text-slate-800">
+              {formatNumber(value)}
+            </p>
+            <p className="text-xs text-slate-400 font-medium">{label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN PAGE COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function Packages() {
@@ -532,22 +634,24 @@ export default function Packages() {
   const replyModal  = useModal()
   const infoModal   = useModal()
 
-  // ── List state ─────────────────────────────────────────────────────────────
+  // ── State ──────────────────────────────────────────────────────────────────
   const [items,     setItems]     = useState([])
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
+  const [stats,     setStats]     = useState(null)
   const [search,    setSearch]    = useState('')
   const [pubFilter, setPub]       = useState('')
   const [catFilter, setCat]       = useState('')
   const [sortBy,    setSortBy]    = useState('created_at')
   const [sortOrder, setSortOrder] = useState('desc')
+  const [form,      setForm]      = useState(INIT_PACKAGE)
+  const [editing,   setEditing]   = useState(null)
+  const [openSecs,  setOpenSecs]  = useState({
+    basic: true, pricing: true, duration: false,
+    media: false, pkgdetails: false, design: false, seo: false,
+  })
 
-  // ── Form state ─────────────────────────────────────────────────────────────
-  const [form,    setForm]    = useState(INIT_PACKAGE)
-  const [editing, setEditing] = useState(null)
-  const [openSections, setOpenSections] = useState({ basic: true, pricing: true })
-
-  // ── Detail tabs ────────────────────────────────────────────────────────────
+  // ── Detail tab state ───────────────────────────────────────────────────────
   const [activeTab,   setActiveTab]   = useState('details')
   const [pkgMessages, setPkgMessages] = useState([])
   const [pkgBookings, setPkgBookings] = useState([])
@@ -575,11 +679,10 @@ export default function Packages() {
         limit: pag.limit,
         sortBy,
         order: sortOrder,
-        ...(dSearch    && { search:    dSearch }),
-        ...(pubFilter  && { published: pubFilter }),
-        ...(catFilter  && { category:  catFilter }),
+        ...(dSearch   && { search:    dSearch   }),
+        ...(pubFilter && { published: pubFilter }),
+        ...(catFilter && { category:  catFilter }),
       }
-      // axios returns { data: responseBody } — responseBody has { data: rows, pagination }
       const res  = await packagesAPI.getAll(params)
       const body = res.data
       setItems(body.data || body.packages || [])
@@ -591,9 +694,21 @@ export default function Packages() {
     }
   }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, pubFilter, catFilter]) // eslint-disable-line
 
-  useEffect(() => { load() }, [load])
+  // ── Load stats ─────────────────────────────────────────────────────────────
 
-  // ── Sub-data loader ────────────────────────────────────────────────────────
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await packagesAPI.getStats()
+      setStats(res.data)
+    } catch {
+      // Stats are non-critical — fail silently
+    }
+  }, [])
+
+  useEffect(() => { load() },      [load])
+  useEffect(() => { loadStats() }, [loadStats])
+
+  // ── Load sub-data ──────────────────────────────────────────────────────────
 
   const loadSubData = useCallback(async (pkg, tab) => {
     if (!pkg?.id) return
@@ -631,15 +746,19 @@ export default function Packages() {
     loadSubData(viewModal.data, tab)
   }, [viewModal.data, loadSubData])
 
-  // ── Form helpers ───────────────────────────────────────────────────────────
+  // ── Form ───────────────────────────────────────────────────────────────────
 
-  const toggleSection = useCallback((k) =>
-    setOpenSections(p => ({ ...p, [k]: !p[k] })), [])
+  const toggleSec = useCallback((k) =>
+    setOpenSecs(p => ({ ...p, [k]: !p[k] })), [])
+
+  const upd = useCallback((k, v) =>
+    setForm(p => ({ ...p, [k]: v })), [])
 
   const openCreate = useCallback(() => {
     setForm(INIT_PACKAGE)
     setEditing(null)
-    setOpenSections({ basic: true, pricing: true })
+    setOpenSecs({ basic: true, pricing: true, duration: false,
+      media: false, pkgdetails: false, design: false, seo: false })
     formModal.open()
   }, [formModal])
 
@@ -648,21 +767,18 @@ export default function Packages() {
     Object.keys(f).forEach(k => {
       if (p[k] !== undefined && p[k] !== null) f[k] = p[k]
     })
-    // Parse JSON string fields
-    const jsonFields = [
+    const jsonKeys = [
       'pricing_tiers', 'images', 'gallery', 'features', 'inclusions',
       'exclusions', 'highlights', 'itinerary', 'faqs',
       'available_months', 'departure_dates',
     ]
-    jsonFields.forEach(k => { f[k] = parseJsonField(f[k]) })
+    jsonKeys.forEach(k => { f[k] = parseJson(f[k]) })
     setForm(f)
     setEditing(p)
-    setOpenSections({ basic: true, pricing: true })
+    setOpenSecs({ basic: true, pricing: true, duration: false,
+      media: false, pkgdetails: false, design: false, seo: false })
     formModal.open()
   }, [formModal])
-
-  const upd = useCallback((k, v) =>
-    setForm(p => ({ ...p, [k]: v })), [])
 
   // ── Save ───────────────────────────────────────────────────────────────────
 
@@ -678,13 +794,14 @@ export default function Packages() {
       }
       if (editing) {
         await packagesAPI.update(editing.id, payload)
-        toast.success('Package updated')
+        toast.success('Package updated successfully')
       } else {
         await packagesAPI.create(payload)
-        toast.success('Package created')
+        toast.success('Package created successfully')
       }
       formModal.close()
       load()
+      loadStats()
     } catch (e) {
       toast.error(getErrorMessage(e))
     } finally {
@@ -704,7 +821,7 @@ export default function Packages() {
         toast.success('Package published')
       }
       load()
-      // Update view modal if open for same package
+      loadStats()
       if (viewModal.isOpen && viewModal.data?.id === pkg.id) {
         viewModal.open({ ...viewModal.data, is_published: !pkg.is_published })
       }
@@ -722,6 +839,7 @@ export default function Packages() {
       deleteModal.close()
       if (viewModal.isOpen) viewModal.close()
       load()
+      loadStats()
     } catch (e) {
       toast.error(getErrorMessage(e))
     }
@@ -737,7 +855,7 @@ export default function Packages() {
   }, [replyModal, viewModal.data])
 
   const handleSendReply = async () => {
-    if (!replyBody.trim()) { toast.error('Message required'); return }
+    if (!replyBody.trim()) { toast.error('Message is required'); return }
     setReplySending(true)
     try {
       await packagesAPI.adminReply(viewModal.data.id, {
@@ -746,7 +864,7 @@ export default function Packages() {
         parent_id:      replyTarget?.parent_id || null,
         target_user_id: replyTarget?.user_id   || null,
       })
-      toast.success('Reply sent')
+      toast.success('Reply sent successfully')
       replyModal.close()
       setReplyBody('')
       loadSubData(viewModal.data, 'messages')
@@ -801,8 +919,8 @@ export default function Packages() {
     setInfoForm(p => ({ ...p, [k]: v })), [])
 
   const handleSendInfoRequest = async () => {
-    if (!infoForm.title?.trim())   { toast.error('Title required');              return }
-    if (!infoForm.fields?.length)  { toast.error('Add at least one field');      return }
+    if (!infoForm.title?.trim())  { toast.error('Title is required'); return }
+    if (!infoForm.fields?.length) { toast.error('Add at least one field'); return }
     setSaving(true)
     try {
       await packagesAPI.createInfoRequest(infoModal.data.id, infoForm)
@@ -819,14 +937,12 @@ export default function Packages() {
   // ── Sort ───────────────────────────────────────────────────────────────────
 
   const handleSort = useCallback((k, o) => {
-    setSortBy(k)
-    setSortOrder(o)
-    pag.reset()
+    setSortBy(k); setSortOrder(o); pag.reset()
   }, [pag])
 
   // ── Table columns ──────────────────────────────────────────────────────────
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       key: 'title', label: 'Package', sortable: true,
       render: (_, r) => (
@@ -838,7 +954,7 @@ export default function Packages() {
             rounded="lg"
           />
           <div>
-            <p className="font-semibold text-slate-800 max-w-[180px] truncate">
+            <p className="font-semibold text-slate-800 max-w-[200px] truncate">
               {r.title}
             </p>
             <p className="text-xs text-slate-400">
@@ -852,17 +968,21 @@ export default function Packages() {
       key: 'price', label: 'Price', sortable: true, align: 'right',
       render: (v, r) => (
         <div className="text-right">
-          <p className="font-bold text-emerald-700">
-            {r.currency} {formatNumber(v || 0)}
+          <p className="font-bold text-emerald-700 text-sm">
+            {fmtPrice(v, r.currency)}
           </p>
-          <p className="text-xs text-slate-400">{r.price_label}</p>
+          <p className="text-xs text-slate-400">{r.price_label || 'per person'}</p>
         </div>
       ),
     },
     {
       key: 'duration_days', label: 'Duration',
       render: (v, r) =>
-        v ? `${v}D / ${r.duration_nights ?? Math.max(0, v - 1)}N` : '—',
+        v ? (
+          <span className="text-sm text-slate-600">
+            {v}D / {r.duration_nights ?? Math.max(0, v - 1)}N
+          </span>
+        ) : '—',
     },
     {
       key: 'is_published', label: 'Status',
@@ -877,228 +997,250 @@ export default function Packages() {
       key: 'is_featured', label: 'Featured', align: 'center',
       render: (v) => v
         ? <Star size={15} className="text-amber-500 fill-amber-500 mx-auto" />
-        : <span className="text-slate-300">—</span>,
+        : <span className="text-slate-200 text-lg mx-auto block text-center">—</span>,
     },
     {
       key: 'booking_count', label: 'Bookings', align: 'right', sortable: true,
       render: (v) => (
-        <span className="inline-flex items-center gap-1 text-slate-600">
-          <BookOpen size={12} /> {formatNumber(v || 0)}
+        <span className="inline-flex items-center gap-1 text-slate-600 text-sm">
+          <BookOpen size={12} className="text-blue-400" />
+          {formatNumber(v || 0)}
         </span>
       ),
     },
     {
       key: 'inquiry_count', label: 'Inquiries', align: 'right',
       render: (v) => (
-        <span className="inline-flex items-center gap-1 text-slate-600">
-          <MessageSquare size={12} /> {formatNumber(v || 0)}
+        <span className="inline-flex items-center gap-1 text-slate-600 text-sm">
+          <MessageSquare size={12} className="text-purple-400" />
+          {formatNumber(v || 0)}
         </span>
       ),
     },
     {
       key: 'created_at', label: 'Created', sortable: true,
-      render: (v) => formatTimeAgo(v),
+      render: (v) => (
+        <span className="text-sm text-slate-500">{formatTimeAgo(v)}</span>
+      ),
     },
     {
       key: 'actions', label: '', align: 'right', width: '160px',
       render: (_, r) => (
         <TableActions>
-          <TableAction icon={Eye}    label="View"   onClick={() => openView(r)} />
+          <TableAction
+            icon={Eye} label="View"
+            onClick={() => openView(r)}
+          />
           <TableAction
             icon={r.is_published ? EyeOff : Globe2}
             label={r.is_published ? 'Unpublish' : 'Publish'}
             onClick={() => handleTogglePublish(r)}
             variant={r.is_published ? 'warning' : 'success'}
           />
-          <TableAction icon={Pencil} label="Edit"   onClick={() => openEdit(r)} />
           <TableAction
-            icon={Trash2}
-            label="Delete"
+            icon={Pencil} label="Edit"
+            onClick={() => openEdit(r)}
+          />
+          <TableAction
+            icon={Trash2} label="Delete"
             onClick={() => deleteModal.open(r)}
             variant="danger"
           />
         </TableActions>
       ),
     },
-  ]
+  ], [openView, openEdit, deleteModal]) // eslint-disable-line
 
-  // ── Sub-components (defined inside to access state) ────────────────────────
+  // ── Tab content components ─────────────────────────────────────────────────
+
+  const SubLoader = () => (
+    <div className="flex justify-center py-12">
+      <div className="w-7 h-7 border-2 border-emerald-500
+        border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  const EmptyTab = ({ message }) => (
+    <div className="text-center py-12 text-slate-400">
+      <Package size={32} className="mx-auto mb-3 text-slate-200" />
+      <p className="text-sm">{message}</p>
+    </div>
+  )
 
   const TabMessages = () => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-slate-700">
+        <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+          <MessageSquare size={16} className="text-purple-500" />
           Messages ({pkgMessages.length})
         </h4>
         <button onClick={() => openReply()} className="btn-primary btn-sm">
-          <Send size={13} /> Reply All
+          <Send size={13} /> Send Reply
         </button>
       </div>
-
-      {subLoading && (
-        <div className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-emerald-500
-            border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {!subLoading && !pkgMessages.length && (
-        <div className="text-center py-8 text-slate-400 text-sm">
-          No messages yet for this package.
-        </div>
-      )}
-
-      <div className="space-y-2 max-h-[400px] overflow-y-auto">
-        {pkgMessages.map(msg => (
-          <div key={msg.id}
-            className={`rounded-xl p-3 border ${
-              msg.sender_type === 'admin'
-                ? 'bg-emerald-50 border-emerald-100 ml-8'
-                : 'bg-white border-slate-200'
-            }`}>
-            <div className="flex items-start gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center
-                text-xs font-bold shrink-0 ${
-                msg.sender_type === 'admin'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-200 text-slate-600'
-              }`}>
-                {(msg.sender_name || 'U')[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-slate-700">
-                    {msg.sender_name || 'Unknown'}
-                  </span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+      {subLoading
+        ? <SubLoader />
+        : !pkgMessages.length
+        ? <EmptyTab message="No messages yet for this package." />
+        : (
+          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            {pkgMessages.map(msg => (
+              <div key={msg.id}
+                className={`rounded-xl p-3.5 border transition-colors ${
+                  msg.sender_type === 'admin'
+                    ? 'bg-emerald-50 border-emerald-100 ml-6'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}>
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-8 h-8 rounded-full flex items-center
+                    justify-center text-xs font-bold shrink-0 ${
                     msg.sender_type === 'admin'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-100 text-slate-500'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-200 text-slate-600'
                   }`}>
-                    {msg.message_type}
-                  </span>
-                  <span className="text-xs text-slate-400 ml-auto">
-                    {formatTimeAgo(msg.created_at)}
-                  </span>
+                    {(msg.sender_name || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-bold text-slate-700">
+                        {msg.sender_name || 'Unknown'}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5
+                        rounded-full uppercase tracking-wide ${
+                        msg.sender_type === 'admin'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {msg.message_type}
+                      </span>
+                      <span className="text-xs text-slate-400 ml-auto">
+                        {formatTimeAgo(msg.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap
+                      leading-relaxed">
+                      {msg.body}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                  {msg.body}
-                </p>
+                {msg.sender_type !== 'admin' && (
+                  <div className="mt-2.5 flex justify-end">
+                    <button onClick={() => openReply(msg)}
+                      className="btn-secondary btn-sm text-xs flex items-center gap-1">
+                      <Send size={11} /> Reply
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-            {msg.sender_type !== 'admin' && (
-              <div className="mt-2 flex justify-end">
-                <button
-                  onClick={() => openReply(msg)}
-                  className="btn-secondary btn-sm text-xs"
-                >
-                  <Send size={11} /> Reply
-                </button>
-              </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      }
     </div>
   )
 
   const TabBookings = () => (
     <div className="space-y-3">
-      <h4 className="font-semibold text-slate-700">
+      <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+        <BookOpen size={16} className="text-blue-500" />
         Bookings ({pkgBookings.length})
       </h4>
-      {subLoading && (
-        <div className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-emerald-500
-            border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-      {!subLoading && !pkgBookings.length && (
-        <div className="text-center py-8 text-slate-400 text-sm">
-          No bookings yet.
-        </div>
-      )}
-      <div className="space-y-2 max-h-[420px] overflow-y-auto">
-        {pkgBookings.map(bk => (
-          <BookingRow
-            key={bk.id}
-            booking={bk}
-            onUpdate={handleBookingUpdate}
-            onConfirm={handleBookingConfirm}
-            onCancel={handleBookingCancel}
-            onInfoRequest={(b) => openInfoRequest({
-              booking_id:   b.id,
-              user_id:      b.user_id,
-              guest_email:  b.guest_email,
-              guest_name:   b.guest_name,
-            })}
-          />
-        ))}
-      </div>
+      {subLoading
+        ? <SubLoader />
+        : !pkgBookings.length
+        ? <EmptyTab message="No bookings yet for this package." />
+        : (
+          <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+            {pkgBookings.map(bk => (
+              <BookingRow
+                key={bk.id}
+                booking={bk}
+                onUpdate={handleBookingUpdate}
+                onConfirm={handleBookingConfirm}
+                onCancel={handleBookingCancel}
+                onInfoRequest={(b) => openInfoRequest({
+                  booking_id:  b.id,
+                  user_id:     b.user_id,
+                  guest_email: b.guest_email,
+                  guest_name:  b.guest_name,
+                })}
+              />
+            ))}
+          </div>
+        )
+      }
     </div>
   )
 
   const TabInfoRequests = () => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-slate-700">
+        <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+          <FileText size={16} className="text-amber-500" />
           Info Requests ({pkgInfoReqs.length})
         </h4>
         <button onClick={() => openInfoRequest()} className="btn-primary btn-sm">
           <FileText size={13} /> New Form
         </button>
       </div>
-      {subLoading && (
-        <div className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-emerald-500
-            border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-      {!subLoading && !pkgInfoReqs.length && (
-        <div className="text-center py-8 text-slate-400 text-sm">
-          No info requests sent yet.
-        </div>
-      )}
-      <div className="space-y-3 max-h-[420px] overflow-y-auto">
-        {pkgInfoReqs.map(ir => (
-          <div key={ir.id}
-            className="border border-slate-200 rounded-xl p-4 bg-white">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-slate-800">{ir.title}</p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  To: {ir.target_name || ir.target_email || 'All'} ·{' '}
-                  {parseJsonField(ir.fields).length} fields ·{' '}
-                  {formatTimeAgo(ir.created_at)}
-                </p>
-              </div>
-              <Badge
-                status={ir.status === 'responded' ? 'success' : 'warning'}
-                label={ir.status}
-              />
-            </div>
-            {ir.status === 'responded' && ir.response && (
-              <div className="mt-3 p-3 bg-emerald-50 border
-                border-emerald-100 rounded-lg">
-                <p className="text-xs font-semibold text-emerald-700 mb-1">
-                  Response received:
-                </p>
-                <div className="space-y-1">
-                  {Object.entries(
-                    typeof ir.response === 'string'
-                      ? JSON.parse(ir.response)
-                      : ir.response
-                  ).map(([k, v]) => (
-                    <div key={k} className="text-xs text-slate-600">
-                      <span className="font-medium">{k}:</span> {String(v)}
-                    </div>
-                  ))}
+      {subLoading
+        ? <SubLoader />
+        : !pkgInfoReqs.length
+        ? <EmptyTab message="No info requests sent yet." />
+        : (
+          <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+            {pkgInfoReqs.map(ir => (
+              <div key={ir.id}
+                className="border border-slate-200 rounded-xl p-4 bg-white
+                  hover:border-slate-300 transition-colors">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-800 truncate">
+                      {ir.title}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      To: {ir.target_name || ir.target_email || 'All'} ·{' '}
+                      {parseJson(ir.fields).length} fields ·{' '}
+                      {formatTimeAgo(ir.created_at)}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full
+                    border shrink-0 capitalize ${
+                    ir.status === 'responded'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-amber-50 border-amber-200 text-amber-700'
+                  }`}>
+                    {ir.status}
+                  </span>
                 </div>
+                {ir.status === 'responded' && ir.response && (
+                  <div className="mt-3 p-3 bg-emerald-50 border
+                    border-emerald-100 rounded-xl">
+                    <p className="text-xs font-bold text-emerald-700 mb-2">
+                      ✓ Response received
+                    </p>
+                    <div className="space-y-1">
+                      {Object.entries(
+                        typeof ir.response === 'string'
+                          ? JSON.parse(ir.response)
+                          : ir.response
+                      ).map(([k, v]) => (
+                        <div key={k}
+                          className="text-xs text-slate-600 flex gap-2">
+                          <span className="font-semibold shrink-0 text-slate-500">
+                            {k}:
+                          </span>
+                          <span>{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      }
     </div>
   )
 
@@ -1107,19 +1249,20 @@ export default function Packages() {
   return (
     <div className="space-y-5 page-enter">
 
-      {/* Header */}
+      {/* ── Page header ── */}
       <div className="page-header">
         <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Package size={28} className="text-primary-600" /> Packages
+          <h1 className="page-title flex items-center gap-2.5">
+            <Package size={28} className="text-primary-600" />
+            Packages
           </h1>
           <p className="page-subtitle">
-            Manage travel packages ({pag.total} total)
+            Manage travel packages · {pag.total} total
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={load}
+            onClick={() => { load(); loadStats() }}
             disabled={loading}
             className="btn-secondary btn-sm"
             title="Refresh"
@@ -1132,7 +1275,10 @@ export default function Packages() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* ── Stats bar ── */}
+      <StatsBar stats={stats} />
+
+      {/* ── Filters ── */}
       <div className="card p-4">
         <FilterBar>
           <SearchBar
@@ -1146,9 +1292,9 @@ export default function Packages() {
             value={pubFilter}
             onChange={v => { setPub(v); pag.reset() }}
             options={[
-              { value: '',      label: 'All' },
-              { value: 'true',  label: 'Published' },
-              { value: 'false', label: 'Drafts' },
+              { value: '',      label: 'All Status'  },
+              { value: 'true',  label: 'Published'   },
+              { value: 'false', label: 'Drafts Only' },
             ]}
           />
           <FilterSelect
@@ -1163,7 +1309,7 @@ export default function Packages() {
         </FilterBar>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <div className="card">
         <Table
           columns={columns}
@@ -1188,7 +1334,9 @@ export default function Packages() {
         />
       </div>
 
-      {/* ── VIEW MODAL ──────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════
+          VIEW MODAL
+          ════════════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
@@ -1200,21 +1348,28 @@ export default function Packages() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleTogglePublish(viewModal.data)}
-                className={
-                  viewModal.data?.is_published
-                    ? 'btn-warning btn-sm'
-                    : 'btn-success btn-sm'
-                }
+                className={viewModal.data?.is_published
+                  ? 'btn-warning btn-sm'
+                  : 'btn-success btn-sm'}
               >
                 {viewModal.data?.is_published
                   ? <><EyeOff size={13} /> Unpublish</>
-                  : <><Globe2 size={13} /> Publish</>}
+                  : <><Globe2  size={13} /> Publish</>}
               </button>
               <button
                 onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
                 className="btn-primary btn-sm"
               >
                 <Pencil size={13} /> Edit
+              </button>
+              <button
+                onClick={() => {
+                  viewModal.close()
+                  deleteModal.open(viewModal.data)
+                }}
+                className="btn-danger btn-sm"
+              >
+                <Trash2 size={13} /> Delete
               </button>
             </div>
             <button onClick={viewModal.close} className="btn-secondary btn-sm">
@@ -1225,16 +1380,18 @@ export default function Packages() {
       >
         {viewModal.data && (
           <div className="space-y-4">
+            {/* Cover image */}
             {viewModal.data.cover_image_url && (
               <img
                 src={viewModal.data.cover_image_url}
                 alt={viewModal.data.title}
-                className="w-full h-44 object-cover rounded-2xl"
+                className="w-full h-48 object-cover rounded-2xl"
               />
             )}
 
             {/* Tabs */}
-            <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
+            <div className="flex gap-0.5 border-b border-slate-200
+              overflow-x-auto pb-0">
               {[
                 { id: 'details',  label: 'Details',       icon: Package       },
                 { id: 'messages', label: 'Messages',      icon: MessageSquare },
@@ -1244,11 +1401,11 @@ export default function Packages() {
                 <button
                   key={tab.id}
                   onClick={() => switchTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm
-                    font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                  className={`flex items-center gap-1.5 px-4 py-3 text-sm
+                    font-semibold whitespace-nowrap border-b-2 transition-all ${
                     activeTab === tab.id
-                      ? 'border-emerald-500 text-emerald-600'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                      ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <tab.icon size={14} />
@@ -1257,21 +1414,19 @@ export default function Packages() {
               ))}
             </div>
 
-            {/* Tab content */}
+            {/* Details tab */}
             {activeTab === 'details' && (
               <div className="space-y-4">
                 <ModalSection title="Overview">
                   <ModalGrid>
-                    <ModalField label="Category"    value={viewModal.data.category}    />
-                    <ModalField label="Destination" value={viewModal.data.destination} />
-                    <ModalField label="Country"     value={viewModal.data.country}     />
+                    <ModalField label="Category"     value={viewModal.data.category}    />
+                    <ModalField label="Destination"  value={viewModal.data.destination} />
+                    <ModalField label="Country"      value={viewModal.data.country}     />
                     <ModalField
                       label="Duration"
                       value={
                         viewModal.data.duration_days
-                          ? `${viewModal.data.duration_days} days / ${
-                              viewModal.data.duration_nights ?? ''
-                            } nights`
+                          ? `${viewModal.data.duration_days}D / ${viewModal.data.duration_nights ?? ''}N`
                           : '—'
                       }
                     />
@@ -1279,9 +1434,8 @@ export default function Packages() {
                       label="Price"
                       value={
                         <span className="font-bold text-emerald-600">
-                          {viewModal.data.currency}{' '}
-                          {formatNumber(viewModal.data.price)}
-                          <span className="text-slate-400 font-normal text-xs ml-1">
+                          {fmtPrice(viewModal.data.price, viewModal.data.currency)}
+                          <span className="text-slate-400 font-normal text-xs ml-1.5">
                             {viewModal.data.price_label}
                           </span>
                         </span>
@@ -1302,7 +1456,7 @@ export default function Packages() {
                     />
                     <ModalField
                       label="Views"
-                      value={formatNumber(viewModal.data.view_count)}
+                      value={formatNumber(viewModal.data.view_count || 0)}
                     />
                   </ModalGrid>
                 </ModalSection>
@@ -1314,26 +1468,35 @@ export default function Packages() {
                   />
                 )}
 
-                {parseJsonField(viewModal.data.features).length > 0 && (
+                {parseJson(viewModal.data.features).length > 0 && (
                   <ModalSection title="Features">
                     <div className="flex flex-wrap gap-2">
-                      {parseJsonField(viewModal.data.features).map((f, i) => (
+                      {parseJson(viewModal.data.features).map((f, i) => (
                         <span key={i} className="badge-green text-xs">{f}</span>
                       ))}
                     </div>
                   </ModalSection>
                 )}
 
-                {parseJsonField(viewModal.data.pricing_tiers).length > 0 && (
+                {parseJson(viewModal.data.pricing_tiers).length > 0 && (
                   <ModalSection title="Pricing Tiers">
                     <div className="space-y-2">
-                      {parseJsonField(viewModal.data.pricing_tiers).map((t, i) => (
+                      {parseJson(viewModal.data.pricing_tiers).map((t, i) => (
                         <div key={i}
                           className="flex items-center justify-between
-                            bg-slate-50 px-3 py-2 rounded-lg">
-                          <span className="font-medium text-sm">{t.label}</span>
+                            bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
+                          <div>
+                            <span className="font-semibold text-sm text-slate-700">
+                              {t.label}
+                            </span>
+                            {t.description && (
+                              <span className="text-xs text-slate-400 ml-2">
+                                {t.description}
+                              </span>
+                            )}
+                          </div>
                           <span className="font-bold text-emerald-600">
-                            {viewModal.data.currency} {formatNumber(t.price)}
+                            {fmtPrice(t.price, viewModal.data.currency)}
                           </span>
                         </div>
                       ))}
@@ -1350,11 +1513,13 @@ export default function Packages() {
         )}
       </Modal>
 
-      {/* ── CREATE / EDIT MODAL ──────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════
+          CREATE / EDIT MODAL
+          ════════════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={formModal.isOpen}
         onClose={formModal.close}
-        title={editing ? 'Edit Package' : 'New Package'}
+        title={editing ? `Edit: ${editing.title}` : 'New Package'}
         size="2xl"
         icon={<Package size={20} />}
         footer={
@@ -1371,47 +1536,35 @@ export default function Packages() {
               className="btn-primary"
               disabled={saving}
             >
-              {saving ? 'Saving…' : editing ? 'Update Package' : 'Create Package'}
+              {saving
+                ? 'Saving…'
+                : editing ? 'Update Package' : 'Create Package'}
             </button>
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
 
           {/* Basic Info */}
-          <Section
-            id="basic"
-            title="Basic Info"
-            icon={Package}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="basic" title="Basic Information"
+            icon={Package} open={openSecs.basic} onToggle={toggleSec}>
             <ModalGrid>
               <div className="input-group sm:col-span-2">
                 <label className="input-label">Title *</label>
-                <input
-                  className="input"
-                  value={form.title}
+                <input className="input" value={form.title}
                   onChange={e => upd('title', e.target.value)}
-                  placeholder="Package title"
-                />
+                  placeholder="e.g. 7-Day Serengeti Safari" />
               </div>
               <div className="input-group">
                 <label className="input-label">Slug</label>
-                <input
-                  className="input"
-                  value={form.slug}
+                <input className="input" value={form.slug}
                   onChange={e => upd('slug', e.target.value)}
-                  placeholder="auto-generated"
-                />
+                  placeholder="auto-generated from title" />
               </div>
               <div className="input-group">
                 <label className="input-label">Category</label>
-                <select
-                  className="input"
-                  value={form.category}
-                  onChange={e => upd('category', e.target.value)}
-                >
+                <select className="input" value={form.category}
+                  onChange={e => upd('category', e.target.value)}>
                   <option value="">Select category</option>
                   {CATEGORIES.map(c => (
                     <option key={c} value={c}>{c}</option>
@@ -1420,69 +1573,48 @@ export default function Packages() {
               </div>
               <div className="input-group">
                 <label className="input-label">Destination</label>
-                <input
-                  className="input"
-                  value={form.destination}
+                <input className="input" value={form.destination}
                   onChange={e => upd('destination', e.target.value)}
-                  placeholder="e.g. Serengeti"
-                />
+                  placeholder="e.g. Serengeti National Park" />
               </div>
               <div className="input-group">
                 <label className="input-label">Country</label>
-                <input
-                  className="input"
-                  value={form.country}
+                <input className="input" value={form.country}
                   onChange={e => upd('country', e.target.value)}
-                  placeholder="e.g. Tanzania"
-                />
+                  placeholder="e.g. Tanzania" />
               </div>
             </ModalGrid>
             <div className="input-group">
               <label className="input-label">Short Description</label>
-              <textarea
-                className="input min-h-[70px] resize-none"
+              <textarea className="input min-h-[70px] resize-none"
                 value={form.short_description}
                 onChange={e => upd('short_description', e.target.value)}
-                placeholder="Brief summary shown on cards…"
-              />
+                placeholder="One-line summary shown on package cards…" />
             </div>
             <div className="input-group">
               <label className="input-label">Full Description</label>
-              <textarea
-                className="input min-h-[120px] resize-none"
+              <textarea className="input min-h-[120px] resize-none"
                 value={form.description}
                 onChange={e => upd('description', e.target.value)}
-              />
+                placeholder="Detailed description (HTML supported)…" />
             </div>
           </Section>
 
           {/* Pricing */}
-          <Section
-            id="pricing"
-            title="Pricing"
-            icon={DollarSign}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="pricing" title="Pricing & Currency"
+            icon={DollarSign} open={openSecs.pricing} onToggle={toggleSec}>
             <ModalGrid>
               <div className="input-group">
                 <label className="input-label">Base Price *</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
+                <input className="input" type="number" min="0"
                   value={form.price}
                   onChange={e => upd('price', e.target.value)}
-                  placeholder="0"
-                />
+                  placeholder="0" />
               </div>
               <div className="input-group">
                 <label className="input-label">Currency</label>
-                <select
-                  className="input"
-                  value={form.currency}
-                  onChange={e => upd('currency', e.target.value)}
-                >
+                <select className="input" value={form.currency}
+                  onChange={e => upd('currency', e.target.value)}>
                   {CURRENCIES.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -1490,23 +1622,15 @@ export default function Packages() {
               </div>
               <div className="input-group">
                 <label className="input-label">Price Label</label>
-                <input
-                  className="input"
-                  value={form.price_label}
+                <input className="input" value={form.price_label}
                   onChange={e => upd('price_label', e.target.value)}
-                  placeholder="per person"
-                />
+                  placeholder="per person" />
               </div>
               <div className="input-group">
                 <label className="input-label">Discount %</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  max="100"
+                <input className="input" type="number" min="0" max="100"
                   value={form.discount_percent}
-                  onChange={e => upd('discount_percent', e.target.value)}
-                />
+                  onChange={e => upd('discount_percent', e.target.value)} />
               </div>
             </ModalGrid>
             <PricingTierEditor
@@ -1514,95 +1638,61 @@ export default function Packages() {
               onChange={v => upd('pricing_tiers', v)}
               currency={form.currency}
             />
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.is_price_visible}
+            <label className="flex items-center gap-2.5 cursor-pointer
+              text-sm text-slate-700">
+              <input type="checkbox" checked={form.is_price_visible}
                 onChange={e => upd('is_price_visible', e.target.checked)}
-                className="w-4 h-4 rounded text-primary-600"
-              />
-              Show price publicly
+                className="w-4 h-4 rounded text-primary-600" />
+              Show price publicly on the package card
             </label>
           </Section>
 
           {/* Duration & Capacity */}
-          <Section
-            id="duration"
-            title="Duration & Capacity"
-            icon={Calendar}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="duration" title="Duration & Capacity"
+            icon={Calendar} open={openSecs.duration} onToggle={toggleSec}>
             <ModalGrid>
               <div className="input-group">
-                <label className="input-label">Duration (Days)</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
+                <label className="input-label">Days</label>
+                <input className="input" type="number" min="1"
                   value={form.duration_days}
-                  onChange={e => upd('duration_days', e.target.value)}
-                />
+                  onChange={e => upd('duration_days', e.target.value)} />
               </div>
               <div className="input-group">
-                <label className="input-label">Duration (Nights)</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
+                <label className="input-label">Nights</label>
+                <input className="input" type="number" min="0"
                   value={form.duration_nights}
-                  onChange={e => upd('duration_nights', e.target.value)}
-                />
+                  onChange={e => upd('duration_nights', e.target.value)} />
               </div>
               <div className="input-group">
                 <label className="input-label">Min Travelers</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
+                <input className="input" type="number" min="1"
                   value={form.min_travelers}
-                  onChange={e => upd('min_travelers', e.target.value)}
-                />
+                  onChange={e => upd('min_travelers', e.target.value)} />
               </div>
               <div className="input-group">
                 <label className="input-label">Max Travelers</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
+                <input className="input" type="number" min="1"
                   value={form.max_travelers}
-                  onChange={e => upd('max_travelers', e.target.value)}
-                />
+                  onChange={e => upd('max_travelers', e.target.value)} />
               </div>
               <div className="input-group sm:col-span-2">
                 <label className="input-label">Group Size Label</label>
-                <input
-                  className="input"
-                  value={form.group_size_label}
+                <input className="input" value={form.group_size_label}
                   onChange={e => upd('group_size_label', e.target.value)}
-                  placeholder="e.g. Small group (max 12)"
-                />
+                  placeholder="e.g. Small group (max 12 people)" />
               </div>
             </ModalGrid>
             <div className="input-group">
               <label className="input-label">Availability Note</label>
-              <input
-                className="input"
-                value={form.availability_note}
+              <input className="input" value={form.availability_note}
                 onChange={e => upd('availability_note', e.target.value)}
-                placeholder="e.g. Best Jan–Mar, Oct–Nov"
-              />
+                placeholder="e.g. Best Jan–Mar and Oct–Nov" />
             </div>
           </Section>
 
           {/* Media */}
-          <Section
-            id="media"
-            title="Media"
-            icon={Image}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="media" title="Media"
+            icon={Image} open={openSecs.media} onToggle={toggleSec}>
             <ModalGrid>
               <ImageUpload
                 label="Thumbnail"
@@ -1619,40 +1709,32 @@ export default function Packages() {
             </ModalGrid>
             <div className="input-group">
               <label className="input-label">Video URL</label>
-              <input
-                className="input"
-                value={form.video_url}
+              <input className="input" value={form.video_url}
                 onChange={e => upd('video_url', e.target.value)}
-                placeholder="YouTube or Vimeo URL"
-              />
+                placeholder="YouTube or Vimeo URL" />
             </div>
           </Section>
 
           {/* Package Details */}
-          <Section
-            id="pkgdetails"
-            title="Package Details"
-            icon={FileText}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="pkgdetails" title="Package Details"
+            icon={FileText} open={openSecs.pkgdetails} onToggle={toggleSec}>
             <JsonListEditor
               label="Features / Highlights"
               value={form.features}
               onChange={v => upd('features', v)}
-              placeholder="Add a feature…"
+              placeholder="Add a feature or highlight…"
             />
             <JsonListEditor
-              label="Inclusions"
+              label="Inclusions (What's Included)"
               value={form.inclusions}
               onChange={v => upd('inclusions', v)}
-              placeholder="What's included…"
+              placeholder="e.g. Accommodation, Meals, Park fees…"
             />
             <JsonListEditor
-              label="Exclusions"
+              label="Exclusions (Not Included)"
               value={form.exclusions}
               onChange={v => upd('exclusions', v)}
-              placeholder="What's NOT included…"
+              placeholder="e.g. International flights, Visa fees…"
             />
             <ItineraryEditor
               value={form.itinerary}
@@ -1666,21 +1748,13 @@ export default function Packages() {
           </Section>
 
           {/* Card Design */}
-          <Section
-            id="design"
-            title="Card Design"
-            icon={Palette}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="design" title="Card Design"
+            icon={Palette} open={openSecs.design} onToggle={toggleSec}>
             <ModalGrid>
               <div className="input-group">
                 <label className="input-label">Card Theme</label>
-                <select
-                  className="input"
-                  value={form.card_theme}
-                  onChange={e => upd('card_theme', e.target.value)}
-                >
+                <select className="input" value={form.card_theme}
+                  onChange={e => upd('card_theme', e.target.value)}>
                   {CARD_THEMES.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
@@ -1689,112 +1763,81 @@ export default function Packages() {
               <div className="input-group">
                 <label className="input-label">Accent Color</label>
                 <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={form.accent_color}
+                  <input type="color" value={form.accent_color}
                     onChange={e => upd('accent_color', e.target.value)}
                     className="w-12 h-10 rounded-lg border border-slate-200
-                      cursor-pointer p-1 shrink-0"
-                  />
-                  <input
-                    className="input flex-1"
-                    value={form.accent_color}
+                      cursor-pointer p-1 shrink-0" />
+                  <input className="input flex-1" value={form.accent_color}
                     onChange={e => upd('accent_color', e.target.value)}
-                    placeholder="#047857"
-                  />
+                    placeholder="#047857" />
                 </div>
               </div>
               <div className="input-group">
                 <label className="input-label">Badge Label</label>
-                <input
-                  className="input"
-                  value={form.badge_label}
+                <input className="input" value={form.badge_label}
                   onChange={e => upd('badge_label', e.target.value)}
-                  placeholder="e.g. Best Seller, New, Limited"
-                />
+                  placeholder="e.g. Best Seller, New, Limited" />
               </div>
               <div className="input-group">
                 <label className="input-label">Badge Color</label>
                 <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={form.badge_color}
+                  <input type="color" value={form.badge_color}
                     onChange={e => upd('badge_color', e.target.value)}
                     className="w-12 h-10 rounded-lg border border-slate-200
-                      cursor-pointer p-1 shrink-0"
-                  />
-                  <input
-                    className="input flex-1"
-                    value={form.badge_color}
-                    onChange={e => upd('badge_color', e.target.value)}
-                  />
+                      cursor-pointer p-1 shrink-0" />
+                  <input className="input flex-1" value={form.badge_color}
+                    onChange={e => upd('badge_color', e.target.value)} />
                 </div>
               </div>
               <div className="input-group sm:col-span-2">
                 <label className="input-label">Card Background Image URL</label>
-                <input
-                  className="input"
-                  value={form.card_bg_image}
+                <input className="input" value={form.card_bg_image}
                   onChange={e => upd('card_bg_image', e.target.value)}
-                  placeholder="Optional background image for the card"
-                />
+                  placeholder="Optional background image behind the card content" />
               </div>
             </ModalGrid>
           </Section>
 
           {/* SEO & Options */}
-          <Section
-            id="seo"
-            title="SEO & Options"
-            icon={Globe2}
-            openSections={openSections}
-            onToggle={toggleSection}
-          >
+          <Section id="seo" title="SEO & Publishing"
+            icon={Globe2} open={openSecs.seo} onToggle={toggleSec}>
             <ModalGrid>
               <div className="input-group">
                 <label className="input-label">Meta Title</label>
-                <input
-                  className="input"
-                  value={form.meta_title}
-                  onChange={e => upd('meta_title', e.target.value)}
-                />
+                <input className="input" value={form.meta_title}
+                  onChange={e => upd('meta_title', e.target.value)} />
               </div>
               <div className="input-group">
                 <label className="input-label">Meta Description</label>
-                <input
-                  className="input"
-                  value={form.meta_description}
-                  onChange={e => upd('meta_description', e.target.value)}
-                />
+                <input className="input" value={form.meta_description}
+                  onChange={e => upd('meta_description', e.target.value)} />
               </div>
               <div className="input-group">
                 <label className="input-label">Sort Order</label>
-                <input
-                  className="input"
-                  type="number"
-                  value={form.sort_order}
-                  onChange={e => upd('sort_order', parseInt(e.target.value) || 0)}
-                />
+                <input className="input" type="number" value={form.sort_order}
+                  onChange={e => upd('sort_order', parseInt(e.target.value) || 0)} />
               </div>
             </ModalGrid>
-            <div className="flex flex-wrap gap-6">
+            <div className="flex flex-wrap gap-6 pt-1">
               {[
-                { k: 'is_published', label: 'Published' },
-                { k: 'is_featured',  label: 'Featured'  },
-                { k: 'is_sold_out',  label: 'Sold Out'  },
-              ].map(({ k, label }) => (
+                { k: 'is_published', label: 'Published',              desc: 'Visible to users' },
+                { k: 'is_featured',  label: 'Featured',               desc: 'Show in featured section' },
+                { k: 'is_sold_out',  label: 'Mark as Sold Out',       desc: 'Disable new bookings' },
+              ].map(({ k, label, desc }) => (
                 <label key={k}
-                  className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form[k]}
+                  className="flex items-start gap-3 cursor-pointer group">
+                  <input type="checkbox" checked={form[k]}
                     onChange={e => upd(k, e.target.checked)}
                     className="w-5 h-5 rounded-lg text-primary-600
-                      border-surface-300 focus:ring-primary-500 cursor-pointer"
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    {label}
-                  </span>
+                      border-surface-300 focus:ring-primary-500
+                      cursor-pointer mt-0.5" />
+                  <div>
+                    <span className="text-sm font-semibold text-slate-700
+                      group-hover:text-slate-900 block">
+                      {label}
+                    </span>
+                    <span className="text-xs text-slate-400">{desc}</span>
+                  </div>
                 </label>
               ))}
             </div>
@@ -1803,46 +1846,43 @@ export default function Packages() {
         </div>
       </Modal>
 
-      {/* ── REPLY MODAL ──────────────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════
+          REPLY MODAL
+          ════════════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={replyModal.isOpen}
         onClose={replyModal.close}
-        title="Send Reply"
+        title="Send Message to User"
         size="md"
         icon={<Send size={18} />}
         footer={
           <div className="flex justify-end gap-2">
-            <button
-              onClick={replyModal.close}
-              className="btn-secondary"
-              disabled={replySending}
-            >
+            <button onClick={replyModal.close} className="btn-secondary"
+              disabled={replySending}>
               Cancel
             </button>
-            <button
-              onClick={handleSendReply}
-              className="btn-primary"
-              disabled={replySending}
-            >
-              {replySending ? 'Sending…' : 'Send Message'}
+            <button onClick={handleSendReply} className="btn-primary"
+              disabled={replySending}>
+              {replySending
+                ? <><RefreshCw size={14} className="animate-spin" /> Sending…</>
+                : <><Send size={14} /> Send Message</>}
             </button>
           </div>
         }
       >
         <div className="space-y-4">
           {replyTarget && (
-            <div className="bg-slate-50 border border-slate-200
-              rounded-xl px-4 py-2 text-sm text-slate-500">
-              Replying to user ID: {replyTarget.user_id || 'Guest'}
+            <div className="flex items-center gap-2 bg-blue-50 border
+              border-blue-100 rounded-xl px-4 py-2.5 text-sm text-blue-700">
+              <MessageSquare size={14} />
+              Replying to message from user{' '}
+              {replyTarget.user_id ? `#${replyTarget.user_id}` : '(guest)'}
             </div>
           )}
           <div className="input-group">
             <label className="input-label">Message Type</label>
-            <select
-              className="input"
-              value={replyType}
-              onChange={e => setReplyType(e.target.value)}
-            >
+            <select className="input" value={replyType}
+              onChange={e => setReplyType(e.target.value)}>
               {MSG_TYPES.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
@@ -1851,37 +1891,38 @@ export default function Packages() {
           <div className="input-group">
             <label className="input-label">Message *</label>
             <textarea
-              className="input min-h-[140px] resize-none"
+              className="input min-h-[160px] resize-none"
               value={replyBody}
               onChange={e => setReplyBody(e.target.value)}
-              placeholder="Type your message to the user…"
+              placeholder="Write your message to the user…"
             />
+            <p className="text-xs text-slate-400 mt-1">
+              {replyBody.length} characters
+            </p>
           </div>
         </div>
       </Modal>
 
-      {/* ── INFO REQUEST MODAL ───────────────────────────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════════════════
+          INFO REQUEST MODAL
+          ════════════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={infoModal.isOpen}
         onClose={infoModal.close}
-        title="Create Info Request Form"
+        title="Create Information Request Form"
         size="xl"
         icon={<FileText size={18} />}
         footer={
           <div className="flex justify-end gap-2">
-            <button
-              onClick={infoModal.close}
-              className="btn-secondary"
-              disabled={saving}
-            >
+            <button onClick={infoModal.close} className="btn-secondary"
+              disabled={saving}>
               Cancel
             </button>
-            <button
-              onClick={handleSendInfoRequest}
-              className="btn-primary"
-              disabled={saving}
-            >
-              {saving ? 'Sending…' : 'Send Form to User'}
+            <button onClick={handleSendInfoRequest} className="btn-primary"
+              disabled={saving}>
+              {saving
+                ? <><RefreshCw size={14} className="animate-spin" /> Sending…</>
+                : <><Send size={14} /> Send Form to User</>}
             </button>
           </div>
         }
@@ -1891,64 +1932,50 @@ export default function Packages() {
           <div className="space-y-3">
             <div className="input-group">
               <label className="input-label">Form Title *</label>
-              <input
-                className="input"
-                value={infoForm.title}
+              <input className="input" value={infoForm.title}
                 onChange={e => infoUpd('title', e.target.value)}
-                placeholder="e.g. Booking Details Required"
-              />
+                placeholder="e.g. Additional Booking Information Required" />
             </div>
             <div className="input-group">
-              <label className="input-label">Description</label>
-              <textarea
-                className="input min-h-[60px] resize-none"
+              <label className="input-label">Description / Instructions</label>
+              <textarea className="input min-h-[70px] resize-none"
                 value={infoForm.description}
                 onChange={e => infoUpd('description', e.target.value)}
-                placeholder="Tell the user why you need this information…"
-              />
+                placeholder="Explain to the user why you need this information…" />
             </div>
           </div>
 
           {/* Target user */}
           <div className="bg-amber-50 border border-amber-200
             rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-amber-800">Send To</h4>
+            <h4 className="text-sm font-bold text-amber-800
+              flex items-center gap-2">
+              <Users size={14} /> Send To
+            </h4>
             <ModalGrid>
               <div className="input-group">
-                <label className="input-label">User ID (if known)</label>
-                <input
-                  className="input"
-                  value={infoForm.user_id}
+                <label className="input-label">User ID</label>
+                <input className="input" value={infoForm.user_id}
                   onChange={e => infoUpd('user_id', e.target.value)}
-                  placeholder="Optional"
-                />
+                  placeholder="Optional — leave blank for guest" />
               </div>
               <div className="input-group">
-                <label className="input-label">Email</label>
-                <input
-                  className="input"
+                <label className="input-label">Email *</label>
+                <input className="input" type="email"
                   value={infoForm.target_email}
                   onChange={e => infoUpd('target_email', e.target.value)}
-                  placeholder="user@example.com"
-                />
+                  placeholder="user@example.com" />
               </div>
               <div className="input-group">
                 <label className="input-label">Name</label>
-                <input
-                  className="input"
-                  value={infoForm.target_name}
-                  onChange={e => infoUpd('target_name', e.target.value)}
-                />
+                <input className="input" value={infoForm.target_name}
+                  onChange={e => infoUpd('target_name', e.target.value)} />
               </div>
               <div className="input-group">
                 <label className="input-label">Expires In (hours)</label>
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
+                <input className="input" type="number" min="1" max="720"
                   value={infoForm.expires_hours}
-                  onChange={e => infoUpd('expires_hours', e.target.value)}
-                />
+                  onChange={e => infoUpd('expires_hours', e.target.value)} />
               </div>
             </ModalGrid>
           </div>
@@ -1959,20 +1986,18 @@ export default function Packages() {
             onChange={v => infoUpd('fields', v)}
           />
 
-          {/* Design */}
-          <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700
-              flex items-center gap-1.5">
-              <Palette size={14} /> Form Design
+          {/* Form design */}
+          <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
+            <h4 className="text-sm font-bold text-slate-700
+              flex items-center gap-2">
+              <Palette size={14} className="text-emerald-600" />
+              Form Design
             </h4>
             <ModalGrid>
               <div className="input-group">
                 <label className="input-label">Theme</label>
-                <select
-                  className="input"
-                  value={infoForm.theme}
-                  onChange={e => infoUpd('theme', e.target.value)}
-                >
+                <select className="input" value={infoForm.theme}
+                  onChange={e => infoUpd('theme', e.target.value)}>
                   {INFO_REQUEST_THEMES.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
@@ -1981,42 +2006,35 @@ export default function Packages() {
               <div className="input-group">
                 <label className="input-label">Accent Color</label>
                 <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={infoForm.accent_color}
+                  <input type="color" value={infoForm.accent_color}
                     onChange={e => infoUpd('accent_color', e.target.value)}
                     className="w-12 h-10 rounded-lg border border-slate-200
-                      cursor-pointer p-1 shrink-0"
-                  />
-                  <input
-                    className="input flex-1"
-                    value={infoForm.accent_color}
-                    onChange={e => infoUpd('accent_color', e.target.value)}
-                  />
+                      cursor-pointer p-1 shrink-0" />
+                  <input className="input flex-1" value={infoForm.accent_color}
+                    onChange={e => infoUpd('accent_color', e.target.value)} />
                 </div>
               </div>
               <div className="input-group sm:col-span-2">
                 <label className="input-label">Header Image URL</label>
-                <input
-                  className="input"
-                  value={infoForm.header_image}
+                <input className="input" value={infoForm.header_image}
                   onChange={e => infoUpd('header_image', e.target.value)}
-                />
+                  placeholder="Optional banner image shown at the top of the form" />
               </div>
             </ModalGrid>
           </div>
         </div>
       </Modal>
 
-      {/* Delete confirm */}
+      {/* ── Delete confirm ── */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={handleDelete}
         type="delete"
         title="Delete this package?"
-        description="This will soft-delete the package and hide it from users."
+        description="This will permanently hide the package from all users. This action cannot be undone."
       />
+
     </div>
   )
 }
