@@ -1,3 +1,4 @@
+// admin/src/components/common/Sidebar.jsx
 import React, { useState, useEffect } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
@@ -6,21 +7,34 @@ import {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Menu, ChevronLeft, X, LogOut, MapPinned,Package
+  Menu, ChevronLeft, X, LogOut, MapPinned, Package,
 } from 'lucide-react'
-import { useAuth } from '@hooks/useAuth'
-import { useToast } from '@hooks/useToast'
-import { selectTotalUnread } from '@store/chatSlice'
-import Header from './Header'
+import { useAuth }             from '@hooks/useAuth'
+import { useToast }            from '@hooks/useToast'
+import { selectTotalUnread }   from '@store/chatSlice'
+import Header                  from './Header'
 
-/* ── Icon map ── */
+// ── Icon map — string keys map to components ──────────────────────────────────
 const ICONS = {
-  LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
-  FileText, HelpCircle, Lightbulb, UserCircle, Star,
-  Image, MessageSquare, Mail, MessagesSquare, Settings,
+  LayoutDashboard,
+  Globe2,
+  MapPin,
+  CalendarCheck,
+  Users,
+  FileText,
+  HelpCircle,
+  Lightbulb,
+  UserCircle,
+  Star,
+  Image,
+  MessageSquare,
+  Mail,
+  MessagesSquare,
+  Settings,
+  Package,
 }
 
-/* ── Navigation groups ── */
+// ── Navigation groups ─────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
     label: 'Overview',
@@ -42,11 +56,11 @@ const NAV_GROUPS = [
   {
     label: 'Operations',
     items: [
-      { path: '/bookings',    label: 'Bookings',    icon: 'CalendarCheck' },
-      { path: '/packages',     label: 'Packages',     icon: Package },
-      { path: '/users',       label: 'Users',       icon: 'Users'         },
-      { path: '/contact',     label: 'Contact',     icon: 'MessageSquare' },
-      { path: '/subscribers', label: 'Subscribers', icon: 'Mail'          },
+      { path: '/bookings',     label: 'Bookings',     icon: 'CalendarCheck' },
+      { path: '/packages',     label: 'Packages',     icon: 'Package'       },
+      { path: '/users',        label: 'Users',        icon: 'Users'         },
+      { path: '/contact',      label: 'Contact',      icon: 'MessageSquare' },
+      { path: '/subscribers',  label: 'Subscribers',  icon: 'Mail'          },
     ],
   },
   {
@@ -60,128 +74,98 @@ const NAV_GROUPS = [
     label: 'System',
     items: [
       { path: '/chat',     label: 'Live Chat', icon: 'MessagesSquare', badge: 'chat' },
-      { path: '/settings', label: 'Settings',  icon: 'Settings' },
+      { path: '/settings', label: 'Settings',  icon: 'Settings'                      },
     ],
   },
 ]
 
-/* ── Shared styles ── */
+// ── Injected styles ───────────────────────────────────────────────────────────
 const SIDEBAR_STYLES = `
-  nav::-webkit-scrollbar { display: none; }
+  .sb-nav::-webkit-scrollbar { display: none; }
 
-  .sidebar-tooltip {
-    position: absolute;
-    left: calc(100% + 12px);
-    top: 50%;
-    transform: translateY(-50%);
-    padding: 8px 14px;
-    background: linear-gradient(135deg, #1f2937, #111827);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 10px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
-    z-index: 100;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
+  .sb-tooltip {
+    position:        absolute;
+    left:            calc(100% + 12px);
+    top:             50%;
+    transform:       translateY(-50%);
+    padding:         8px 14px;
+    background:      linear-gradient(135deg, #1f2937, #111827);
+    color:           #fff;
+    font-size:       12px;
+    font-weight:     600;
+    border-radius:   10px;
+    white-space:     nowrap;
+    pointer-events:  none;
+    opacity:         0;
+    visibility:      hidden;
+    transition:      opacity 0.2s, visibility 0.2s, transform 0.2s;
+    z-index:         100;
+    box-shadow:      0 10px 25px rgba(0,0,0,0.25),
+                     0 0 0 1px rgba(255,255,255,0.08);
     backdrop-filter: blur(8px);
   }
+  .sb-tooltip::before {
+    content:          '';
+    position:         absolute;
+    left:             -5px;
+    top:              50%;
+    transform:        translateY(-50%) rotate(45deg);
+    width:            10px;
+    height:           10px;
+    background:       linear-gradient(135deg, #1f2937, #111827);
+    border-radius:    2px;
+  }
+  .sb-nav-item:hover  .sb-tooltip { opacity:1; visibility:visible; transform:translateY(-50%) translateX(4px); }
+  .sb-nav-item:focus-visible      { outline:none; }
 
-  .sidebar-tooltip::before {
-    content: '';
-    position: absolute;
-    left: -5px;
-    top: 50%;
-    transform: translateY(-50%) rotate(45deg);
-    width: 10px;
-    height: 10px;
-    background: linear-gradient(135deg, #1f2937, #111827);
-    border-radius: 2px;
+  @keyframes sbFadeIn {
+    from { opacity:0; transform:translateY(4px); }
+    to   { opacity:1; transform:translateY(0);    }
   }
 
-  .sidebar-nav-link:hover .sidebar-tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(-50%) translateX(4px);
-  }
-
-  .sidebar-nav-link:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(16,185,129,0.5) !important;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .lg-flex { display: none; }
+  /* lg breakpoint helpers (avoids Tailwind purge issues with dynamic classes) */
   @media (min-width: 1024px) {
-    .lg-flex   { display: flex; }
-    .lg-hidden { display: none !important; }
+    .sb-lg-flex   { display: flex !important; }
+    .sb-lg-hidden { display: none !important; }
   }
   @media (max-width: 1023px) {
-    .hidden { display: none; }
+    .sb-lg-flex   { display: none; }
+    .sb-lg-hidden { display: block; }
   }
 `
 
-/* ═══════════════════════════════════════════════════════════════════════
-   SIDEBAR LINK
-   ═══════════════════════════════════════════════════════════════════════ */
+// ── Resolve icon — accepts string key OR component reference ─────────────────
+const resolveIcon = (icon) => {
+  if (!icon) return LayoutDashboard
+  if (typeof icon === 'string') return ICONS[icon] || LayoutDashboard
+  return icon // already a component
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SIDEBAR LINK
+// ════════════════════════════════════════════════════════════════════════════
 function SidebarLink({ item, collapsed, chatUnread }) {
-  const Icon   = ICONS[item.icon] || LayoutDashboard
+  const Icon   = resolveIcon(item.icon)
   const unread = item.badge === 'chat' ? chatUnread : 0
-
-  const handleHover = (e, isActive, entering) => {
-    if (isActive) return
-    const el = e.currentTarget
-    if (entering) {
-      el.style.background = 'rgba(255,255,255,0.08)'
-      el.style.color      = '#ffffff'
-      el.style.transform  = 'translateX(4px)'
-    } else {
-      el.style.background = 'transparent'
-      el.style.color      = '#a7f3d0'
-      el.style.transform  = 'translateX(0)'
-    }
-  }
-
-  const handleFocus = (e, isActive, focusing) => {
-    if (isActive) return
-    const el = e.currentTarget
-    if (focusing) {
-      el.style.background = 'rgba(255,255,255,0.12)'
-      el.style.color      = '#ffffff'
-      el.style.boxShadow  = '0 0 0 3px rgba(16,185,129,0.3)'
-    } else {
-      el.style.background = 'transparent'
-      el.style.color      = '#a7f3d0'
-      el.style.boxShadow  = 'none'
-    }
-  }
 
   return (
     <NavLink
       to={item.path}
-      className="sidebar-link-wrapper"
-      style={{ textDecoration: 'none' }}
+      style={{ textDecoration: 'none', display: 'block' }}
     >
       {({ isActive }) => (
         <div
-          className="sidebar-nav-link"
+          className="sb-nav-item"
           style={{
             display:        'flex',
             alignItems:     'center',
-            gap:            collapsed ? '0' : '12px',
+            gap:            collapsed ? 0 : '12px',
             padding:        collapsed ? '10px' : '10px 14px',
             borderRadius:   '12px',
             position:       'relative',
-            transition:     'all 0.2s cubic-bezier(0.4,0,0.2,1)',
             cursor:         'pointer',
             justifyContent: collapsed ? 'center' : 'flex-start',
+            transition:     'background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s',
             background:     isActive
               ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
               : 'transparent',
@@ -190,16 +174,36 @@ function SidebarLink({ item, collapsed, chatUnread }) {
               ? '0 4px 14px rgba(5,150,105,0.35), inset 0 1px 0 rgba(255,255,255,0.1)'
               : 'none',
           }}
-          onMouseEnter={(e) => handleHover(e, isActive, true)}
-          onMouseLeave={(e) => handleHover(e, isActive, false)}
-          onFocus={(e)      => handleFocus(e, isActive, true)}
-          onBlur={(e)       => handleFocus(e, isActive, false)}
+          onMouseEnter={e => {
+            if (isActive) return
+            e.currentTarget.style.background = 'rgba(255,255,255,0.09)'
+            e.currentTarget.style.color      = '#ffffff'
+            e.currentTarget.style.transform  = 'translateX(4px)'
+          }}
+          onMouseLeave={e => {
+            if (isActive) return
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color      = '#a7f3d0'
+            e.currentTarget.style.transform  = 'translateX(0)'
+          }}
+          onFocus={e => {
+            if (isActive) return
+            e.currentTarget.style.background = 'rgba(255,255,255,0.12)'
+            e.currentTarget.style.color      = '#ffffff'
+            e.currentTarget.style.boxShadow  = '0 0 0 3px rgba(16,185,129,0.3)'
+          }}
+          onBlur={e => {
+            if (isActive) return
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color      = '#a7f3d0'
+            e.currentTarget.style.boxShadow  = 'none'
+          }}
         >
-          {/* Active indicator bar */}
+          {/* Active left bar */}
           <AnimatePresence>
             {isActive && (
               <motion.span
-                key="indicator"
+                key="bar"
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
                 exit={{ scaleY: 0 }}
@@ -212,7 +216,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
                   width:        '4px',
                   height:       '24px',
                   borderRadius: '0 4px 4px 0',
-                  background:   'linear-gradient(180deg, #ffffff, #6ee7b7)',
+                  background:   'linear-gradient(180deg,#fff,#6ee7b7)',
                   boxShadow:    '0 2px 8px rgba(255,255,255,0.3)',
                 }}
               />
@@ -222,7 +226,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
           {/* Icon */}
           <motion.span
             animate={{ scale: isActive ? 1.1 : 1 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             style={{ flexShrink: 0, display: 'flex' }}
           >
             <Icon
@@ -239,10 +243,10 @@ function SidebarLink({ item, collapsed, chatUnread }) {
             {!collapsed && (
               <motion.span
                 key="label"
-                initial={{ opacity: 0, x: -10 }}
+                initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.18 }}
                 style={{
                   flex:         1,
                   fontSize:     '13.5px',
@@ -258,7 +262,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
             )}
           </AnimatePresence>
 
-          {/* Badge — expanded */}
+          {/* Badge (expanded) */}
           <AnimatePresence>
             {unread > 0 && !collapsed && (
               <motion.span
@@ -272,7 +276,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
                   minWidth:       '20px',
                   height:         '20px',
                   padding:        '0 5px',
-                  background:     'linear-gradient(135deg, #ef4444, #dc2626)',
+                  background:     'linear-gradient(135deg,#ef4444,#dc2626)',
                   color:          '#fff',
                   fontSize:       '10px',
                   fontWeight:     800,
@@ -288,7 +292,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
             )}
           </AnimatePresence>
 
-          {/* Badge dot — collapsed */}
+          {/* Badge dot (collapsed) */}
           <AnimatePresence>
             {unread > 0 && collapsed && (
               <motion.span
@@ -301,7 +305,7 @@ function SidebarLink({ item, collapsed, chatUnread }) {
                   right:        '6px',
                   width:        '8px',
                   height:       '8px',
-                  background:   'linear-gradient(135deg, #ef4444, #dc2626)',
+                  background:   'linear-gradient(135deg,#ef4444,#dc2626)',
                   borderRadius: '50%',
                   border:       '2px solid #064e3b',
                   boxShadow:    '0 0 0 2px rgba(239,68,68,0.3)',
@@ -310,9 +314,9 @@ function SidebarLink({ item, collapsed, chatUnread }) {
             )}
           </AnimatePresence>
 
-          {/* Tooltip — collapsed only */}
+          {/* Tooltip (collapsed only) */}
           {collapsed && (
-            <span className="sidebar-tooltip">
+            <span className="sb-tooltip">
               {item.label}{unread > 0 ? ` (${unread})` : ''}
             </span>
           )}
@@ -322,14 +326,20 @@ function SidebarLink({ item, collapsed, chatUnread }) {
   )
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   SIDEBAR
-   ═══════════════════════════════════════════════════════════════════════ */
-export default function Sidebar({ collapsed = false, onToggle, onMobileClose, isMobile = false }) {
-  const { admin, logout }     = useAuth()
-  const { error: toastError } = useToast()
-  const chatUnread             = useSelector(selectTotalUnread)
+// ════════════════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════════════════════════════════════════
+export default function Sidebar({
+  collapsed    = false,
+  onToggle,
+  onMobileClose,
+  isMobile     = false,
+}) {
+  const { admin, logout }      = useAuth()
+  const { error: toastError }  = useToast()
+  const chatUnread              = useSelector(selectTotalUnread)
 
+  /* Close on Escape (mobile) */
   useEffect(() => {
     if (!isMobile) return
     const onKey = (e) => { if (e.key === 'Escape') onMobileClose?.() }
@@ -346,13 +356,13 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
   const initial     = displayName.charAt(0).toUpperCase()
   const isCollapsed = collapsed && !isMobile
 
-  /* ── Shared style objects ── */
+  // ── Shared style tokens ──────────────────────────────────────────────────
   const avatarStyle = {
     position:       'relative',
     width:          '36px',
     height:         '36px',
     borderRadius:   '12px',
-    background:     'linear-gradient(135deg, #10b981, #059669)',
+    background:     'linear-gradient(135deg,#10b981,#059669)',
     display:        'flex',
     alignItems:     'center',
     justifyContent: 'center',
@@ -360,7 +370,8 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
     fontWeight:     800,
     fontSize:       '14px',
     flexShrink:     0,
-    boxShadow:      '0 4px 12px rgba(5,150,105,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+    boxShadow:      '0 4px 12px rgba(5,150,105,0.4),inset 0 1px 0 rgba(255,255,255,0.2)',
+    userSelect:     'none',
   }
 
   const onlineDot = {
@@ -374,18 +385,7 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
     borderRadius: '50%',
   }
 
-  const logoutBtnBase = {
-    padding:      '8px',
-    borderRadius: '10px',
-    background:   'transparent',
-    border:       'none',
-    cursor:       'pointer',
-    color:        '#a7f3d0',
-    transition:   'all 0.15s ease',
-  }
-
-  /* ── Shared icon container style ── */
-  const headerIconBox = {
+  const iconBoxBase = {
     width:          '40px',
     height:         '40px',
     borderRadius:   '14px',
@@ -394,8 +394,21 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
     justifyContent: 'center',
     flexShrink:     0,
     cursor:         'pointer',
+    border:         '1px solid rgba(255,255,255,0.15)',
+    transition:     'background 0.15s, color 0.15s, box-shadow 0.15s',
   }
 
+  const logoutBtnBase = {
+    padding:      '8px',
+    borderRadius: '10px',
+    background:   'transparent',
+    border:       'none',
+    cursor:       'pointer',
+    color:        '#a7f3d0',
+    transition:   'background 0.15s, color 0.15s',
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <aside
       aria-label="Admin navigation sidebar"
@@ -404,56 +417,53 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
         flexDirection: 'column',
         height:        '100%',
         width:         isCollapsed ? '72px' : '260px',
-        background:    'linear-gradient(180deg, #022c22 0%, #064e3b 40%, #065f46 100%)',
+        background:    'linear-gradient(180deg,#022c22 0%,#064e3b 40%,#065f46 100%)',
         transition:    'width 0.3s cubic-bezier(0.4,0,0.2,1)',
         position:      'relative',
         overflow:      'hidden',
         flexShrink:    0,
       }}
     >
-      {/* ══════════════════════════════════════════════════════════════
-          HEADER — Hamburger replaces logo when collapsed
-          ══════════════════════════════════════════════════════════════ */}
+
+      {/* ── Header ── */}
       <div
         style={{
           display:        'flex',
           alignItems:     'center',
-          gap:            isCollapsed ? '0' : '12px',
+          gap:            isCollapsed ? 0 : '12px',
           padding:        '20px 16px',
           borderBottom:   '1px solid rgba(255,255,255,0.08)',
           flexShrink:     0,
           justifyContent: isCollapsed ? 'center' : 'flex-start',
-          position:       'relative',
           minHeight:      '80px',
         }}
       >
         <AnimatePresence mode="wait">
+
+          {/* COLLAPSED → single hamburger button */}
           {isCollapsed ? (
-            /* ── COLLAPSED: Hamburger icon replaces logo ── */
             <motion.button
               key="hamburger"
               initial={{ opacity: 0, scale: 0.6, rotate: -90 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.6, rotate: 90 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              animate={{ opacity: 1, scale: 1,   rotate: 0   }}
+              exit={{   opacity: 0, scale: 0.6, rotate: 90  }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
               whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              whileTap={{  scale: 0.9 }}
               onClick={onToggle}
               aria-label="Expand sidebar"
               style={{
-                ...headerIconBox,
+                ...iconBoxBase,
                 background: 'rgba(255,255,255,0.1)',
-                border:     '1px solid rgba(255,255,255,0.15)',
                 color:      '#22d3ee',
                 boxShadow:  '0 4px 12px rgba(6,182,212,0.2)',
-                transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 e.currentTarget.style.background = 'rgba(255,255,255,0.2)'
                 e.currentTarget.style.color      = '#ffffff'
                 e.currentTarget.style.boxShadow  = '0 6px 20px rgba(6,182,212,0.35)'
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
                 e.currentTarget.style.color      = '#22d3ee'
                 e.currentTarget.style.boxShadow  = '0 4px 12px rgba(6,182,212,0.2)'
@@ -461,14 +471,16 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
             >
               <Menu size={20} strokeWidth={2.5} />
             </motion.button>
+
           ) : (
-            /* ── EXPANDED: Logo + brand text + collapse button ── */
+
+            /* EXPANDED → logo + brand + collapse/close button */
             <motion.div
-              key="logo-area"
+              key="brand"
               initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              animate={{ opacity: 1, x: 0   }}
+              exit={{   opacity: 0, x: -20  }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
               style={{
                 display:    'flex',
                 alignItems: 'center',
@@ -477,14 +489,13 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 minWidth:   0,
               }}
             >
-              {/* Logo icon */}
+              {/* Logo mark */}
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{  scale: 0.95 }}
                 style={{
-                  ...headerIconBox,
+                  ...iconBoxBase,
                   background: 'rgba(255,255,255,0.1)',
-                  border:     '1px solid rgba(255,255,255,0.15)',
                   boxShadow:  '0 4px 12px rgba(6,182,212,0.2)',
                 }}
               >
@@ -516,11 +527,11 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 </p>
               </div>
 
-              {/* Collapse button (desktop only) */}
+              {/* Desktop collapse button */}
               {!isMobile && (
                 <motion.button
                   whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileTap={{  scale: 0.9 }}
                   onClick={onToggle}
                   aria-label="Collapse sidebar"
                   style={{
@@ -538,11 +549,11 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                     flexShrink:     0,
                     transition:     'background 0.15s, color 0.15s',
                   }}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={e => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.2)'
                     e.currentTarget.style.color      = '#ffffff'
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={e => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
                     e.currentTarget.style.color      = '#a7f3d0'
                   }}
@@ -551,7 +562,7 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 </motion.button>
               )}
 
-              {/* Mobile close */}
+              {/* Mobile close button */}
               {isMobile && (
                 <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -566,13 +577,13 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                     cursor:       'pointer',
                     color:        '#a7f3d0',
                     flexShrink:   0,
-                    transition:   'all 0.15s ease',
+                    transition:   'background 0.15s, color 0.15s',
                   }}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={e => {
                     e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
                     e.currentTarget.style.color      = '#fca5a5'
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={e => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
                     e.currentTarget.style.color      = '#a7f3d0'
                   }}
@@ -587,6 +598,7 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
 
       {/* ── Navigation ── */}
       <nav
+        className="sb-nav"
         role="navigation"
         aria-label="Main navigation"
         style={{
@@ -599,21 +611,21 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
       >
         <style>{SIDEBAR_STYLES}</style>
 
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map(group => (
           <div
             key={group.label}
             role="group"
             aria-label={`${group.label} navigation`}
             style={{ marginBottom: '8px' }}
           >
-            {/* Group label */}
+            {/* Group label (expanded only) */}
             <AnimatePresence>
               {!isCollapsed && (
                 <motion.p
-                  key={`label-${group.label}`}
+                  key={`gl-${group.label}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  exit={{   opacity: 0 }}
                   transition={{ duration: 0.15 }}
                   style={{
                     fontSize:      '10px',
@@ -639,9 +651,9 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
               }} />
             )}
 
-            {/* Links */}
+            {/* Nav links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {group.items.map((item) => (
+              {group.items.map(item => (
                 <SidebarLink
                   key={item.path}
                   item={item}
@@ -661,12 +673,14 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
         padding:    '12px',
       }}>
         <AnimatePresence mode="wait">
+
+          {/* Expanded profile row */}
           {!isCollapsed ? (
             <motion.div
-              key="profile-expanded"
+              key="profile-exp"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
+              exit={{   opacity: 0, y: 6 }}
               transition={{ duration: 0.2 }}
               style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
             >
@@ -705,11 +719,11 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 title="Sign out"
                 aria-label="Sign out"
                 style={logoutBtnBase}
-                onMouseEnter={(e) => {
+                onMouseEnter={e => {
                   e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
                   e.currentTarget.style.color      = '#fca5a5'
                 }}
-                onMouseLeave={(e) => {
+                onMouseLeave={e => {
                   e.currentTarget.style.background = 'transparent'
                   e.currentTarget.style.color      = '#a7f3d0'
                 }}
@@ -717,21 +731,24 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 <LogOut size={16} strokeWidth={2} />
               </motion.button>
             </motion.div>
+
           ) : (
+
+            /* Collapsed — avatar + logout stacked */
             <motion.div
-              key="profile-collapsed"
+              key="profile-col"
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1   }}
+              exit={{   opacity: 0, scale: 0.9  }}
               transition={{ duration: 0.2 }}
               style={{
-                display:       'flex',
-                flexDirection: 'column',
-                alignItems:    'center',
-                gap:           '8px',
+                display:        'flex',
+                flexDirection:  'column',
+                alignItems:     'center',
+                gap:            '8px',
               }}
             >
-              <div style={{ ...avatarStyle, boxShadow: '0 4px 12px rgba(5,150,105,0.4)' }}>
+              <div style={avatarStyle}>
                 {initial}
                 <span style={onlineDot} />
               </div>
@@ -741,12 +758,16 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
                 onClick={handleLogout}
                 title="Sign out"
                 aria-label="Sign out"
-                style={{ ...logoutBtnBase, padding: '6px', borderRadius: '8px' }}
-                onMouseEnter={(e) => {
+                style={{
+                  ...logoutBtnBase,
+                  padding:      '6px',
+                  borderRadius: '8px',
+                }}
+                onMouseEnter={e => {
                   e.currentTarget.style.background = 'rgba(239,68,68,0.2)'
                   e.currentTarget.style.color      = '#fca5a5'
                 }}
-                onMouseLeave={(e) => {
+                onMouseLeave={e => {
                   e.currentTarget.style.background = 'transparent'
                   e.currentTarget.style.color      = '#a7f3d0'
                 }}
@@ -761,18 +782,18 @@ export default function Sidebar({ collapsed = false, onToggle, onMobileClose, is
   )
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   ADMIN LAYOUT
-   ═══════════════════════════════════════════════════════════════════════ */
+// ════════════════════════════════════════════════════════════════════════════
+// ADMIN LAYOUT
+// ════════════════════════════════════════════════════════════════════════════
 export function AdminLayout() {
   const [collapsed,  setCollapsed]  = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
 
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [location.pathname])
+  /* Close mobile drawer on route change */
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
+  /* Reset collapse state below lg breakpoint */
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth < 1024) setCollapsed(false)
@@ -789,48 +810,58 @@ export function AdminLayout() {
       background: '#f8faf9',
     }}>
 
-      {/* Desktop sidebar */}
-      <div className="lg-flex" style={{ flexShrink: 0 }}>
+      {/* ── Desktop sidebar ── */}
+      <div
+        className="sb-lg-flex"
+        style={{ flexShrink: 0, display: 'flex' }}
+      >
         <Sidebar
           collapsed={collapsed}
-          onToggle={() => setCollapsed((v) => !v)}
+          onToggle={() => setCollapsed(v => !v)}
         />
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* ── Mobile overlay + drawer ── */}
       <AnimatePresence>
         {mobileOpen && (
           <>
+            {/* Backdrop */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{   opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={() => setMobileOpen(false)}
-              className="lg-hidden"
               style={{
                 position:       'fixed',
                 inset:          0,
                 zIndex:         40,
                 background:     'rgba(0,0,0,0.6)',
                 backdropFilter: 'blur(8px)',
+                // Only visible below lg
               }}
+              className="sb-lg-hidden"
             />
 
+            {/* Drawer */}
             <motion.div
               key="drawer"
               initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
+              animate={{ x: 0       }}
+              exit={{   x: '-100%'  }}
+              transition={{
+                type:     'spring',
+                damping:  32,
+                stiffness:320,
+                mass:     0.8,
+              }}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
               onDragEnd={(_, { offset, velocity }) => {
                 if (offset.x < -100 || velocity.x < -500) setMobileOpen(false)
               }}
-              className="lg-hidden"
               style={{
                 position:  'fixed',
                 top:       0,
@@ -839,6 +870,7 @@ export function AdminLayout() {
                 zIndex:    50,
                 boxShadow: '8px 0 32px rgba(0,0,0,0.15)',
               }}
+              className="sb-lg-hidden"
             >
               <Sidebar
                 collapsed={false}
@@ -850,7 +882,7 @@ export function AdminLayout() {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
+      {/* ── Main content area ── */}
       <div style={{
         flex:          1,
         display:       'flex',
@@ -858,14 +890,17 @@ export function AdminLayout() {
         minWidth:      0,
         overflow:      'hidden',
       }}>
-        <Header onMenuClick={() => setMobileOpen(true)} isMobileOpen={mobileOpen} />
+        <Header
+          onMenuClick={() => setMobileOpen(v => !v)}
+          isMobileOpen={mobileOpen}
+        />
 
         <main style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{
             padding:   'clamp(16px, 2vw, 24px)',
             maxWidth:  '1600px',
             margin:    '0 auto',
-            animation: 'fadeIn 0.2s ease-out',
+            animation: 'sbFadeIn 0.2s ease-out',
           }}>
             <Outlet />
           </div>
