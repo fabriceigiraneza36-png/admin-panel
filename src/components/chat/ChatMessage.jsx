@@ -1,9 +1,8 @@
-import React from 'react'
 import { formatTime } from '@utils/formatters'
 import {
   Check, CheckCheck, Clock, AlertCircle,
-  Image as ImageIcon, FileText, Link2, MapPin,
-  Phone, Video, Copy, Reply, Forward, Trash2,
+  FileText, Link2, MapPin,
+  Copy, Reply, Forward, Trash2,
   MoreHorizontal,
 } from 'lucide-react'
 import { useState } from 'react'

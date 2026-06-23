@@ -29,8 +29,10 @@ import Loader         from '@components/common/Loader'
 const Login         = lazy(() => import('@pages/Login'))
 const Dashboard     = lazy(() => import('@pages/Dashboard'))
 const Countries     = lazy(() => import('@pages/Countries'))
+
 const Destinations  = lazy(() => import('@pages/Destinations'))
 const Bookings      = lazy(() => import('@pages/Bookings'))
+const Packages      = lazy(() => import('@pages/Packages'))
 const Users         = lazy(() => import('@pages/Users'))
 const Posts         = lazy(() => import('@pages/Posts'))
 const FAQs          = lazy(() => import('@pages/FAQs'))
@@ -182,6 +184,7 @@ const router = createBrowserRouter(
         { path: 'countries',   element: <Page><Countries    /></Page> },
         { path: 'destinations',element: <Page><Destinations /></Page> },
         { path: 'bookings',    element: <Page><Bookings     /></Page> },
+        { path: 'packages',    element: <Page><Packages    /></Page> },
         { path: 'users',       element: <Page><Users        /></Page> },
         { path: 'posts',       element: <Page><Posts        /></Page> },
         { path: 'faqs',        element: <Page><FAQs         /></Page> },

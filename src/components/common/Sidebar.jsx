@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Menu, ChevronLeft, X, LogOut, MapPinned,
+  Menu, ChevronLeft, X, LogOut, MapPinned,Package
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -43,6 +43,7 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { path: '/bookings',    label: 'Bookings',    icon: 'CalendarCheck' },
+      { path: '/packages',     label: 'Packages',     icon: Package },
       { path: '/users',       label: 'Users',       icon: 'Users'         },
       { path: '/contact',     label: 'Contact',     icon: 'MessageSquare' },
       { path: '/subscribers', label: 'Subscribers', icon: 'Mail'          },
