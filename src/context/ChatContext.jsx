@@ -1,6 +1,7 @@
+// admin/src/context/ChatContext.jsx
 /**
- * CHAT CONTEXT v3.4
- * Restored to legacy /api/chat endpoints and socket events.
+ * CHAT CONTEXT
+ * Uses legacy /api/chat endpoints + legacy socket events.
  */
 
 import React, {
@@ -28,8 +29,8 @@ const TOKEN_KEYS = [
 const getToken = () => {
   try {
     for (const key of TOKEN_KEYS) {
-      const t = localStorage.getItem(key)
-      if (t) return t
+      const token = localStorage.getItem(key)
+      if (token) return token
     }
   } catch {}
   return null
@@ -37,29 +38,19 @@ const getToken = () => {
 
 const isAuthed = () => Boolean(getToken())
 const is401    = (err) => err?.response?.status === 401
-
-const POLL_CONNECTED    = 30_000
-const POLL_DISCONNECTED = 10_000
-
 const safeArray = (val) => (Array.isArray(val) ? val : [])
+
+const POLL_CONNECTED    = 30000
+const POLL_DISCONNECTED = 10000
 
 const dedupeById = (arr) => {
   const seen = new Set()
   return safeArray(arr).filter((item) => {
-    const key = item?.id ?? item?.sessionId ?? JSON.stringify(item)
+    const key = item?.id ?? item?.sessionId ?? item?._id ?? JSON.stringify(item)
     if (seen.has(key)) return false
     seen.add(key)
     return true
   })
-}
-
-const friendlyError = (err) => {
-  const s = err?.response?.status
-  if (s === 401) return 'Not authorized — please log in as admin'
-  if (s === 403) return 'Access denied'
-  if (s === 404) return 'Resource not found'
-  if (s >= 500)  return 'Server error — please try again later'
-  return err?.message || 'Something went wrong'
 }
 
 const extractList = (data) => {
@@ -69,6 +60,33 @@ const extractList = (data) => {
   if (Array.isArray(data?.messages)) return data.messages
   if (Array.isArray(data?.users))    return data.users
   return []
+}
+
+const normalizeSession = (s) => ({
+  ...s,
+  sessionId: s?.sessionId ?? s?.session_id ?? s?.id ?? s?._id,
+  lastMessage: s?.lastMessage ?? s?.last_message ?? '',
+  full_name: s?.full_name ?? s?.userFullName ?? s?.user?.full_name ?? '',
+  email: s?.email ?? s?.userEmail ?? s?.user?.email ?? '',
+})
+
+const normalizeMessage = (m) => ({
+  ...m,
+  id:         m?.id ?? m?._id,
+  sessionId:  m?.sessionId ?? m?.session_id,
+  body:       m?.body ?? m?.content ?? m?.message ?? '',
+  senderType: m?.senderType ?? m?.sender_type,
+  senderName: m?.senderName ?? m?.sender_name,
+  createdAt:  m?.createdAt ?? m?.created_at,
+})
+
+const friendlyError = (err) => {
+  const s = err?.response?.status
+  if (s === 401) return 'Not authorized — please log in as admin'
+  if (s === 403) return 'Access denied'
+  if (s === 404) return 'Resource not found'
+  if (s >= 500)  return 'Server error — please try again later'
+  return err?.message || 'Something went wrong'
 }
 
 const DEFAULT_CTX = {
@@ -81,7 +99,7 @@ const DEFAULT_CTX = {
   isLoading:            false,
   typingUsers:          {},
   error:                null,
-  selectSession:        () => {},
+  selectSession:        async () => {},
   closeSession:         () => {},
   sendMessage:          async () => false,
   startSessionWithUser: async () => null,
@@ -118,21 +136,18 @@ export function ChatProvider({ children }) {
   const fetchingUsers   = useRef(false)
 
   useEffect(() => { selectedSessRef.current = selectedSession }, [selectedSession])
-  useEffect(() => { isConnectedRef.current  = isConnected    }, [isConnected])
+  useEffect(() => { isConnectedRef.current = isConnected }, [isConnected])
 
   useEffect(() => {
     isMountedRef.current = true
     return () => { isMountedRef.current = false }
   }, [])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // REFRESH SESSIONS → GET /api/chat/sessions
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Refresh sessions ───────────────────────────────────────────────────────
   const refreshSessions = useCallback(async (quiet = false) => {
     if (!isMountedRef.current) return
     if (!isAuthed()) {
-      if (isMountedRef.current) setIsLoadingSessions(false)
+      setIsLoadingSessions(false)
       return
     }
 
@@ -140,18 +155,11 @@ export function ChatProvider({ children }) {
       const { data } = await apiClient.get('/chat/sessions')
       if (!isMountedRef.current) return
 
-      const raw = dedupeById(extractList(data))
-      // Normalize: ensure every session has a stable `sessionId` field.
-      // Use _id (Mongo ObjectId) as the canonical session identifier.
-      const normalized = raw.map(s => ({
-        ...s,
-        sessionId: s.sessionId ?? s.id ?? s._id,
-      }))
+      const normalized = dedupeById(extractList(data).map(normalizeSession))
       setSessions(normalized)
       setError(null)
     } catch (err) {
-      if (!isMountedRef.current) return
-      if (is401(err)) return
+      if (!isMountedRef.current || is401(err)) return
       const msg = friendlyError(err)
       console.error('[Chat] refreshSessions:', msg)
       setError(msg)
@@ -161,13 +169,9 @@ export function ChatProvider({ children }) {
     }
   }, [])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // FETCH ALL USERS → GET /api/users?limit=500
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Users for modal ────────────────────────────────────────────────────────
   const fetchAllUsers = useCallback(async () => {
-    if (!isAuthed()) return
-    if (fetchingUsers.current) return
+    if (!isAuthed() || fetchingUsers.current) return
     fetchingUsers.current = true
     setIsLoadingAllUsers(true)
 
@@ -176,26 +180,23 @@ export function ChatProvider({ children }) {
       if (!isMountedRef.current) return
       setAllUsers(safeArray(extractList(data)))
     } catch (err) {
-      if (is401(err)) return
-      console.error('[Chat] fetchAllUsers:', friendlyError(err))
-      toast.error('Could not load user list')
+      if (!is401(err)) {
+        console.error('[Chat] fetchAllUsers:', friendlyError(err))
+        toast.error('Could not load user list')
+      }
     } finally {
       fetchingUsers.current = false
       if (isMountedRef.current) setIsLoadingAllUsers(false)
     }
   }, [])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // SELECT SESSION → GET /api/chat/sessions/:sessionId/messages
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Select session ─────────────────────────────────────────────────────────
   const selectSession = useCallback(async (session) => {
-    if (!session || !isMountedRef.current) return
-    if (!isAuthed()) return
+    if (!session || !isMountedRef.current || !isAuthed()) return
 
-    const sessionId = session.sessionId ?? session.id ?? session._id
+    const sessionId = session?.sessionId ?? session?.session_id ?? session?.id ?? session?._id
     if (!sessionId) {
-      console.warn('[Chat] selectSession: no sessionId on', session)
+      console.warn('[Chat] No sessionId on session:', session)
       return
     }
 
@@ -203,23 +204,24 @@ export function ChatProvider({ children }) {
     setError(null)
 
     try {
-      // Fetch full session (includes messages)
       const { data } = await apiClient.get(`/chat/sessions/${sessionId}`)
       if (!isMountedRef.current) return
 
       const sess = data?.data ?? data?.session ?? data
-      const sessId = sess?.sessionId ?? sess?.id ?? sess?._id ?? sessionId
+      const normalizedSession = normalizeSession({ ...session, ...sess })
+      const normalizedMessages = dedupeById(
+        extractList(sess?.messages ?? data?.messages ?? []).map(normalizeMessage)
+      )
 
-      setSelectedSession({ ...session, ...sess, sessionId: sessId })
-      setMessages(dedupeById(extractList(sess?.messages ?? sess)))
+      setSelectedSession(normalizedSession)
+      setMessages(normalizedMessages)
       setTypingUsers({})
 
       if (socket && isConnectedRef.current) {
-        socket.emit('msg:admin-join', { sessionId: sessId })
+        socket.emit('admin:join-session', { sessionId: normalizedSession.sessionId })
       }
     } catch (err) {
-      if (!isMountedRef.current) return
-      if (is401(err)) return
+      if (!isMountedRef.current || is401(err)) return
       const msg = friendlyError(err)
       console.error('[Chat] selectSession:', msg)
       setError(msg)
@@ -229,10 +231,7 @@ export function ChatProvider({ children }) {
     }
   }, [socket])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // CLOSE SESSION
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Close session ──────────────────────────────────────────────────────────
   const closeSession = useCallback(() => {
     setSelectedSession(null)
     setMessages([])
@@ -240,149 +239,150 @@ export function ChatProvider({ children }) {
     setError(null)
   }, [])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // SEND MESSAGE → POST /api/chat/sessions/:sessionId/messages  OR  socket emit
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (body) => {
-    const trimmed   = (body ?? '').trim()
-    const session   = selectedSessRef.current
-    const sessionId = session?.sessionId ?? session?.id ?? session?._id
+    const trimmed = (body || '').trim()
+    const session = selectedSessRef.current
+    const sessionId = session?.sessionId ?? session?.session_id ?? session?.id ?? session?._id
 
-    if (!trimmed || !sessionId) return false
-    if (!isAuthed()) return false
+    if (!trimmed || !sessionId || !isAuthed()) return false
 
-    // Prefer socket for real-time delivery
+    // Prefer socket real-time path
     if (socket && isConnectedRef.current) {
-      socket.emit('msg:admin-send', { sessionId, body: trimmed })
+      socket.emit('admin:send-message', { sessionId, body: trimmed })
       return true
     }
 
     // HTTP fallback
     try {
-      const { data } = await apiClient.post(`/chat/sessions/${sessionId}/messages`, { body: trimmed })
+      const { data } = await apiClient.post(`/chat/sessions/${sessionId}/messages`, {
+        body: trimmed,
+      })
       if (!isMountedRef.current) return false
 
-      const msg = data?.data ?? data?.message ?? data
-      if (msg && typeof msg === 'object' && isMountedRef.current) {
-        setMessages(prev => dedupeById([...prev, msg]))
+      const msg = normalizeMessage(data?.data ?? data?.message ?? data)
+      if (msg?.id) {
+        setMessages((prev) => dedupeById([...prev, msg]))
       }
       return true
     } catch (err) {
-      if (is401(err)) return false
-      console.error('[Chat] sendMessage fallback:', err.message)
-      toast.error('Failed to send message')
+      if (!is401(err)) {
+        console.error('[Chat] sendMessage fallback:', err.message)
+        toast.error('Failed to send message')
+      }
       return false
     }
   }, [socket])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // START SESSION WITH USER → POST /api/chat/sessions
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Start conversation ─────────────────────────────────────────────────────
   const startSessionWithUser = useCallback(async (user, initialMessage = '') => {
-    if (!user || !isMountedRef.current) return null
-    if (!isAuthed()) return null
+    if (!user || !isMountedRef.current || !isAuthed()) return null
 
     setIsLoading(true)
     setError(null)
 
     try {
       const payload = { userId: user.id }
-      if (initialMessage && initialMessage.trim()) {
-        payload.message = initialMessage.trim()
+      if (initialMessage?.trim()) payload.message = initialMessage.trim()
+
+      // Try legacy route first
+      let data
+      try {
+        const res = await apiClient.post('/chat/sessions', payload)
+        data = res.data
+      } catch (err) {
+        // fallback to messaging route if available
+        const res = await apiClient.post('/messages/start-with-user', payload)
+        data = res.data
       }
-      const { data } = await apiClient.post('/chat/sessions', payload)
+
       if (!isMountedRef.current) return null
 
       const session = data?.data ?? data?.session ?? data
-      const sessId  = session?.sessionId ?? session?.session_id ?? session?.id ?? session?._id
+      const normalizedSession = normalizeSession(session)
 
-      setSelectedSession({ ...session, sessionId: sessId })
-      setMessages(dedupeById(safeArray(session?.messages)))
+      setSelectedSession(normalizedSession)
+      setMessages(
+        dedupeById(safeArray(session?.messages).map(normalizeMessage))
+      )
+
       refreshSessions(true)
 
-      if (socket && isConnectedRef.current && sessId) {
-        socket.emit('msg:admin-join', { sessionId: sessId })
+      if (socket && isConnectedRef.current && normalizedSession.sessionId) {
+        socket.emit('admin:join-session', { sessionId: normalizedSession.sessionId })
       }
 
       toast.success('Conversation started')
-      return session
+      return normalizedSession
     } catch (err) {
-      if (!isMountedRef.current) return null
-      if (is401(err)) return null
+      if (!isMountedRef.current || is401(err)) return null
       const msg = friendlyError(err)
       console.error('[Chat] startSessionWithUser:', msg)
       setError(msg)
-      toast.error(
-        err?.response?.status === 404
-          ? 'Starting new sessions is not yet supported by the server'
-          : 'Failed to start conversation',
-      )
+      toast.error('Failed to start conversation')
       return null
     } finally {
       if (isMountedRef.current) setIsLoading(false)
     }
   }, [socket, refreshSessions])
 
-  // ─── Rejoin current session on (re)connect ───────────────────────────────────
+  // ── Rejoin selected session on reconnect ──────────────────────────────────
   useEffect(() => {
     if (isConnected && selectedSession && socket) {
-      const sessId = selectedSession.sessionId ?? selectedSession.id ?? selectedSession._id
-      if (sessId) {
-        socket.emit('msg:admin-join', { sessionId: sessId })
-      }
+      const sid = selectedSession.sessionId ?? selectedSession.id ?? selectedSession._id
+      if (sid) socket.emit('admin:join-session', { sessionId: sid })
     }
   }, [isConnected, selectedSession, socket])
 
-  // ─── Socket event listeners ───────────────────────────────────────────────────
-
+  // ── Socket listeners ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return
 
     const currentSessId = () => {
       const s = selectedSessRef.current
-      return s?.sessionId ?? s?.id ?? s?._id ?? null
+      return s?.sessionId ?? s?.session_id ?? s?.id ?? s?._id ?? null
     }
 
-    const onMessage = (message) => {
-      if (!isMountedRef.current) return
-      const myId  = currentSessId()
-      const msgId = message?.sessionId ?? message?.conversationId
+    const appendIfCurrent = (messageLike) => {
+      const normalized = normalizeMessage(messageLike)
+      const msgSessId = normalized?.sessionId ?? messageLike?.session_id
+      const currentId = currentSessId()
 
-      if (myId && msgId === myId) {
-        setMessages(prev => dedupeById([...prev, message]))
+      if (currentId && msgSessId && String(currentId) === String(msgSessId)) {
+        setMessages((prev) => dedupeById([...prev, normalized]))
       }
+    }
+
+    const onChatMessage = (message) => {
+      if (!isMountedRef.current) return
+      appendIfCurrent(message)
       refreshSessions(true)
     }
 
-    const onNewFromUser = (payload) => onMessage(payload?.message ?? payload)
-    const onAdminSent   = (message) => onMessage(message)
-
-    const onRead = ({ sessionId }) => {
+    const onNewChatMessage = (payload) => {
       if (!isMountedRef.current) return
-      if (sessionId !== currentSessId()) return
-      setMessages(prev =>
-        prev.map(m =>
-          (m.senderType ?? m.sender_type) !== 'admin'
-            ? { ...m, isRead: true }
-            : m,
-        ),
-      )
+      appendIfCurrent(payload)
+      refreshSessions(true)
+    }
+
+    const onAdminMessageSent = (payload) => {
+      if (!isMountedRef.current) return
+      appendIfCurrent(payload?.message ?? payload)
+      refreshSessions(true)
     }
 
     const onTyping = ({ sessionId, senderType, isTyping }) => {
       if (!isMountedRef.current) return
-      if (sessionId !== currentSessId()) return
-      const key = senderType ?? 'user'
+      if (String(sessionId) !== String(currentSessId())) return
 
-      setTypingUsers(prev => ({ ...prev, [key]: isTyping }))
+      const key = senderType || 'user'
+      setTypingUsers((prev) => ({ ...prev, [key]: isTyping }))
 
       if (isTyping) {
         clearTimeout(typingTimers.current[key])
         typingTimers.current[key] = setTimeout(() => {
           if (isMountedRef.current) {
-            setTypingUsers(prev => ({ ...prev, [key]: false }))
+            setTypingUsers((prev) => ({ ...prev, [key]: false }))
           }
         }, 4000)
       } else {
@@ -391,42 +391,20 @@ export function ChatProvider({ children }) {
       }
     }
 
-    const onSessionUpdated = ({ sessionId, ...patch }) => {
-      if (!isMountedRef.current) return
-      const update = (s) =>
-        (s.sessionId ?? s.id) === sessionId ? { ...s, ...patch } : s
-
-      setSessions(prev => prev.map(update))
-      setSelectedSession(prev =>
-        prev && (prev.sessionId ?? prev.id) === sessionId
-          ? { ...prev, ...patch }
-          : prev,
-      )
-    }
-
-    socket.on('msg:message',          onMessage)
-    socket.on('msg:new-from-user',    onNewFromUser)
-    socket.on('msg:admin-sent',       onAdminSent)
-    socket.on('msg:read',             onRead)
-    socket.on('msg:typing',           onTyping)
-    socket.on('msg:session-updated',  onSessionUpdated)
-    socket.on('chat:session-updated', onSessionUpdated)
+    socket.on('chat:message', onChatMessage)
+    socket.on('new-chat-message', onNewChatMessage)
+    socket.on('admin:message-sent', onAdminMessageSent)
+    socket.on('chat:typing', onTyping)
 
     return () => {
-      socket.off('msg:message',          onMessage)
-      socket.off('msg:new-from-user',    onNewFromUser)
-      socket.off('msg:admin-sent',       onAdminSent)
-      socket.off('msg:read',             onRead)
-      socket.off('msg:typing',           onTyping)
-      socket.off('msg:session-updated',  onSessionUpdated)
-      socket.off('chat:session-updated', onSessionUpdated)
+      socket.off('chat:message', onChatMessage)
+      socket.off('new-chat-message', onNewChatMessage)
+      socket.off('admin:message-sent', onAdminMessageSent)
+      socket.off('chat:typing', onTyping)
     }
   }, [socket, refreshSessions])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // POLLING
-  // ═══════════════════════════════════════════════════════════════════════════════
-
+  // ── Polling ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isAuthed()) {
       setIsLoadingSessions(false)
@@ -438,6 +416,7 @@ export function ChatProvider({ children }) {
     const schedule = () => {
       if (!isMountedRef.current) return
       const delay = isConnectedRef.current ? POLL_CONNECTED : POLL_DISCONNECTED
+
       pollTimerRef.current = setTimeout(async () => {
         if (!isMountedRef.current) return
         if (isAuthed()) await refreshSessions(true)
@@ -453,22 +432,20 @@ export function ChatProvider({ children }) {
     }
   }, [refreshSessions])
 
-  useEffect(() => () => {
-    Object.values(typingTimers.current).forEach(clearTimeout)
-    typingTimers.current = {}
+  useEffect(() => {
+    return () => {
+      Object.values(typingTimers.current).forEach(clearTimeout)
+      typingTimers.current = {}
+    }
   }, [])
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // CONTEXT VALUE
-  // ═══════════════════════════════════════════════════════════════════════════════
-
   const value = useMemo(() => ({
-    sessions,           // always []
+    sessions,
     isLoadingSessions,
-    allUsers,           // always []
+    allUsers,
     isLoadingAllUsers,
     selectedSession,
-    messages,           // always []
+    messages,
     isLoading,
     typingUsers,
     error,
@@ -479,12 +456,21 @@ export function ChatProvider({ children }) {
     fetchAllUsers,
     refreshSessions,
   }), [
-    sessions, isLoadingSessions,
-    allUsers, isLoadingAllUsers,
-    selectedSession, messages,
-    isLoading, typingUsers, error,
-    selectSession, closeSession, sendMessage,
-    startSessionWithUser, fetchAllUsers, refreshSessions,
+    sessions,
+    isLoadingSessions,
+    allUsers,
+    isLoadingAllUsers,
+    selectedSession,
+    messages,
+    isLoading,
+    typingUsers,
+    error,
+    selectSession,
+    closeSession,
+    sendMessage,
+    startSessionWithUser,
+    fetchAllUsers,
+    refreshSessions,
   ])
 
   return (
