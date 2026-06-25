@@ -1,177 +1,278 @@
-// admin/src/pages/Chat.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Search, Plus, X, Check, MessageSquare, Users } from 'lucide-react'
+/**
+ * Chat.jsx
+ * Responsive admin chat layout — green/white only
+ * No overflow, smooth mobile panel switching, compact actions on small screens
+ */
+
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react'
+import {
+  Search,
+  Plus,
+  X,
+  Check,
+  MessageSquare,
+  Users,
+  RefreshCw,
+} from 'lucide-react'
 import { useChatContext } from '@context/ChatContext'
 import { useSocketContext } from '@context/SocketContext'
 import { useDebounce } from '@hooks/useDebounce'
-import { useToast } from '@hooks/useToast'
-import Pagination from '@components/common/Pagination'
 import ChatSidebar from '@components/chat/ChatSidebar'
 import ChatWindow from '@components/chat/ChatWindow'
 
 const PAGE_SIZE = 20
+const safeArr = (v) => (Array.isArray(v) ? v : [])
 
-const safeArray = (val) => (Array.isArray(val) ? val : [])
+// ─── Avatar helper ────────────────────────────────────────────────────────────
+const avatar = (name, email, url) => {
+  if (url) return url
+  const label = encodeURIComponent(name || email || 'U')
+  return `https://ui-avatars.com/api/?name=${label}&background=16a34a&color=fff&bold=true`
+}
 
-function StartConversationModal({
-  onClose,
-  allUsers,
-  isLoadingAllUsers,
-  onStart,
-}) {
-  const [userSearch, setUserSearch] = useState('')
-  const [pickedUser, setPickedUser] = useState(null)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Start Conversation Modal
+// ═══════════════════════════════════════════════════════════════════════════════
+function StartConversationModal({ onClose, onStart }) {
+  const { allUsers, isLoadingAllUsers, fetchAllUsers } = useChatContext()
+
+  const [search, setSearch] = useState('')
+  const [picked, setPicked] = useState(null)
   const [firstMessage, setFirstMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const users = safeArray(allUsers)
+  const searchRef = useRef(null)
 
-  const filteredUsers = useMemo(() => {
-    if (!userSearch.trim()) return users
-    const q = userSearch.toLowerCase()
-    return users.filter((u) =>
-      (u.full_name || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q)
+  useEffect(() => {
+    fetchAllUsers()
+    const t = setTimeout(() => searchRef.current?.focus(), 80)
+    return () => clearTimeout(t)
+  }, [fetchAllUsers])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const users = safeArr(allUsers)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return users
+    return users.filter(
+      (u) =>
+        (u.full_name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q),
     )
-  }, [users, userSearch])
+  }, [users, search])
 
   const handleSubmit = async () => {
-    if (!pickedUser || submitting) return
+    if (!picked || submitting) return
     setSubmitting(true)
     try {
-      await onStart(pickedUser, firstMessage)
-      onClose()
+      const result = await onStart(picked, firstMessage)
+      if (result) onClose()
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && picked && !submitting) handleSubmit()
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="flex max-h-[92vh] w-full flex-col rounded-t-3xl border border-green-100 bg-white shadow-2xl sm:max-h-[80vh] sm:max-w-lg sm:rounded-2xl"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <h2 className="font-semibold text-gray-800">New Conversation</h2>
+        <div className="flex items-center gap-3 border-b border-green-100 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-semibold text-green-900">
+              New Conversation
+            </h2>
+            <p className="mt-0.5 text-sm text-green-400">
+              {users.length} user{users.length !== 1 ? 's' : ''} available
+            </p>
+          </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            className="rounded-xl p-2 text-green-300 transition-colors hover:bg-green-50 hover:text-green-600"
+            type="button"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto">
           {/* Selected user */}
-          {pickedUser && (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-              <img
-                src={
-                  pickedUser.avatar_url ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    pickedUser.full_name || pickedUser.email || 'U'
-                  )}&background=059669&color=fff`
-                }
-                alt=""
-                className="w-6 h-6 rounded-full object-cover"
-              />
-              <span className="text-sm text-emerald-700 flex-1 truncate">
-                {pickedUser.full_name || pickedUser.email}
-              </span>
-              <button onClick={() => setPickedUser(null)} className="shrink-0">
-                <X size={14} className="text-emerald-500" />
-              </button>
+          {picked && (
+            <div className="px-4 pt-4 sm:px-6">
+              <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                <img
+                  src={avatar(picked.full_name, picked.email, picked.avatar_url)}
+                  alt=""
+                  className="h-8 w-8 rounded-full object-cover ring-2 ring-green-200"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-green-800">
+                    {picked.full_name || picked.email}
+                  </p>
+                  <p className="truncate text-xs text-green-500">{picked.email}</p>
+                </div>
+                <button
+                  onClick={() => setPicked(null)}
+                  className="rounded-lg p-1 transition-colors hover:bg-green-100"
+                  type="button"
+                >
+                  <X size={14} className="text-green-400" />
+                </button>
+              </div>
             </div>
           )}
 
           {/* Search */}
-          <div className="relative">
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              placeholder="Search by name or email…"
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
+          <div className="px-4 pt-4 sm:px-6">
+            <div className="relative">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-green-300"
+              />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search users by name or email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full rounded-xl border border-green-200 bg-green-50 py-2.5 pl-10 pr-4 text-sm text-green-900 placeholder:text-green-300 transition-all focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
           </div>
 
           {/* User list */}
-          <div className="rounded-lg border border-gray-100 overflow-hidden max-h-56 overflow-y-auto">
+          <div className="px-3 py-3">
             {isLoadingAllUsers ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500" />
+              <div className="flex flex-col items-center justify-center gap-3 py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+                <p className="text-sm text-green-400">Loading users…</p>
               </div>
-            ) : filteredUsers.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-6">
-                {userSearch ? 'No users match your search' : 'No users found'}
-              </p>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12">
+                <Users size={32} className="text-green-200" />
+                <p className="text-sm text-green-400">
+                  {search ? 'No users match your search' : 'No users found'}
+                </p>
+              </div>
             ) : (
-              filteredUsers.map((user) => {
-                const selected = pickedUser?.id === user.id
-                return (
-                  <button
-                    key={user.id}
-                    onClick={() => setPickedUser(selected ? null : user)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-gray-50 last:border-0 ${
-                      selected ? 'bg-emerald-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <img
-                      src={
-                        user.avatar_url ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          user.full_name || user.email || 'U'
-                        )}&background=059669&color=fff`
-                      }
-                      alt=""
-                      className="w-8 h-8 rounded-full object-cover shrink-0"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          'https://ui-avatars.com/api/?name=U&background=059669&color=fff'
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">
-                        {user.full_name || 'No name'}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {user.email}
-                      </p>
-                    </div>
-                    {selected && <Check size={16} className="text-emerald-500 shrink-0" />}
-                  </button>
-                )
-              })
+              <div className="max-h-60 space-y-0.5 overflow-y-auto">
+                {filtered.map((user) => {
+                  const isSelected = picked?.id === user.id
+                  return (
+                    <button
+                      key={user.id}
+                      onClick={() => setPicked(isSelected ? null : user)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
+                        isSelected
+                          ? 'bg-green-50 ring-1 ring-green-200'
+                          : 'hover:bg-green-50/60'
+                      }`}
+                      type="button"
+                    >
+                      <div className="relative shrink-0">
+                        <img
+                          src={avatar(user.full_name, user.email, user.avatar_url)}
+                          alt=""
+                          className="h-9 w-9 rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = avatar(user.full_name, user.email)
+                          }}
+                        />
+                        {user.is_online && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`truncate text-sm font-medium ${
+                            isSelected ? 'text-green-700' : 'text-gray-800'
+                          }`}
+                        >
+                          {user.full_name || 'No name'}
+                        </p>
+                        <p className="truncate text-xs text-gray-400">{user.email}</p>
+                      </div>
+
+                      {isSelected && (
+                        <Check size={16} className="shrink-0 text-green-500" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             )}
           </div>
 
-          {/* Initial message */}
-          <textarea
-            placeholder="Optional first message…"
-            value={firstMessage}
-            onChange={(e) => setFirstMessage(e.target.value)}
-            rows={3}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
+          {/* First message */}
+          <div className="px-4 pb-4 sm:px-6">
+            <label className="mb-1.5 block text-xs font-medium text-green-500">
+              First message (optional)
+            </label>
+            <textarea
+              placeholder="Type a message to start the conversation…"
+              value={firstMessage}
+              onChange={(e) => setFirstMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={3}
+              className="w-full resize-none rounded-xl border border-green-200 bg-green-50 px-3.5 py-2.5 text-sm text-green-900 placeholder:text-green-300 transition-all focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
+        <div className="flex gap-3 border-t border-green-100 px-4 py-4 sm:px-6">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex-1 rounded-xl border border-green-200 bg-green-50 py-2.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-100"
+            type="button"
           >
             Cancel
           </button>
+
           <button
             onClick={handleSubmit}
-            disabled={!pickedUser || submitting}
-            className="flex-1 py-2.5 text-sm text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            disabled={!picked || submitting}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-sm shadow-green-200 transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
           >
-            {submitting ? 'Starting…' : 'Start Chat'}
+            {submitting ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Starting…
+              </>
+            ) : (
+              <>
+                <MessageSquare size={15} />
+                Start Chat
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -179,127 +280,181 @@ function StartConversationModal({
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Main Chat Page
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function Chat() {
-  const toast = useToast()
   const {
     sessions: rawSessions,
     isLoadingSessions,
-    allUsers: rawAllUsers,
-    isLoadingAllUsers,
     selectedSession,
     messages: rawMessages,
-    isLoading,
+    isLoadingMessages,
+    isSending,
     typingUsers,
+    unreadTotal,
     selectSession,
     closeSession,
     sendMessage,
     startSessionWithUser,
-    fetchAllUsers,
+    refreshSessions,
+    updateSessionStatus,
   } = useChatContext()
 
   const { isConnected } = useSocketContext()
 
-  const sessions = safeArray(rawSessions)
-  const allUsers = safeArray(rawAllUsers)
-  const messages = safeArray(rawMessages)
+  const sessions = safeArr(rawSessions)
+  const messages = safeArr(rawMessages)
 
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
-  const [showSidebar, setShowSidebar] = useState(true)
+  const [mobileSide, setMobileSide] = useState(true)
 
-  const debouncedSearch = useDebounce(search, 300)
+  const dSearch = useDebounce(search, 280)
 
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, statusFilter])
+  }, [dSearch, statusFilter])
 
   useEffect(() => {
-    if (showModal && allUsers.length === 0) {
-      fetchAllUsers()
-    }
-  }, [showModal, allUsers.length, fetchAllUsers])
+    if (selectedSession) setMobileSide(false)
+  }, [selectedSession])
 
-  const filteredSessions = useMemo(() => {
+  const filtered = useMemo(() => {
     let list = sessions
 
     if (statusFilter !== 'all') {
       list = list.filter((s) => (s.status || 'open') === statusFilter)
     }
 
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase()
-      list = list.filter((s) =>
-        (s.userFullName || s.full_name || s.userName || '').toLowerCase().includes(q) ||
-        (s.userEmail || s.email || '').toLowerCase().includes(q) ||
-        (s.lastMessage || '').toLowerCase().includes(q)
+    if (dSearch) {
+      const q = dSearch.toLowerCase()
+      list = list.filter(
+        (s) =>
+          (s.full_name || '').toLowerCase().includes(q) ||
+          (s.email || '').toLowerCase().includes(q) ||
+          (s.lastMessage || '').toLowerCase().includes(q),
       )
     }
 
     return list
-  }, [sessions, debouncedSearch, statusFilter])
+  }, [sessions, dSearch, statusFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filteredSessions.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
 
-  const pagedSessions = useMemo(() => {
+  const paged = useMemo(() => {
     const start = (safePage - 1) * PAGE_SIZE
-    return filteredSessions.slice(start, start + PAGE_SIZE)
-  }, [filteredSessions, safePage])
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, safePage])
 
-  const handleSelectSession = useCallback(async (session) => {
+  const handleSelect = useCallback(async (session) => {
     await selectSession(session)
-    setShowSidebar(false)
   }, [selectSession])
 
-  const handleBackToSidebar = useCallback(() => {
+  const handleBack = useCallback(() => {
     closeSession()
-    setShowSidebar(true)
+    setMobileSide(true)
   }, [closeSession])
 
-  const handleStartConversation = useCallback(async (user, message) => {
-    const started = await startSessionWithUser(user, message)
-    if (!started) {
-      toast.error('Failed to start conversation')
-      return
-    }
-    setShowSidebar(false)
-  }, [startSessionWithUser, toast])
+  const handleStart = useCallback(async (user, message) => {
+    return await startSessionWithUser(user, message)
+  }, [startSessionWithUser])
 
-  const currentSessionId =
-    selectedSession?.sessionId ?? selectedSession?.id ?? selectedSession?._id ?? null
+  const handleToggleSession = useCallback(() => {
+    if (!selectedSession) return
+    const next = selectedSession.status === 'open' ? 'closed' : 'open'
+    updateSessionStatus(selectedSession.sessionId, next)
+  }, [selectedSession, updateSessionStatus])
+
+  const currentId = selectedSession?.sessionId ?? null
+
+  const tabs = useMemo(() => [
+    {
+      key: 'all',
+      label: 'All',
+      count: sessions.length,
+    },
+    {
+      key: 'open',
+      label: 'Open',
+      count: sessions.filter((s) => (s.status || 'open') === 'open').length,
+    },
+    {
+      key: 'closed',
+      label: 'Closed',
+      count: sessions.filter((s) => s.status === 'closed').length,
+    },
+  ], [sessions])
 
   return (
     <>
-      <div className="flex h-[calc(100vh-64px)] bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-        {/* Sidebar */}
+      <div
+        className="relative flex h-[calc(100dvh-4rem)] min-h-0 w-full overflow-hidden bg-white sm:rounded-2xl sm:border sm:border-green-100 sm:bg-green-50/30"
+      >
+        {/* ══ SIDEBAR ════════════════════════════════════════════════════════ */}
         <aside
-          className={`w-full lg:w-80 border-r border-gray-200 bg-white flex flex-col shrink-0 ${
-            showSidebar ? 'flex' : 'hidden lg:flex'
-          }`}
+          className={`
+            absolute inset-y-0 left-0 z-20 flex w-full max-w-full flex-col
+            overflow-hidden border-r border-green-100 bg-white shadow-lg
+            transition-transform duration-300 ease-out
+            lg:static lg:z-auto lg:w-[320px] lg:shadow-none xl:w-[360px]
+            ${mobileSide ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}
         >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200 shrink-0 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-gray-800">Live Chat</h2>
-                <p className="text-xs text-gray-400">
-                  {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
-                </p>
+          {/* Sidebar header */}
+          <div className="shrink-0 space-y-3 border-b border-green-100 px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
+            {/* Title row */}
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-lg font-semibold text-green-900">
+                    Live Chat
+                  </h1>
+                  {unreadTotal > 0 && (
+                    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-green-600 px-1.5 text-[10px] font-bold leading-none text-white">
+                      {unreadTotal > 99 ? '99+' : unreadTotal}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  {isConnected ? (
+                    <>
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
+                      <span className="text-xs font-medium text-green-600">Live</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      <span className="text-xs font-medium text-amber-600">
+                        Reconnecting…
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">
-                  {isConnected
-                    ? <span className="text-green-500 font-medium">● Live</span>
-                    : <span className="text-amber-500 font-medium">● Offline</span>}
-                </span>
+
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => refreshSessions()}
+                  title="Refresh"
+                  className="rounded-xl p-2 text-green-300 transition-colors hover:bg-green-50 hover:text-green-600"
+                  type="button"
+                >
+                  <RefreshCw size={15} />
+                </button>
+
                 <button
                   onClick={() => setShowModal(true)}
-                  title="Start new conversation"
-                  className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+                  title="New conversation"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-green-200 transition-colors hover:bg-green-700"
+                  type="button"
                 >
-                  <Plus size={16} />
+                  <Plus size={14} />
+                  <span className="hidden sm:inline">New</span>
                 </button>
               </div>
             </div>
@@ -307,87 +462,125 @@ export default function Chat() {
             {/* Search */}
             <div className="relative">
               <Search
-                size={13}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-green-300"
               />
               <input
                 type="text"
-                placeholder="Search sessions…"
+                placeholder="Search conversations…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
+                className="w-full rounded-xl border border-green-200 bg-green-50 py-2 pl-9 pr-8 text-sm text-green-900 placeholder:text-green-300 transition-all focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 transition-colors hover:bg-green-100"
+                  type="button"
+                >
+                  <X size={12} className="text-green-400" />
+                </button>
+              )}
             </div>
 
             {/* Status tabs */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-              {['all', 'open', 'closed'].map((s) => (
+            <div className="flex gap-1 rounded-xl border border-green-100 bg-green-50 p-0.5">
+              {tabs.map((tab) => (
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
-                    statusFilter === s
-                      ? 'bg-white text-gray-800 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                  key={tab.key}
+                  onClick={() => {
+                    setStatusFilter(tab.key)
+                    setPage(1)
+                  }}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all ${
+                    statusFilter === tab.key
+                      ? 'border border-green-100 bg-white text-green-800 shadow-sm'
+                      : 'text-green-500 hover:text-green-700'
                   }`}
+                  type="button"
                 >
-                  {s}
+                  <span className="capitalize">{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      statusFilter === tab.key
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-green-100/70 text-green-400'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Session list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <ChatSidebar
-              sessions={pagedSessions}
-              activeId={currentSessionId}
-              onSelect={handleSelectSession}
-              search={search}
-              onSearch={setSearch}
+              sessions={paged}
+              activeId={currentId}
+              onSelect={handleSelect}
               loading={isLoadingSessions}
+              search={dSearch}
             />
           </div>
 
           {/* Pagination */}
           {!isLoadingSessions && totalPages > 1 && (
-            <div className="border-t border-gray-100 p-2 shrink-0">
-              <Pagination
-                page={safePage}
-                totalPages={totalPages}
-                total={filteredSessions.length}
-                limit={PAGE_SIZE}
-                hasNext={safePage < totalPages}
-                hasPrev={safePage > 1}
-                onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
-                onPrev={() => setPage((p) => Math.max(p - 1, 1))}
-                onGoTo={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
-                showPageSize={false}
-              />
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-green-100 px-4 py-3">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+              >
+                Prev
+              </button>
+
+              <span className="text-xs text-green-400">
+                {safePage} / {totalPages}
+              </span>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+              >
+                Next
+              </button>
             </div>
           )}
         </aside>
 
-        {/* Chat area */}
-        <main className={`flex-1 min-w-0 ${!showSidebar ? 'flex' : 'hidden lg:flex'}`}>
+        {/* ══ CHAT WINDOW ════════════════════════════════════════════════════ */}
+        <main
+          className={`
+            relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden
+            transition-transform duration-300 ease-out
+            lg:translate-x-0
+            ${mobileSide ? 'translate-x-full lg:translate-x-0' : 'translate-x-0'}
+          `}
+        >
           <ChatWindow
+            session={selectedSession}
             messages={messages}
             onSend={sendMessage}
-            sessionInfo={selectedSession}
-            connected={isConnected}
-            loading={isLoading}
+            onBack={handleBack}
+            onToggleStatus={handleToggleSession}
+            isConnected={isConnected}
+            isLoading={isLoadingMessages}
+            isSending={isSending}
             typingUsers={typingUsers}
-            onBack={handleBackToSidebar}
           />
         </main>
       </div>
 
+      {/* Modal */}
       {showModal && (
         <StartConversationModal
           onClose={() => setShowModal(false)}
-          allUsers={allUsers}
-          isLoadingAllUsers={isLoadingAllUsers}
-          onStart={handleStartConversation}
+          onStart={handleStart}
         />
       )}
     </>

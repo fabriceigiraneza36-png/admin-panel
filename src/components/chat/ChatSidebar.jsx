@@ -1,168 +1,215 @@
-// admin/src/components/chat/ChatSidebar.jsx
-import React, { useMemo } from 'react'
-import { MessageCircle, Search, Circle, Clock, CheckCheck } from 'lucide-react'
-import Avatar from '@components/common/Avatar'
-import { formatTimeAgo } from '@utils/formatters'
+/**
+ * ChatSidebar.jsx
+ * Responsive session list — green/white, no overflow, animated selection
+ */
 
-const safeArray = (val) => (Array.isArray(val) ? val : [])
+import React, { memo, useMemo } from 'react'
+import { MessageSquare, Loader2, Search } from 'lucide-react'
+import { formatDistanceToNowStrict } from 'date-fns'
 
-export default function ChatSidebar({
-  sessions = [],
-  activeId,
-  onSelect,
-  search = '',
-  onSearch,
-  loading = false,
-}) {
-  const safeSessions = safeArray(sessions)
+const safeArr = (v) => (Array.isArray(v) ? v : [])
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return safeSessions
-    return safeSessions.filter((s) =>
-      (s.full_name || s.userFullName || s.email || s.userEmail || s.session_id || s.sessionId || '')
-        .toLowerCase()
-        .includes(q)
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const avatarUrl = (name, email, url) => {
+  if (url) return url
+  const label = encodeURIComponent(name || email || 'U')
+  return `https://ui-avatars.com/api/?name=${label}&background=16a34a&color=fff&bold=true`
+}
+
+const relativeTime = (ts) => {
+  if (!ts) return ''
+  try {
+    return formatDistanceToNowStrict(new Date(ts), { addSuffix: false })
+      .replace(' seconds', 's')
+      .replace(' second', 's')
+      .replace(' minutes', 'm')
+      .replace(' minute', 'm')
+      .replace(' hours', 'h')
+      .replace(' hour', 'h')
+      .replace(' days', 'd')
+      .replace(' day', 'd')
+  } catch {
+    return ''
+  }
+}
+
+// ── Session card ──────────────────────────────────────────────────────────────
+const SessionCard = memo(({ session, isActive, onSelect, search }) => {
+  const name = session.full_name || session.email || 'Guest'
+  const email = session.email || ''
+  const lastMsg = session.lastMessage || ''
+  const unread = session.unreadCount || session.unread_admin || 0
+  const isClosed = session.status === 'closed'
+  const ts = session.lastMessageAt || session.last_active || session.created_at
+
+  const highlightText = (text, query) => {
+    if (!query || !text) return text
+    const idx = text.toLowerCase().indexOf(query.toLowerCase())
+    if (idx === -1) return text
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="rounded bg-green-200 text-green-900 not-italic">
+          {text.slice(idx, idx + query.length)}
+        </mark>
+        {text.slice(idx + query.length)}
+      </>
     )
-  }, [safeSessions, search])
-
-  const getStatusIcon = (session) => {
-    if (session.status === 'closed') return null
-    const unread = Number(session.unreadCount || session.unreadAdmin || 0)
-    if (unread > 0) {
-      return <CheckCheck size={10} className="text-emerald-600" />
-    }
-    return <Clock size={10} className="text-gray-400" />
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-surface-100 shrink-0">
-        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <MessageCircle size={16} className="text-primary-600" />
-          <span>Chat Sessions</span>
-          <span className="bg-primary-100 text-primary-700 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
-            {safeSessions.length}
-          </span>
-        </h3>
-
-        <div className="relative mt-2">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearch?.(e.target.value)}
-            placeholder="Search chats…"
-            className="input py-1.5 pl-8 text-xs"
-          />
-        </div>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-surface-50">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-primary-500 mb-3" />
-            <p className="text-sm font-medium text-gray-500">Loading sessions…</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <MessageCircle size={40} className="text-gray-300 mb-3" />
-            <p className="text-sm font-medium text-gray-500">No sessions found</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {search ? 'Try a different search term' : 'No chat sessions yet'}
-            </p>
-          </div>
-        ) : (
-          filtered.map((s) => {
-            const sessId     = s.sessionId ?? s.session_id ?? s.id ?? s._id
-            const isSelected = String(sessId) === String(activeId)
-            const unread     = Number(s.unreadCount || s.unreadAdmin || 0)
-            const status     = s.status || 'open'
-            const isOnline   = status === 'open' && unread === 0
-            const displayName = s.full_name || s.userFullName || s.email || s.userEmail || 'Guest'
-            const displayEmail = s.email || s.userEmail || ''
-            const lastActive = s.last_active || s.updatedAt || s.updated_at
-            const lastMessage = s.lastMessage || s.last_message || 'No messages yet'
-
-            return (
-              <button
-                key={String(sessId)}
-                onClick={() => onSelect?.(s)}
-                className={`relative w-full text-left px-4 py-3 transition-all duration-200 ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-primary-50 to-emerald-50 border-l-4 border-l-primary-500'
-                    : 'hover:bg-gray-50 border-l-4 border-l-transparent'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <Avatar
-                      src={s.avatar_url || s.userAvatar}
-                      name={displayName}
-                      size="sm"
-                      rounded="full"
-                      className="ring-2 ring-white shadow-sm"
-                    />
-                    <span
-                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                        isOnline ? 'bg-emerald-500' : 'bg-gray-300'
-                      }`}
-                      title={isOnline ? 'Online' : status === 'closed' ? 'Closed' : 'Away'}
-                    />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`text-sm font-semibold truncate ${
-                        unread > 0 ? 'text-slate-900' : 'text-slate-700'
-                      }`}>
-                        {displayName}
-                      </p>
-
-                      {lastActive && (
-                        <span className="text-[10px] text-slate-400 shrink-0 whitespace-nowrap flex items-center gap-1">
-                          {getStatusIcon(s)}
-                          {formatTimeAgo(lastActive)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className="text-xs text-slate-400 truncate">
-                        {lastMessage || displayEmail || 'No messages yet'}
-                      </p>
-
-                      {unread > 0 && (
-                        <span className="min-w-[20px] h-5 px-1.5 bg-primary-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm shrink-0">
-                          {unread > 99 ? '99+' : unread}
-                        </span>
-                      )}
-
-                      {status === 'closed' && (
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded shrink-0">
-                          Closed
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            )
-          })
+    <button
+      onClick={() => onSelect(session)}
+      type="button"
+      className={`group relative flex w-full min-w-0 items-start gap-3 px-3 py-3 text-left transition-all duration-150 sm:px-4 ${
+        isActive
+          ? 'bg-green-50 before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-green-600'
+          : 'hover:bg-green-50/70'
+      }`}
+    >
+      {/* Avatar */}
+      <div className="relative shrink-0">
+        <img
+          src={avatarUrl(name, email, session.avatar_url)}
+          alt=""
+          className={`h-10 w-10 rounded-full object-cover transition-all duration-200 ${
+            isActive
+              ? 'ring-2 ring-green-400 ring-offset-1'
+              : 'ring-1 ring-green-100 group-hover:ring-green-200'
+          }`}
+          onError={(e) => {
+            e.currentTarget.src = avatarUrl(name, email)
+          }}
+        />
+        {!isClosed && (
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-white" />
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-4 py-2 border-t border-surface-100 bg-surface-50 shrink-0">
-        <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
-          <Circle size={8} className="text-emerald-500 fill-emerald-500" />
-          Real-time updates enabled
-        </p>
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className={`truncate text-sm font-semibold leading-tight transition-colors ${
+              isActive ? 'text-green-800' : 'text-gray-800'
+            }`}
+          >
+            {highlightText(name, search)}
+          </p>
+
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {ts && (
+              <span className="whitespace-nowrap text-[10px] text-green-300">
+                {relativeTime(ts)}
+              </span>
+            )}
+            {unread > 0 && (
+              <span className="inline-flex h-4.5 min-w-[20px] items-center justify-center rounded-full bg-green-600 px-1.5 text-[10px] font-bold leading-none text-white">
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {email && (
+          <p className="mt-0.5 truncate text-[11px] text-green-400">
+            {highlightText(email, search)}
+          </p>
+        )}
+
+        {lastMsg && (
+          <p className="mt-1 line-clamp-1 text-xs text-gray-400">
+            {highlightText(lastMsg, search)}
+          </p>
+        )}
+
+        {isClosed && (
+          <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+            Closed
+          </span>
+        )}
       </div>
+    </button>
+  )
+})
+SessionCard.displayName = 'SessionCard'
+
+// ── Skeleton loader ───────────────────────────────────────────────────────────
+const SkeletonCard = () => (
+  <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
+    <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-green-100" />
+    <div className="min-w-0 flex-1 space-y-2">
+      <div className="flex justify-between gap-4">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-green-100" />
+        <div className="h-3 w-10 animate-pulse rounded-full bg-green-100" />
+      </div>
+      <div className="h-2.5 w-36 animate-pulse rounded-full bg-green-50" />
+      <div className="h-2.5 w-24 animate-pulse rounded-full bg-green-50" />
+    </div>
+  </div>
+)
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function ChatSidebar({
+  sessions,
+  activeId,
+  onSelect,
+  loading,
+  search,
+}) {
+  const list = safeArr(sessions)
+
+  if (loading) {
+    return (
+      <div className="divide-y divide-green-50">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    )
+  }
+
+  if (list.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+        {search ? (
+          <>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50">
+              <Search size={22} className="text-green-300" />
+            </div>
+            <p className="text-sm font-semibold text-green-400">No results found</p>
+            <p className="text-xs text-green-300">
+              Try a different name or email address
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50">
+              <MessageSquare size={22} className="text-green-300" />
+            </div>
+            <p className="text-sm font-semibold text-green-400">No conversations yet</p>
+            <p className="text-xs text-green-300">
+              Start one using the New button above
+            </p>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="divide-y divide-green-50/80">
+      {list.map((session) => (
+        <SessionCard
+          key={session.sessionId || session.session_id || session.id}
+          session={session}
+          isActive={
+            (session.sessionId || session.session_id) === activeId
+          }
+          onSelect={onSelect}
+          search={search}
+        />
+      ))}
     </div>
   )
 }
