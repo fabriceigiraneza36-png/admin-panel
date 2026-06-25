@@ -24,7 +24,7 @@ import {
   X,
 } from 'lucide-react'
 import { format, isToday, isYesterday, isSameDay } from 'date-fns'
-import ChatEmojiPicker from './ChatEmojiPicker'
+import ChatEmojiPicker from './ChatEmojiPicke.jsx'
 
 const safeArr = (v) => (Array.isArray(v) ? v : [])
 
