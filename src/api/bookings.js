@@ -6,6 +6,7 @@ const base = createEndpoint(BASE)
 export const bookingsAPI = {
   ...base,
 
+  // ── Existing methods ──────────────────────────────────────────────────────
   track:        (num)       => apiClient.get(`${BASE}/track/${num}`),
   mostBooked:   ()          => apiClient.get(`${BASE}/most-booked`),
   byDestination:(id)        => apiClient.get(`${BASE}/by-destination/${id}`),
@@ -20,4 +21,7 @@ export const bookingsAPI = {
   getRecent:    ()          => apiClient.get(`${BASE}/recent`),
   exportAll:    (params)    => apiClient.get(`${BASE}/export`, { params, responseType: 'blob' }),
   bulkStatus:   (data)      => apiClient.post(`${BASE}/bulk-status`, data),
+
+  // ── NEW v6.8: Admin creates booking on behalf of user ─────────────────────
+  adminCreate:  (data)      => apiClient.post(`${BASE}/admin`, data),
 }

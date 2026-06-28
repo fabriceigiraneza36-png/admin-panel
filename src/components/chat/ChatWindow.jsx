@@ -208,6 +208,7 @@ export default function ChatWindow({
   isLoading,
   isSending,
   typingUsers = {},
+  onTyping,
 }) {
   const [input, setInput] = useState('')
   const [showScroll, setShowScroll] = useState(false)
@@ -217,6 +218,7 @@ export default function ChatWindow({
   const inputRef = useRef(null)
   const emojiRef = useRef(null)
   const atBottomRef = useRef(true)
+  const typingDebounce = useRef(null)
 
   const msgs = safeArr(messages)
   const withSeps = withDateSeparators(msgs)
@@ -530,6 +532,16 @@ export default function ChatWindow({
                 onChange={(e) => {
                   setInput(e.target.value)
                   resizeInput()
+                  if (onTyping) {
+                    if (e.target.value.trim()) {
+                      onTyping(true)
+                      clearTimeout(typingDebounce.current)
+                      typingDebounce.current = setTimeout(() => onTyping(false), 4000)
+                    } else {
+                      clearTimeout(typingDebounce.current)
+                      onTyping(false)
+                    }
+                  }
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={

@@ -373,6 +373,22 @@ export function ChatProvider({ children }) {
     }
   }, [socket])
 
+  // ── Emit typing indicator (for new conversations system) ─────────────────────
+
+  const emitTyping = useCallback((isTypingNow) => {
+    const sock = socket
+    if (!sock?.connected) return
+    const session = selectedRef.current
+    const convId = session?.id ?? session?.conversationId ?? session?.sessionId
+    if (!convId) return
+
+    sock.emit('msg:typing', {
+      conversationId: convId,
+      isTyping:       isTypingNow,
+      senderType:     'admin',
+    })
+  }, [socket])
+
   // ── Start conversation with user ──────────────────────────────────────────
 
   const startSessionWithUser = useCallback(async (user, initialMessage = '') => {
@@ -564,6 +580,28 @@ export function ChatProvider({ children }) {
       }
     }
 
+    // Typing indicator — new messaging system (conversationId based)
+    const onTypingNew = ({ conversationId, senderType, isTyping }) => {
+      if (!mounted.current) return
+      const currentConvId = selectedRef.current?.id ?? selectedRef.current?.conversationId ?? null
+      if (!conversationId || String(conversationId) !== String(currentConvId)) return
+
+      const key = senderType || 'user'
+      setTypingUsers((prev) => ({ ...prev, [key]: isTyping }))
+
+      if (isTyping) {
+        clearTimeout(typingTimers.current[key])
+        typingTimers.current[key] = setTimeout(() => {
+          if (mounted.current) {
+            setTypingUsers((prev) => ({ ...prev, [key]: false }))
+          }
+        }, 5_000)
+      } else {
+        clearTimeout(typingTimers.current[key])
+        delete typingTimers.current[key]
+      }
+    }
+
     // Read receipt
     const onRead = ({ sessionId }) => {
       if (!mounted.current) return
@@ -583,6 +621,7 @@ export function ChatProvider({ children }) {
     socket.on('new-chat-message',   onNewChatMessage)
     socket.on('msg:session-updated',onSessionUpdated)
     socket.on('chat:typing',        onTyping)
+    socket.on('msg:typing',         onTypingNew)
     socket.on('msg:read',           onRead)
 
     return () => {
@@ -592,6 +631,7 @@ export function ChatProvider({ children }) {
       socket.off('new-chat-message',   onNewChatMessage)
       socket.off('msg:session-updated',onSessionUpdated)
       socket.off('chat:typing',        onTyping)
+      socket.off('msg:typing',         onTypingNew)
       socket.off('msg:read',           onRead)
     }
   }, [socket, refreshSessions])
@@ -656,6 +696,7 @@ export function ChatProvider({ children }) {
     refreshSessions,
     markSessionRead,
     updateSessionStatus,
+    emitTyping,
   }), [
     sessions,
     isLoadingSessions,
@@ -676,6 +717,7 @@ export function ChatProvider({ children }) {
     refreshSessions,
     markSessionRead,
     updateSessionStatus,
+    emitTyping,
   ])
 
   return (

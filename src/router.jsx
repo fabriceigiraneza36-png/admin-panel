@@ -27,6 +27,7 @@ import Loader         from '@components/common/Loader'
 // ─── Lazy pages ───────────────────────────────────────────────────────────────
 
 const Login         = lazy(() => import('@pages/Login'))
+const Notifications = lazy(() => import('@pages/Notifications'))
 const Dashboard     = lazy(() => import('@pages/Dashboard'))
 const Countries     = lazy(() => import('@pages/Countries'))
 
@@ -190,6 +191,12 @@ const router = createBrowserRouter(
         { path: 'faqs',        element: <Page><FAQs         /></Page> },
         { path: 'tips',        element: <Page><Tips         /></Page> },
         { path: 'team',        element: <Page><Team         /></Page> },
+        {
+  path: '/notifications',
+  element: (
+      <Notifications />
+  ),
+},
         { path: 'testimonials',element: <Page><Testimonials /></Page> },
         { path: 'gallery',     element: <Page><Gallery      /></Page> },
         { path: 'contact',     element: <Page><Contact      /></Page> },
