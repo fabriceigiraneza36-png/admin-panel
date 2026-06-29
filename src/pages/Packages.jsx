@@ -470,17 +470,17 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
         <StatusIcon status={booking.status} size={16} />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-800 text-sm truncate">
-            {booking.guest_name || booking.user_full_name || '—'}
+            {booking.full_name || booking.user_full_name || '—'}
           </p>
           <p className="text-xs text-slate-400 truncate">
-            {booking.guest_email || '—'}
+            {booking.email || '—'}
           </p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold text-emerald-600">
             {fmtPrice(booking.total_price, booking.currency)}
           </p>
-          <p className="text-xs text-slate-400">{booking.booking_ref || '—'}</p>
+          <p className="text-xs text-slate-400">{booking.booking_number || '—'}</p>
         </div>
         <span className={`text-xs font-bold px-2.5 py-1 rounded-full border
           capitalize shrink-0 ${statusColors[booking.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
@@ -497,8 +497,9 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: 'Travel Date', value: booking.travel_date   || '—' },
-              { label: 'Travelers',   value: booking.travelers_count || booking.adults || '—' },
-              { label: 'Phone',       value: booking.guest_phone   || '—' },
+              { label: 'Return Date', value: booking.return_date   || '—' },
+              { label: 'Travelers',   value: booking.number_of_travelers || booking.number_of_adults || '—' },
+              { label: 'Phone',       value: booking.phone   || '—' },
               { label: 'Priority',    value: booking.priority      || 'normal' },
             ].map(({ label, value }) => (
               <div key={label} className="bg-white rounded-lg p-2.5 border border-slate-100">
@@ -1161,8 +1162,8 @@ export default function Packages() {
                 onInfoRequest={(b) => openInfoRequest({
                   booking_id:  b.id,
                   user_id:     b.user_id,
-                  guest_email: b.guest_email,
-                  guest_name:  b.guest_name,
+                  guest_email: b.email,
+                  guest_name:  b.full_name,
                 })}
               />
             ))}

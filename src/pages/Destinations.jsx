@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+﻿import React, { useEffect, useState, useCallback } from 'react'
 import {
   Plus, Eye, Pencil, Trash2, MapPin, RefreshCw,
   Star, Globe2, Image, ListOrdered, HelpCircle,
@@ -43,7 +43,7 @@ const STEPS = [
   { id: 4, label: 'Flags & SEO',  icon: ListOrdered },
 ]
 
-/* ─── Step indicator ──────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Step indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function StepBar({ current, steps, onChange }) {
   return (
     <div className="flex items-center gap-0 mb-8">
@@ -86,26 +86,15 @@ function StepBar({ current, steps, onChange }) {
   )
 }
 
-/* ─── Field wrapper ───────────────────────────────────────────────────────── */
-function Field({ label, required, children, hint }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-semibold text-slate-700">
-        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
-      </label>
-      {children}
-      {hint && <p className="text-xs text-slate-400">{hint}</p>}
-    </div>
-  )
-}
+/* â”€â”€â”€ Field wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* ─── Styled input ────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Styled input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const inputCls = `w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200
   bg-white text-slate-800 placeholder-slate-400
   focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400
   transition-all duration-200`
 
-/* ─── Toggle switch ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Toggle switch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function Toggle({ label, desc, checked, onChange }) {
   return (
     <label className="flex items-center justify-between gap-4 p-3 rounded-xl
@@ -128,228 +117,6 @@ function Toggle({ label, desc, checked, onChange }) {
   )
 }
 
-export default function Destinations() {
-  const toast       = useToast()
-  const pag         = usePagination()
-  const viewModal   = useModal()
-  const formModal   = useModal()
-  const deleteModal = useModal()
-
-  const [items,     setItems]      = useState([])
-  const [countries, setCountries]  = useState([])
-  const [loading,   setLoading]    = useState(true)
-  const [saving,    setSaving]     = useState(false)
-  const [search,    setSearch]     = useState('')
-  const [category,  setCategory]   = useState('')
-  const [status,    setStatus]     = useState('')
-  const [sortBy,    setSortBy]     = useState('name')
-  const [sortOrder, setSortOrder]  = useState('asc')
-  const [form,      setForm]       = useState(INIT_FORM)
-  const [editing,   setEditing]    = useState(null)
-  const [step,      setStep]       = useState(1)
-
-  const dSearch = useDebounce(search, 400)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = {
-        page: pag.page, limit: pag.limit, sortBy, order: sortOrder,
-        ...(dSearch  && { search: dSearch }),
-        ...(category && { category }),
-        ...(status   && { status }),
-      }
-      const { data } = await destinationsAPI.getAll(params)
-      setItems(data.data || data.destinations || [])
-      pag.setTotal(data.pagination?.total || data.total || 0)
-    } catch (e) {
-      toast.error(getErrorMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, category, status])
-
-  useEffect(() => { load() }, [load])
-
-  useEffect(() => {
-    countriesAPI.getAll({ limit: 300 }).then(({ data }) => {
-      setCountries(data.data || data.countries || [])
-    }).catch(() => {})
-  }, [])
-
-  const countryOpts = [
-    { value: '', label: 'Select country…' },
-    ...countries.map(c => ({ value: String(c.id), label: `${c.flag || ''} ${c.name}` })),
-  ]
-
-  const openCreate = () => {
-    setForm(INIT_FORM); setEditing(null); setStep(1); formModal.open()
-  }
-
-  const openEdit = (d) => {
-    const f = { ...INIT_FORM }
-    Object.keys(f).forEach(k => { if (d[k] !== undefined && d[k] !== null) f[k] = d[k] })
-    f.country_id = String(d.country_id || '')
-    setForm(f); setEditing(d); setStep(1); formModal.open()
-  }
-
-  const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
-
-  /* ── Step validation ── */
-  const validateStep = (s) => {
-    if (s === 1) {
-      if (!form.name.trim())  { toast.error('Name is required'); return false }
-      if (!form.country_id)   { toast.error('Country is required'); return false }
-    }
-    return true
-  }
-
-  const goNext = () => { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length)) }
-  const goPrev = () => setStep(s => Math.max(s - 1, 1))
-
-  const handleSave = async () => {
-    if (!validateStep(step)) return
-    setSaving(true)
-    try {
-      const payload = {
-        ...form,
-        country_id:      Number(form.country_id),
-        duration_days:   form.duration_days   ? Number(form.duration_days)   : null,
-        max_group_size:  form.max_group_size  ? Number(form.max_group_size)  : null,
-        min_age:         form.min_age         ? Number(form.min_age)         : null,
-        altitude_meters: form.altitude_meters ? Number(form.altitude_meters) : null,
-        latitude:        form.latitude        ? Number(form.latitude)        : null,
-        longitude:       form.longitude       ? Number(form.longitude)       : null,
-        slug:            form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
-      }
-      if (editing) {
-        await destinationsAPI.update(editing.id, payload)
-        toast.success('Destination updated')
-      } else {
-        await destinationsAPI.create(payload)
-        toast.success('Destination created')
-      }
-      formModal.close(); load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
-    finally { setSaving(false) }
-  }
-
-  const handleDelete = async () => {
-    try {
-      await destinationsAPI.remove(deleteModal.data.id)
-      toast.success('Destination deleted')
-      deleteModal.close(); load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
-  }
-
-  const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
-
-  /* ── Table columns ── */
-  const columns = [
-    {
-      key: 'name', label: 'Destination', sortable: true,
-      render: (_, row) => (
-        <div className="flex items-center gap-3">
-          <Avatar src={row.image_url || row.thumbnail_url} name={row.name} size="sm" rounded="lg" />
-          <div>
-            <p className="font-semibold text-slate-800 max-w-[180px] truncate">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.region || row.category || '—'}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'country_name', label: 'Country',
-      render: (_, row) => {
-        const c = countries.find(x => x.id === row.country_id)
-        return <span className="text-sm text-slate-600">{c?.flag} {c?.name || `#${row.country_id}`}</span>
-      },
-    },
-    {
-      key: 'category', label: 'Category',
-      render: v => v ? (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
-          bg-emerald-50 text-emerald-700 border border-emerald-100 capitalize">{v}</span>
-      ) : '—',
-    },
-    {
-      key: 'rating', label: 'Rating', sortable: true, align: 'center',
-      render: v => (
-        <span className="flex items-center gap-1 justify-center">
-          <Star size={12} className="text-amber-500 fill-amber-500" />
-          <span className="font-bold text-sm">{formatRating(v)}</span>
-        </span>
-      ),
-    },
-    {
-      key: 'status', label: 'Status',
-      render: v => <Badge status={v} label={v} />,
-    },
-    {
-      key: 'is_featured', label: 'Featured', align: 'center',
-      render: v => v
-        ? <Star size={16} className="text-amber-500 fill-amber-500 mx-auto" />
-        : <span className="text-slate-300">—</span>,
-    },
-    {
-      key: 'actions', label: '', align: 'right', width: '100px',
-      render: (_, row) => (
-        <TableActions>
-          <TableAction icon={Eye}    label="View"   onClick={() => viewModal.open(row)} />
-          <TableAction icon={Pencil} label="Edit"   onClick={() => openEdit(row)} />
-          <TableAction icon={Trash2} label="Delete" onClick={() => deleteModal.open(row)} variant="danger" />
-        </TableActions>
-      ),
-    },
-  ]
-
-  /* ── Step content ── */
-  const renderStep = () => {
-    switch (step) {
-      case 1: return (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Name" required>
-              <input className={inputCls} value={form.name}
-                onChange={e => upd('name', e.target.value)}
-                placeholder="e.g., Volcanoes National Park" />
-            </Field>
-            <Field label="Slug" hint="Auto-generated if left blank">
-              <input className={inputCls} value={form.slug}
-                onChange={e => upd('slug', e.target.value)} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Country" required>
-              <Dropdown value={form.country_id} onChange={v => upd('country_id', v)}
-                options={countryOpts} searchable
-                className={inputCls} />
-            </Field>
-            <Field label="Category">
-              <Dropdown value={form.category} onChange={v => upd('category', v)}
-                options={[{ value: '', label: 'Select…' },
-                  ...DESTINATION_CATEGORIES.map(c => ({
-                    value: c, label: c.charAt(0).toUpperCase() + c.slice(1)
-                </div>
-              <span className={`text-[10px] font-semibold whitespace-nowrap leading-none
-                ${isActive ? 'text-emerald-700' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}>
-                {step.label}
-              </span>
-            </button>
-
-            {!isLast && (
-              <div className={`h-0.5 flex-1 mx-1 rounded-full transition-all duration-500
-                ${isCompleted ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-            )}
-          </React.Fragment>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── Step Card Wrapper ────────────────────────────────────────────────────────
-
 function StepCard({ title, desc, icon: Icon, children }) {
   return (
     <div className="space-y-4">
@@ -368,7 +135,7 @@ function StepCard({ title, desc, icon: Icon, children }) {
   )
 }
 
-// ─── Reusable Field ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Reusable Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Field({ label, required, children, className = '' }) {
   return (
@@ -382,7 +149,7 @@ function Field({ label, required, children, className = '' }) {
   )
 }
 
-// ─── Toggle Flag ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Toggle Flag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function FlagToggle({ checked, onChange, label, desc }) {
   return (
@@ -415,9 +182,6 @@ function FlagToggle({ checked, onChange, label, desc }) {
     </label>
   )
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function Destinations() {
   const toast       = useToast()
   const pag         = usePagination()
@@ -441,7 +205,7 @@ export default function Destinations() {
 
   const dSearch = useDebounce(search, 400)
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Load â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -471,11 +235,11 @@ export default function Destinations() {
   }, [])
 
   const countryOpts = [
-    { value: '', label: 'Select country…' },
+    { value: '', label: 'Select countryâ€¦' },
     ...countries.map(c => ({ value: String(c.id), label: `${c.flag || ''} ${c.name}` })),
   ]
 
-  // ── Step navigation ───────────────────────────────────────────────────────
+  // â”€â”€ Step navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const stepIds   = STEPS.map(s => s.id)
   const stepIndex = stepIds.indexOf(currentStep)
@@ -493,7 +257,7 @@ export default function Destinations() {
 
   const goTo = (id) => setCurrentStep(id)
 
-  // ── Form helpers ──────────────────────────────────────────────────────────
+  // â”€â”€ Form helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const openCreate = () => {
     setForm(INIT_FORM)
@@ -516,7 +280,7 @@ export default function Destinations() {
 
   const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleSave = async () => {
     if (!form.name.trim())  return toast.error('Name is required')
@@ -550,7 +314,7 @@ export default function Destinations() {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
+  // â”€â”€ Delete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleDelete = async () => {
     try {
@@ -563,7 +327,7 @@ export default function Destinations() {
 
   const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
 
-  // ── Table columns ─────────────────────────────────────────────────────────
+  // â”€â”€ Table columns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const columns = [
     {
@@ -573,7 +337,7 @@ export default function Destinations() {
           <Avatar src={row.image_url || row.thumbnail_url} name={row.name} size="sm" rounded="lg" />
           <div>
             <p className="font-semibold text-slate-800 max-w-[180px] truncate">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.region || row.category || '—'}</p>
+            <p className="text-xs text-slate-400">{row.region || row.category || 'â€”'}</p>
           </div>
         </div>
       ),
@@ -590,7 +354,7 @@ export default function Destinations() {
       render: v => v
         ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold
             bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">{v}</span>
-        : '—',
+        : 'â€”',
     },
     {
       key: 'rating', label: 'Rating', sortable: true, align: 'center',
@@ -609,7 +373,7 @@ export default function Destinations() {
       key: 'is_featured', label: 'Featured', align: 'center',
       render: v => v
         ? <Star size={16} className="text-amber-500 fill-amber-500 mx-auto" />
-        : <span className="text-slate-300">—</span>,
+        : <span className="text-slate-300">â€”</span>,
     },
     {
       key: 'actions', label: '', align: 'right', width: '100px',
@@ -623,7 +387,7 @@ export default function Destinations() {
     },
   ]
 
-  // ── Step content ──────────────────────────────────────────────────────────
+  // â”€â”€ Step content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const renderStep = () => {
     switch (currentStep) {
@@ -668,7 +432,7 @@ export default function Destinations() {
                 value={form.category}
                 onChange={v => upd('category', v)}
                 options={[
-                  { value: '', label: 'Select…' },
+                  { value: '', label: 'Selectâ€¦' },
                   ...DESTINATION_CATEGORIES.map(c => ({
                     value: c, label: c.charAt(0).toUpperCase() + c.slice(1),
                   })),
@@ -679,7 +443,7 @@ export default function Destinations() {
               <Dropdown
                 value={form.difficulty}
                 onChange={v => upd('difficulty', v)}
-                options={[{ value: '', label: 'Select…' }, ...DIFFICULTY_LEVELS]}
+                options={[{ value: '', label: 'Selectâ€¦' }, ...DIFFICULTY_LEVELS]}
               />
             </Field>
             <Field label="Status">
@@ -694,7 +458,7 @@ export default function Destinations() {
                 className="input min-h-[80px] resize-none"
                 value={form.short_description}
                 onChange={e => upd('short_description', e.target.value)}
-                placeholder="Brief overview shown on cards…"
+                placeholder="Brief overview shown on cardsâ€¦"
               />
             </Field>
             <Field label="Full Description" className="sm:col-span-2">
@@ -702,7 +466,7 @@ export default function Destinations() {
                 className="input min-h-[110px] resize-none"
                 value={form.description}
                 onChange={e => upd('description', e.target.value)}
-                placeholder="Detailed description of this destination…"
+                placeholder="Detailed description of this destinationâ€¦"
               />
             </Field>
           </div>
@@ -730,7 +494,7 @@ export default function Destinations() {
             <Field label="Best Time to Visit">
               <input className="input" value={form.best_time_to_visit}
                 onChange={e => upd('best_time_to_visit', e.target.value)}
-                placeholder="e.g., Jun–Sep, Dec–Feb" />
+                placeholder="e.g., Junâ€“Sep, Decâ€“Feb" />
             </Field>
             <Field label="Latitude">
               <input className="input" type="number" step="any"
@@ -785,19 +549,19 @@ export default function Destinations() {
               label="Highlights"
               value={form.highlights}
               onChange={v => upd('highlights', v)}
-              placeholder="Add a highlight and press Enter…"
+              placeholder="Add a highlight and press Enterâ€¦"
             />
             <TagInput
               label="Activities"
               value={form.activities}
               onChange={v => upd('activities', v)}
-              placeholder="Add an activity and press Enter…"
+              placeholder="Add an activity and press Enterâ€¦"
             />
             <TagInput
               label="Wildlife"
               value={form.wildlife}
               onChange={v => upd('wildlife', v)}
-              placeholder="Add wildlife and press Enter…"
+              placeholder="Add wildlife and press Enterâ€¦"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <Field label="Meta Title">
@@ -887,16 +651,16 @@ export default function Destinations() {
           <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50
             border border-emerald-200">
             <p className="text-xs font-bold text-emerald-700 mb-3 uppercase tracking-wider">
-              ✓ Review Summary
+              âœ“ Review Summary
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
-                ['Name',     form.name       || '—'],
-                ['Country',  countryOpts.find(c => c.value === form.country_id)?.label || '—'],
-                ['Category', form.category   || '—'],
-                ['Status',   form.status     || '—'],
-                ['Region',   form.region     || '—'],
-                ['Duration', form.duration_days ? `${form.duration_days} days` : '—'],
+                ['Name',     form.name       || 'â€”'],
+                ['Country',  countryOpts.find(c => c.value === form.country_id)?.label || 'â€”'],
+                ['Category', form.category   || 'â€”'],
+                ['Status',   form.status     || 'â€”'],
+                ['Region',   form.region     || 'â€”'],
+                ['Duration', form.duration_days ? `${form.duration_days} days` : 'â€”'],
               ].map(([k, v]) => (
                 <div key={k} className="flex gap-1.5">
                   <span className="text-slate-400 shrink-0">{k}:</span>
@@ -912,12 +676,12 @@ export default function Destinations() {
     }
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
     <div className="space-y-5 page-enter">
 
-      {/* ── Page Header ── */}
+      {/* â”€â”€ Page Header â”€â”€ */}
       <div className="page-header">
         <div>
           <h1 className="page-title flex items-center gap-2">
@@ -935,11 +699,11 @@ export default function Destinations() {
         </div>
       </div>
 
-      {/* ── Filters ── */}
+      {/* â”€â”€ Filters â”€â”€ */}
       <div className="card p-4">
         <FilterBar>
           <SearchBar value={search} onChange={setSearch}
-            placeholder="Search destinations…" className="max-w-sm" />
+            placeholder="Search destinationsâ€¦" className="max-w-sm" />
           <FilterSelect label="Category" value={category}
             onChange={v => { setCategory(v); pag.reset() }}
             options={[
@@ -954,7 +718,7 @@ export default function Destinations() {
         </FilterBar>
       </div>
 
-      {/* ── Table ── */}
+      {/* â”€â”€ Table â”€â”€ */}
       <div className="card">
         <Table
           columns={columns} data={items} loading={loading}
@@ -969,9 +733,9 @@ export default function Destinations() {
         />
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           VIEW MODAL
-          ════════════════════════════════════════════════════════════ */}
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
@@ -1006,7 +770,7 @@ export default function Destinations() {
                 <ModalField label="Category"   value={viewModal.data.category} />
                 <ModalField label="Difficulty" value={viewModal.data.difficulty} />
                 <ModalField label="Duration"
-                  value={viewModal.data.duration_days ? `${viewModal.data.duration_days} days` : '—'} />
+                  value={viewModal.data.duration_days ? `${viewModal.data.duration_days} days` : 'â€”'} />
                 <ModalField label="Rating"
                   value={
                     <span className="flex items-center gap-1">
@@ -1048,9 +812,9 @@ export default function Destinations() {
         )}
       </Modal>
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           CREATE / EDIT MULTI-STEP MODAL
-          ════════════════════════════════════════════════════════════ */}
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <Modal
         isOpen={formModal.isOpen}
         onClose={formModal.close}
@@ -1081,7 +845,7 @@ export default function Destinations() {
                     <>
                       <span className="w-4 h-4 border-2 border-white/40 border-t-white
                         rounded-full animate-spin" />
-                      Saving…
+                      Savingâ€¦
                     </>
                   ) : editing ? (
                     <><Check size={15} /> Update Destination</>
@@ -1107,7 +871,7 @@ export default function Destinations() {
         </div>
       </Modal>
 
-      {/* ── Delete Confirm ── */}
+      {/* â”€â”€ Delete Confirm â”€â”€ */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
         onClose={deleteModal.close}
