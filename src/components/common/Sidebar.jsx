@@ -13,6 +13,8 @@ import { useAuth }             from '@hooks/useAuth'
 import { useToast }            from '@hooks/useToast'
 import { selectTotalUnread }   from '@store/chatSlice'
 import Header                  from './Header'
+import AdminNotificationBell from '../admin/AdminNotificationBell';
+
 
 // ── Icon map — string keys map to components ──────────────────────────────────
 const ICONS = {
