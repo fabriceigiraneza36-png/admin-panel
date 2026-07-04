@@ -218,12 +218,12 @@ export function ChatProvider({ children }) {
      Server event: msg:admin-join { conversationId }
      Server joins socket to conv:${conversationId} and marks unread
   ══════════════════════════════════════════════════════════════ */
-  const joinConversation = useCallback((conversationId) => {
-    if (!socket || !connectedRef.current || !conversationId) return
+  const joinConversation = useCallback((conversationId, sessionId = null) => {
+    if (!socket || !connectedRef.current || (!conversationId && !sessionId)) return
 
-    socket.emit('msg:admin-join', { conversationId }, (ack) => {
+    socket.emit('msg:admin-join', { conversationId, sessionId }, (ack) => {
       if (ack?.success) {
-        console.debug('[admin] joined conv:', conversationId)
+        console.debug('[admin] joined conv:', conversationId || sessionId)
         // If server returns messages, merge them
         if (Array.isArray(ack.messages) && mounted.current) {
           const normalized = dedupeBy(
@@ -273,17 +273,8 @@ export function ChatProvider({ children }) {
         prev.map((s) => s.sessionId === sessionId ? { ...s, unreadCount: 0 } : s),
       )
 
-      // Join socket room using conversationId (new system)
-      // or fall back to legacy admin:join-session
-      const convId = sess.conversationId
-      if (convId) {
-        joinConversation(convId)
-      } else {
-        // Legacy: join chat:${sessionId} room
-        socket?.emit('admin:join-session', { sessionId }, (ack) => {
-          console.debug('[admin] legacy join-session ack:', ack)
-        })
-      }
+      // Join the live chat room using the same session/conversation flow as the frontend.
+      joinConversation(sess.conversationId, sessionId)
 
       // Mark read on server (non-blocking)
       apiClient.patch(`/chat/sessions/${sessionId}/read`).catch(() => {})
@@ -368,8 +359,8 @@ export function ChatProvider({ children }) {
     }
 
     /* ── Socket: new messaging system ── */
-    if (socket && connectedRef.current && conversationId) {
-      socket.emit('msg:admin-send', { conversationId, body: trimmed }, (ack) => {
+    if (socket && connectedRef.current && (conversationId || sessionId)) {
+      socket.emit('msg:admin-send', { conversationId, sessionId, body: trimmed }, (ack) => {
         if (!mounted.current) return
         setIsSending(false)
 
@@ -385,31 +376,6 @@ export function ChatProvider({ children }) {
         if (confirmed?.id) replaceOpt(confirmed)
         else {
           // Server will echo via msg:message
-          setMessages((prev) =>
-            prev.map((m) => m.id === optId ? { ...m, isOptimistic: false } : m),
-          )
-        }
-
-        bumpSession(trimmed)
-      })
-      return true
-    }
-
-    /* ── Socket: legacy system ── */
-    if (socket && connectedRef.current && sessionId) {
-      socket.emit('admin:send-message', { sessionId, body: trimmed }, (ack) => {
-        if (!mounted.current) return
-        setIsSending(false)
-
-        if (ack?.success === false) {
-          removeOpt()
-          toast.error(ack.error || 'Failed to send')
-          return
-        }
-
-        const confirmed = normMessage(ack?.message)
-        if (confirmed?.id) replaceOpt(confirmed)
-        else {
           setMessages((prev) =>
             prev.map((m) => m.id === optId ? { ...m, isOptimistic: false } : m),
           )
@@ -456,20 +422,12 @@ export function ChatProvider({ children }) {
     if (!socket?.connected) return
     const { conversationId, sessionId } = getSelectedIds()
 
-    if (conversationId) {
-      socket.emit('msg:typing', {
-        conversationId,
-        isTyping:   isTypingNow,
-        senderType: 'admin',
-      })
-    } else if (sessionId) {
-      // Legacy
-      socket.emit('chat:typing', {
-        sessionId,
-        isTyping:   isTypingNow,
-        senderType: 'admin',
-      })
-    }
+    socket.emit('msg:typing', {
+      conversationId,
+      sessionId,
+      isTyping:   isTypingNow,
+      senderType: 'admin',
+    })
   }, [socket, getSelectedIds])
 
   /* ══════════════════════════════════════════════════════════════

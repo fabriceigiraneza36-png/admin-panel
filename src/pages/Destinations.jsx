@@ -44,40 +44,41 @@ const STEPS = [
 ]
 
 /* â”€â”€â”€ Step indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-function StepBar({ current, steps, onChange }) {
+function StepIndicator({ steps, current, completed, onGoTo }) {
   return (
     <div className="flex items-center gap-0 mb-8">
       {steps.map((s, i) => {
-        const done    = current > s.id
-        const active  = current === s.id
+        const isDone   = completed?.includes(s.id)
+        const active   = s.id === current
+        const isLast   = i === steps.length - 1
         const Icon    = s.icon
         return (
           <React.Fragment key={s.id}>
             <button
               type="button"
-              onClick={() => onChange(s.id)}
+              onClick={() => onGoTo(s.id)}
               className={`flex flex-col items-center gap-1.5 group transition-all
                 flex-1 focus:outline-none`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center
                 border-2 transition-all duration-300 shadow-sm
-                ${done
+                ${isDone
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-emerald-200'
                   : active
                   ? 'bg-white border-emerald-500 text-emerald-600 shadow-emerald-100'
                   : 'bg-white border-slate-200 text-slate-400'}`}>
-                {done
+                {isDone
                   ? <Check size={16} strokeWidth={3} />
                   : <Icon size={16} />}
               </div>
               <span className={`text-[11px] font-semibold hidden sm:block transition-colors
-                ${active ? 'text-emerald-600' : done ? 'text-emerald-500' : 'text-slate-400'}`}>
+                ${active ? 'text-emerald-600' : isDone ? 'text-emerald-500' : 'text-slate-400'}`}>
                 {s.label}
               </span>
             </button>
-            {i < steps.length - 1 && (
+            {!isLast && (
               <div className={`h-0.5 flex-1 mx-1 rounded-full transition-all duration-500
-                ${current > s.id ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                ${isDone ? 'bg-emerald-400' : 'bg-slate-200'}`} />
             )}
           </React.Fragment>
         )
@@ -863,7 +864,7 @@ export default function Destinations() {
             steps={STEPS}
             current={currentStep}
             onGoTo={goTo}
-            completedSteps={completed}
+            completed={completed}
           />
           <div className="min-h-[340px]">
             {renderStep()}
