@@ -1,22 +1,43 @@
-import apiClient, { createEndpoint } from './client'
+// admin/src/api/notifications.js
+import client from './client';
 
-const BASE = '/notifications'
+const notificationsAPI = {
+  // ── Fetch all notifications (admin view) ──────────────────────────────────
+  getAll: (params = {}) =>
+    client.get('/notifications/admin', { params }).then(r => r.data),
 
-export const notificationsAPI = {
-  // ── Admin endpoints ──────────────────────────────────────────────────────
-  getAll:      (params)     => apiClient.get(`${BASE}/admin`, { params }),
-  getStats:    ()           => apiClient.get(`${BASE}/admin/stats`),
-  create:      (data)       => apiClient.post(BASE, data),
-  adminReply:  (id, data)   => apiClient.post(`${BASE}/${id}/admin-reply`, data),
-  adminDelete: (id)         => apiClient.delete(`${BASE}/${id}/admin`),
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  getStats: () =>
+    client.get('/notifications/admin/stats').then(r => r.data),
 
-  // ── User endpoints (called from admin to test) ───────────────────────────
-  getMyNotifs: (params)     => apiClient.get(`${BASE}/my`, { params }),
-  getUnread:   ()           => apiClient.get(`${BASE}/my/unread-count`),
-  markRead:    (id)         => apiClient.patch(`${BASE}/${id}/read`),
-  markAllRead: ()           => apiClient.patch(`${BASE}/mark-all-read`),
-  react:       (id, data)   => apiClient.patch(`${BASE}/${id}/react`, data),
-  reply:       (id, data)   => apiClient.post(`${BASE}/${id}/reply`, data),
-  deleteOne:   (id)         => apiClient.delete(`${BASE}/${id}`),
-  clearAll:    ()           => apiClient.delete(`${BASE}/clear-all`),
-}
+  // ── Create / broadcast ────────────────────────────────────────────────────
+  create: (data) =>
+    client.post('/notifications', data).then(r => r.data),
+
+  broadcast: (data) =>
+    client.post('/notifications', {
+      ...data,
+      targetScope: 'all',
+    }).then(r => r.data),
+
+  // ── Admin reply to user's reply ───────────────────────────────────────────
+  adminReply: (id, adminReply) =>
+    client.post(`/notifications/${id}/admin-reply`, { adminReply }).then(r => r.data),
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  adminDelete: (id) =>
+    client.delete(`/notifications/${id}/admin`).then(r => r.data),
+
+  // ── Checklist PDF delivery ────────────────────────────────────────────────
+  sendChecklist: (data) =>
+    client.post('/notifications/admin/send-checklist', data).then(r => r.data),
+
+  // ── Payment actions ───────────────────────────────────────────────────────
+  confirmPayment: (data) =>
+    client.post('/notifications/admin/confirm-payment', data).then(r => r.data),
+
+  requestPayment: (data) =>
+    client.post('/notifications/admin/request-payment', data).then(r => r.data),
+};
+
+export default notificationsAPI;

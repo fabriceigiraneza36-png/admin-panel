@@ -114,6 +114,103 @@ function Field({ label, required, hint, children }) {
   )
 }
 
+
+function PaymentActions({ booking, onUpdate }) {
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+  const [amount,  setAmount]  = useState(booking.total_price || '');
+
+  const confirmPayment = async () => {
+    if (!window.confirm(`Confirm payment for booking ${booking.booking_number}?`)) return;
+    setLoading(true);
+    try {
+      await notificationsAPI.confirmPayment({
+        bookingId:     booking.id,
+        userId:        booking.user_id,
+        bookingNumber: booking.booking_number,
+        amount:        parseFloat(amount) || null,
+        currency:      booking.currency || 'USD',
+      });
+      toast.success('✅ Payment confirmed! User notified.');
+      onUpdate?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestPayment = async () => {
+    setLoading(true);
+    try {
+      await notificationsAPI.requestPayment({
+        bookingId:     booking.id,
+        userId:        booking.user_id,
+        bookingNumber: booking.booking_number,
+        amount:        parseFloat(amount) || null,
+        currency:      booking.currency || 'USD',
+      });
+      toast.success('💰 Payment request sent to user!');
+    } catch (err) {
+      toast.error(err.message || 'Failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      background: '#f0f9ff', border: '1.5px solid #bae6fd',
+      borderRadius: 14, padding: 18, marginTop: 16,
+    }}>
+      <h4 style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 800, color: '#0369a1' }}>
+        💳 Payment Management
+      </h4>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount (USD)"
+          style={{
+            padding: '8px 12px', borderRadius: 8,
+            border: '1.5px solid #bae6fd', fontSize: '0.85rem',
+            width: 160, outline: 'none',
+          }}
+        />
+        <button
+          onClick={confirmPayment}
+          disabled={loading || booking.payment_status === 'paid'}
+          style={{
+            padding: '8px 16px', borderRadius: 8, border: 'none',
+            background: booking.payment_status === 'paid' ? '#e2e8f0' : '#059669',
+            color: booking.payment_status === 'paid' ? '#94a3b8' : '#fff',
+            fontWeight: 700, fontSize: '0.82rem', cursor:
+              booking.payment_status === 'paid' ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {booking.payment_status === 'paid' ? '✅ Already Paid' : '✅ Confirm Payment'}
+        </button>
+        <button
+          onClick={requestPayment}
+          disabled={loading || booking.payment_status === 'paid'}
+          style={{
+            padding: '8px 16px', borderRadius: 8, border: '1.5px solid #bae6fd',
+            background: '#fff', color: '#0369a1',
+            fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
+          }}
+        >
+          💰 Request Payment
+        </button>
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: '#0369a1' }}>
+        Current status: <strong>{booking.payment_status || 'unpaid'}</strong>
+        {booking.confirmed_at && ` • Confirmed: ${new Date(booking.confirmed_at).toLocaleDateString()}`}
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Bookings() {

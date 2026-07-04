@@ -1,119 +1,177 @@
-import React from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { AnimatePresence, motion }  from 'framer-motion'
-import { Bell, BellOff, Check, Trash2, X } from 'lucide-react'
-import {
-  selectNotifications, selectUnreadCount, selectPanelOpen,
-  markRead, markAllRead, removeNotification, clearAll, closePanel,
-} from '@store/notificationsSlice'
-import NotificationItem from './NotificationItem'
-import EmptyState       from '@components/common/EmptyState'
-import { createPortal } from 'react-dom'
+// admin/src/components/notifications/NotificationPanel.jsx
+import React, { useEffect, useRef } from 'react';
+import { useNotifications } from '../../hooks/useNotifications';
+import { Link } from 'react-router-dom';
 
-export default function NotificationPanel() {
-  const dispatch    = useDispatch()
-  const items       = useSelector(selectNotifications)
-  const unreadCount = useSelector(selectUnreadCount)
-  const isOpen      = useSelector(selectPanelOpen)
+const fmt = (d) => {
+  if (!d) return '';
+  const diff = Date.now() - new Date(d).getTime();
+  const m    = Math.floor(diff / 60000);
+  if (m < 1)  return 'Just now';
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+};
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => dispatch(closePanel())}
-            className="fixed inset-0 z-40"
-          />
+const TYPE_ICONS = {
+  admin_checklist_request: '📋',
+  checklist_ready:         '✅',
+  payment_confirmed:       '💳',
+  payment_request:         '💰',
+  booking_created:         '📅',
+  general:                 '💬',
+};
 
-          {/* Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 20, scale: 0.97 }}
-            animate={{ opacity: 1, x: 0,  scale: 1    }}
-            exit={{   opacity: 0, x: 20, scale: 0.97  }}
-            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="fixed top-16 right-4 z-50 w-[360px] max-h-[calc(100vh-80px)]
-                       bg-white rounded-2xl shadow-2xl border border-surface-200
-                       flex flex-col overflow-hidden"
+export default function NotificationPanel({ onClose }) {
+  const { notifications, unreadCount, loading, fetchAll } = useNotifications();
+  const panelRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        onClose?.();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  const recent = notifications.slice(0, 8);
+
+  return (
+    <div
+      ref={panelRef}
+      style={{
+        position:    'absolute',
+        top:         '100%',
+        right:       0,
+        width:       360,
+        background:  '#fff',
+        borderRadius: 16,
+        border:      '1.5px solid #e2e8f0',
+        boxShadow:   '0 16px 40px rgba(0,0,0,0.12)',
+        zIndex:      999,
+        overflow:    'hidden',
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        padding:         '14px 18px',
+        borderBottom:    '1px solid #f1f5f9',
+        background:      '#fafdfb',
+        display:         'flex',
+        alignItems:      'center',
+        justifyContent:  'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: '1.1rem' }}>🔔</span>
+          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
+            Notifications
+          </span>
+          {unreadCount > 0 && (
+            <span style={{
+              background: '#059669', color: '#fff',
+              borderRadius: 999, fontSize: 10, fontWeight: 800,
+              padding: '1px 7px',
+            }}>
+              {unreadCount}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => fetchAll()}
+          style={{
+            background: 'transparent', border: 'none',
+            cursor: 'pointer', fontSize: '1rem', color: '#64748b',
+          }}
+          title="Refresh"
+        >
+          ↻
+        </button>
+      </div>
+
+      {/* List */}
+      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>
+            Loading…
+          </div>
+        )}
+        {!loading && recent.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔔</div>
+            <p style={{ margin: 0, fontSize: '0.85rem' }}>All caught up!</p>
+          </div>
+        )}
+        {recent.map((n, idx) => (
+          <div
+            key={n.id}
+            style={{
+              padding:      '12px 18px',
+              borderBottom: idx < recent.length - 1 ? '1px solid #f8fafc' : 'none',
+              background:   n.priority === 'high' ? '#fef2f2' : '#fff',
+              display:      'flex',
+              gap:          10,
+              alignItems:   'flex-start',
+              transition:   'background 0.15s',
+              cursor:       'default',
+            }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3
-                            border-b border-surface-100 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary-100 rounded-xl
-                                flex items-center justify-center">
-                  <Bell size={15} className="text-primary-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">
-                    Notifications
-                  </h3>
-                  {unreadCount > 0 && (
-                    <p className="text-[10px] text-primary-600 font-semibold">
-                      {unreadCount} unread
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={() => dispatch(markAllRead())}
-                    title="Mark all read"
-                    className="btn-icon text-slate-400 hover:text-primary-600
-                               hover:bg-primary-50 text-xs"
-                  >
-                    <Check size={15} />
-                  </button>
-                )}
-                {items.length > 0 && (
-                  <button
-                    onClick={() => dispatch(clearAll())}
-                    title="Clear all"
-                    className="btn-icon text-slate-400 hover:text-red-500
-                               hover:bg-red-50"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
-                <button
-                  onClick={() => dispatch(closePanel())}
-                  className="btn-icon text-slate-400 hover:text-slate-600
-                             hover:bg-surface-100"
-                >
-                  <X size={15} />
-                </button>
-              </div>
+            <div style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: '#f0fdf4', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: '1rem', flexShrink: 0,
+            }}>
+              {TYPE_ICONS[n.type] || '💬'}
             </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-surface-50">
-              {items.length === 0 ? (
-                <EmptyState
-                  compact
-                  icon={BellOff}
-                  title="No notifications"
-                  description="You're all caught up!"
-                />
-              ) : (
-                items.map((notif) => (
-                  <NotificationItem
-                    key={notif.id}
-                    notification={notif}
-                    onRead={(id) => dispatch(markRead(id))}
-                    onRemove={(id) => dispatch(removeNotification(id))}
-                  />
-                ))
-              )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: '0 0 2px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                {n.title}
+              </p>
+              <p style={{
+                margin: 0, fontSize: '0.78rem', color: '#64748b',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {n.message}
+              </p>
+              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                {fmt(n.created_at || n.createdAt)}
+              </span>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body,
-  )
+            {n.priority === 'high' && (
+              <span style={{
+                fontSize: 9, fontWeight: 800, background: '#fecaca',
+                color: '#dc2626', padding: '2px 6px', borderRadius: 4,
+                textTransform: 'uppercase', flexShrink: 0,
+              }}>
+                HIGH
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding:      '12px 18px',
+        borderTop:    '1px solid #f1f5f9',
+        textAlign:    'center',
+        background:   '#fafdfb',
+      }}>
+        <Link
+          to="/notifications"
+          onClick={onClose}
+          style={{
+            fontSize:   '0.82rem',
+            color:      '#059669',
+            fontWeight: 700,
+            textDecoration: 'none',
+          }}
+        >
+          View All Notifications →
+        </Link>
+      </div>
+    </div>
+  );
 }

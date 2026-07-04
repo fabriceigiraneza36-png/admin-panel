@@ -1,767 +1,935 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import {
-  Bell, Send, Trash2, RefreshCw, MessageSquare,
-  Users, User, Globe, AlertTriangle, Info,
-  CheckCircle, Filter, Eye, Reply,
-} from 'lucide-react'
-import { notificationsAPI }  from '@api/notifications'
-import Table, { TableActions, TableAction } from '@components/common/Table'
-import Pagination             from '@components/common/Pagination'
-import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
-import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
-import Badge                  from '@components/common/Badge'
-import ConfirmDialog          from '@components/common/ConfirmDialog'
-import Dropdown               from '@components/common/Dropdown'
-import { useModal }           from '@hooks/useModal'
-import { useToast }           from '@hooks/useToast'
-import { usePagination }      from '@hooks/usePagination'
-import { useDebounce }        from '@hooks/useDebounce'
-import { formatTimeAgo, formatDate } from '@utils/formatters'
-import { getErrorMessage }    from '@api/client'
-import {
-  PRIORITY_OPTIONS,
-  NOTIFICATION_TYPE_OPTIONS,
-} from '@utils/constants'
+// admin/src/pages/Notifications.jsx
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import notificationsAPI from '../api/notifications';
+import { useSocket } from '../hooks/useSocket';
+import { useToast } from '../hooks/useToast';
+import { ImageUpload } from '../components/common/ImageUpload';
 
-// ─── Type icon map ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = (d) => {
+  if (!d) return '—';
+  const dt   = new Date(d);
+  const diff = Date.now() - dt.getTime();
+  const m    = Math.floor(diff / 60000);
+  if (m < 1)   return 'Just now';
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const PRIORITY_COLORS = {
+  high:   { bg: '#fef2f2', border: '#fecaca', color: '#dc2626', dot: '#dc2626' },
+  normal: { bg: '#f0fdf4', border: '#bbf7d0', color: '#059669', dot: '#059669' },
+  low:    { bg: '#f8fafc', border: '#e2e8f0', color: '#64748b', dot: '#94a3b8' },
+};
+
 const TYPE_ICONS = {
-  booking_created:   '📅',
-  booking_updated:   '✏️',
-  booking_confirmed: '✅',
-  booking_cancelled: '❌',
-  booking_deleted:   '🗑️',
-  new_destination:   '🗺️',
-  new_country:       '🌍',
-  new_post:          '📝',
-  new_package:       '📦',
-  promotion:         '🎉',
-  warning:           '⚠️',
-  alert:             '🚨',
-  system:            '⚙️',
-  general:           '💬',
-}
+  checklist_request:       '📋',
+  admin_checklist_request: '📋',
+  checklist_ready:         '✅',
+  payment_confirmed:       '💳',
+  payment_request:         '💰',
+  booking_created:         '📅',
+  booking_confirmed:       '✅',
+  booking_cancelled:       '❌',
+  general:                 '💬',
+  system:                  '⚙️',
+  alert:                   '🚨',
+};
 
-const SCOPE_OPTIONS = [
-  { value: '',           label: 'All Scopes'   },
-  { value: 'individual', label: 'Individual'   },
-  { value: 'all',        label: 'All Users'    },
-  { value: 'role',       label: 'By Role'      },
-]
+const css = `
+  .adm-notif * { box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+  .adm-notif { padding: 24px; background: #f8fafc; min-height: 100vh; }
 
-const SCOPE_SEND_OPTIONS = [
-  { value: 'individual', label: 'Individual User'  },
-  { value: 'all',        label: 'All Users'        },
-  { value: 'role',       label: 'By Role'          },
-]
+  /* ── Header ── */
+  .adm-notif-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .adm-notif-title { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0; }
+  .adm-notif-subtitle { font-size: 0.85rem; color: #64748b; margin: 4px 0 0; }
 
-const ROLE_OPTIONS = [
-  { value: 'user',      label: 'Regular Users' },
-  { value: 'admin',     label: 'Admins'        },
-  { value: 'moderator', label: 'Moderators'    },
-  { value: 'editor',    label: 'Editors'       },
-]
+  /* ── Stats bar ── */
+  .adm-stat-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .adm-stat {
+    background: #fff; border-radius: 14px; border: 1px solid #e2e8f0;
+    padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .adm-stat-value { font-size: 1.5rem; font-weight: 900; color: #0f172a; margin: 0; line-height: 1; }
+  .adm-stat-label { font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin: 4px 0 0; }
 
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
-const StatBox = ({ label, value, icon, color = '#059669' }) => (
-  <div
-    style={{
-      background:   '#fff',
-      borderRadius: 16,
-      padding:      '20px 24px',
-      display:      'flex',
-      alignItems:   'center',
-      gap:          16,
-      boxShadow:    '0 1px 4px rgba(0,0,0,0.06)',
-      border:       '1px solid #f1f5f9',
-    }}
-  >
-    <div
-      style={{
-        width:        48,
-        height:       48,
-        borderRadius: 12,
-        background:   `${color}18`,
-        color,
-        display:      'flex',
-        alignItems:   'center',
-        justifyContent: 'center',
-        fontSize:     22,
-        flexShrink:   0,
-      }}
-    >
-      {icon}
-    </div>
-    <div>
-      <p style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a' }}>
-        {value ?? '—'}
-      </p>
-      <p style={{ margin: 0, fontSize: 13, color: '#64748b', marginTop: 2 }}>
-        {label}
-      </p>
-    </div>
-  </div>
-)
+  /* ── Tabs ── */
+  .adm-tabs {
+    display: flex; gap: 4px; background: #f1f5f9; border-radius: 12px;
+    padding: 4px; margin-bottom: 20px; overflow-x: auto; width: fit-content;
+  }
+  .adm-tab {
+    padding: 8px 18px; border-radius: 9px; border: none;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .adm-tab.active {
+    background: #fff; color: #059669; font-weight: 800;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .adm-tab:not(.active) { background: transparent; color: #64748b; }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
-export default function Notifications() {
-  const toast       = useToast()
-  const pag         = usePagination()
-  const viewModal   = useModal()
-  const sendModal   = useModal()
-  const replyModal  = useModal()
-  const deleteModal = useModal()
+  /* ── Controls ── */
+  .adm-controls {
+    display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .adm-search {
+    flex: 1 1 220px; max-width: 320px; padding: 9px 14px;
+    border-radius: 10px; border: 1.5px solid #e2e8f0;
+    font-size: 0.85rem; outline: none; font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .adm-search:focus { border-color: #059669; }
+  .adm-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; border-radius: 10px; border: none;
+    font-size: 0.83rem; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.18s;
+  }
+  .adm-btn-primary {
+    background: linear-gradient(135deg,#059669,#047857); color: #fff;
+    box-shadow: 0 3px 10px rgba(5,150,105,0.25);
+  }
+  .adm-btn-primary:hover { transform: translateY(-1px); }
+  .adm-btn-secondary {
+    background: #fff; color: #475569;
+    border: 1.5px solid #e2e8f0;
+  }
+  .adm-btn-secondary:hover { background: #f8fafc; }
+  .adm-btn-danger {
+    background: #fef2f2; color: #dc2626;
+    border: 1.5px solid #fecaca;
+  }
+  .adm-btn-danger:hover { background: #fee2e2; }
+  .adm-btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+  .adm-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-  const [items,   setItems]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [stats,   setStats]   = useState(null)
-  const [sending, setSending] = useState(false)
-  const [replying,setReplying]= useState(false)
-  const [search,  setSearch]  = useState('')
-  const [typeFilter, setTypeFilter]   = useState('')
-  const [scopeFilter, setScopeFilter] = useState('')
-  const [sortBy,  setSortBy]  = useState('created_at')
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [replyText, setReplyText] = useState('')
+  /* ── Notification Card ── */
+  .adm-notif-card {
+    background: #fff; border-radius: 16px; border: 1.5px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .adm-notif-card:hover { border-color: #bbf7d0; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .adm-notif-card.checklist { border-color: #fde68a; }
+  .adm-notif-card.payment   { border-color: #c7d2fe; }
+  .adm-notif-card.high      { border-left: 4px solid #dc2626; }
 
-  const dSearch = useDebounce(search, 400)
+  .adm-notif-card-inner { padding: 16px 20px; }
+  .adm-notif-card-top {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .adm-notif-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+    background: #f0fdf4;
+  }
+  .adm-notif-body { flex: 1; min-width: 0; }
+  .adm-notif-card-title { font-size: 0.9rem; font-weight: 800; color: #0f172a; margin: 0 0 3px; }
+  .adm-notif-card-message { font-size: 0.82rem; color: #475569; margin: 0; line-height: 1.55; white-space: pre-line; }
+  .adm-notif-card-meta {
+    display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .adm-notif-badge {
+    font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .adm-notif-time { font-size: 0.72rem; color: #94a3b8; }
 
-  // ── Send form state ──────────────────────────────────────────────────────
+  /* User info */
+  .adm-user-info {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: #64748b; font-weight: 600;
+  }
+  .adm-user-avatar {
+    width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 800; color: #64748b; flex-shrink: 0;
+  }
+
+  /* Reply text */
+  .adm-reply-text {
+    margin-top: 10px; padding: 10px 12px;
+    background: #f0f9ff; border: 1px solid #bae6fd;
+    border-radius: 10px; font-size: 0.82rem; color: #0369a1;
+  }
+  .adm-reply-text strong { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+
+  /* Card actions */
+  .adm-card-actions {
+    display: flex; gap: 8px; margin-top: 12px;
+    padding-top: 12px; border-top: 1px solid #f1f5f9; flex-wrap: wrap;
+  }
+
+  /* ── Compose / Send Panel ── */
+  .adm-compose {
+    background: #fff; border-radius: 18px; border: 1.5px solid #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04); padding: 24px; margin-bottom: 24px;
+  }
+  .adm-compose h3 {
+    font-size: 1rem; font-weight: 800; color: #0f172a; margin: 0 0 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .adm-compose-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .adm-field { display: flex; flex-direction: column; gap: 5px; }
+  .adm-field.full { grid-column: 1 / -1; }
+  .adm-label {
+    font-size: 0.72rem; font-weight: 800; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .adm-input, .adm-select, .adm-textarea {
+    padding: 9px 12px; border-radius: 10px; border: 1.5px solid #e2e8f0;
+    font-size: 0.88rem; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  .adm-input:focus, .adm-select:focus, .adm-textarea:focus { border-color: #059669; }
+  .adm-textarea { resize: vertical; min-height: 80px; }
+  .adm-select { appearance: none; }
+
+  /* ── Checklist Panel ── */
+  .adm-checklist-panel {
+    background: #fffbeb; border: 1.5px solid #fde68a;
+    border-radius: 14px; padding: 20px; margin-top: 14px;
+  }
+  .adm-checklist-panel h4 { margin: 0 0 12px; font-size: 0.9rem; font-weight: 800; color: #92400e; }
+
+  /* ── Payment Panel ── */
+  .adm-payment-panel {
+    background: #f0f9ff; border: 1.5px solid #bae6fd;
+    border-radius: 14px; padding: 20px; margin-top: 14px;
+  }
+  .adm-payment-panel h4 { margin: 0 0 12px; font-size: 0.9rem; font-weight: 800; color: #0369a1; }
+
+  /* ── Empty ── */
+  .adm-empty {
+    text-align: center; padding: 64px 24px;
+    background: #fff; border-radius: 16px; border: 1.5px dashed #e2e8f0;
+  }
+
+  /* ── Loading ── */
+  .adm-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid #e2e8f0; border-top-color: #059669;
+    animation: admSpin 0.8s linear infinite; margin: 32px auto;
+  }
+
+  @keyframes admSpin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  .adm-spin { animation: admSpin 1s linear infinite; }
+
+  @media (max-width: 640px) {
+    .adm-compose-grid { grid-template-columns: 1fr; }
+    .adm-field.full { grid-column: 1; }
+    .adm-notif { padding: 16px; }
+  }
+`;
+
+// ─── Compose Form ─────────────────────────────────────────────────────────────
+function ComposeForm({ onSent }) {
+  const toast = useToast();
   const [form, setForm] = useState({
-    target_scope: 'individual',
-    user_id:      '',
-    user_email:   '',
-    target_role:  'user',
-    type:         'general',
-    title:        '',
-    message:      '',
-    action_url:   '',
-    action_label: '',
-    priority:     'normal',
-    category:     'general',
-    send_email:   false,
-  })
+    title:       '',
+    message:     '',
+    type:        'general',
+    priority:    'normal',
+    targetScope: 'all',
+    userId:      '',
+    actionUrl:   '',
+    actionLabel: '',
+  });
+  const [sending, setSending] = useState(false);
 
-  const setF = (key, val) => setForm(p => ({ ...p, [key]: val }))
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  };
 
-  // ── Load notifications ───────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = {
-        page:    pag.page,
-        limit:   pag.limit,
-        sortBy,
-        order:   sortOrder,
-        ...(dSearch    && { search: dSearch }),
-        ...(typeFilter && { type:   typeFilter }),
-        ...(scopeFilter && { scope: scopeFilter }),
-      }
-      const res  = await notificationsAPI.getAll(params)
-      const body = res?.data ?? res
-      setItems(body.data || [])
-      pag.setTotal(body.pagination?.total || 0)
-    } catch (e) {
-      toast.error(getErrorMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, typeFilter, scopeFilter])
-
-  // ── Load stats ───────────────────────────────────────────────────────────
-  const loadStats = useCallback(async () => {
-    try {
-      const res  = await notificationsAPI.getStats()
-      const body = res?.data ?? res
-      setStats(body.data || body)
-    } catch { /* non-fatal */ }
-  }, [])
-
-  useEffect(() => { load() },      [load])
-  useEffect(() => { loadStats() }, [loadStats])
-
-  // ── Send notification ────────────────────────────────────────────────────
-  const handleSend = async () => {
-    if (!form.title.trim())   return toast.error('Title is required')
-    if (!form.message.trim()) return toast.error('Message is required')
-
-    if (form.target_scope === 'individual' && !form.user_id && !form.user_email)
-      return toast.error('Provide a user ID or email for individual notifications')
-
-    setSending(true)
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!form.title || !form.message) return;
+    setSending(true);
     try {
       await notificationsAPI.create({
         ...form,
-        user_id:    form.user_id    ? parseInt(form.user_id, 10) : undefined,
-        user_email: form.user_email || undefined,
-        target_role: form.target_scope === 'role' ? form.target_role : undefined,
-      })
-      toast.success('Notification sent successfully!')
-      sendModal.close()
+        userId: form.userId ? parseInt(form.userId, 10) : null,
+      });
+      toast.success('Notification sent!');
       setForm({
-        target_scope: 'individual', user_id: '', user_email: '',
-        target_role: 'user', type: 'general', title: '', message: '',
-        action_url: '', action_label: '', priority: 'normal',
-        category: 'general', send_email: false,
-      })
-      load()
-      loadStats()
-    } catch (e) {
-      toast.error(getErrorMessage(e))
+        title: '', message: '', type: 'general', priority: 'normal',
+        targetScope: 'all', userId: '', actionUrl: '', actionLabel: '',
+      });
+      onSent?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed to send.');
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
-  // ── Admin reply ──────────────────────────────────────────────────────────
-  const handleReply = async () => {
-    if (!replyText.trim()) return toast.error('Reply text is required')
-    setReplying(true)
-    try {
-      await notificationsAPI.adminReply(replyModal.data?.id, { reply: replyText })
-      toast.success('Reply sent!')
-      replyModal.close()
-      setReplyText('')
-      load()
-    } catch (e) {
-      toast.error(getErrorMessage(e))
-    } finally {
-      setReplying(false)
-    }
-  }
-
-  // ── Delete ───────────────────────────────────────────────────────────────
-  const handleDelete = async () => {
-    try {
-      await notificationsAPI.adminDelete(deleteModal.data?.id)
-      toast.success('Notification deleted')
-      deleteModal.close()
-      load()
-      loadStats()
-    } catch (e) {
-      toast.error(getErrorMessage(e))
-    }
-  }
-
-  const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
-
-  // ── Columns ──────────────────────────────────────────────────────────────
-  const columns = [
-    {
-      key:    'type',
-      label:  '',
-      width:  '48px',
-      render: (v) => (
-        <span style={{ fontSize: 20 }} title={v}>
-          {TYPE_ICONS[v] || '💬'}
-        </span>
-      ),
-    },
-    {
-      key:   'title',
-      label: 'Title',
-      sortable: true,
-      render: (v, r) => (
-        <div>
-          <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
-            {v}
-          </p>
-          <p style={{ margin: 0, fontSize: 12, color: '#64748b', marginTop: 2 }}>
-            {String(r.message || '').slice(0, 60)}
-            {(r.message || '').length > 60 ? '…' : ''}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key:    'target_scope',
-      label:  'Scope',
-      render: (v, r) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Badge
-            label={v === 'all' ? 'All Users' : v === 'role' ? `Role: ${r.target_role}` : 'Individual'}
-            status={v === 'all' ? 'confirmed' : v === 'role' ? 'pending' : 'default'}
-          />
-          {r.recipient_name && (
-            <span style={{ fontSize: 11, color: '#94a3b8' }}>
-              {r.recipient_name}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key:    'priority',
-      label:  'Priority',
-      render: (v) => (
-        <Badge
-          label={v}
-          status={
-            v === 'urgent' ? 'cancelled' :
-            v === 'high'   ? 'pending'   :
-            v === 'normal' ? 'confirmed' : 'default'
-          }
-        />
-      ),
-    },
-    {
-      key:    'is_read',
-      label:  'Read',
-      render: (v) => (
-        <span style={{ color: v ? '#22c55e' : '#f59e0b', fontWeight: 600, fontSize: 13 }}>
-          {v ? '✓ Read' : '● Unread'}
-        </span>
-      ),
-    },
-    {
-      key:    'reply_text',
-      label:  'User Reply',
-      render: (v) => v ? (
-        <span style={{
-          fontSize: 12, color: '#0369a1',
-          background: '#e0f2fe', padding: '2px 8px',
-          borderRadius: 6, fontWeight: 600,
-        }}>
-          Has Reply
-        </span>
-      ) : (
-        <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>
-      ),
-    },
-    {
-      key:      'created_at',
-      label:    'Sent',
-      sortable: true,
-      render:   (v) => formatTimeAgo(v),
-    },
-    {
-      key:    'actions',
-      label:  '',
-      align:  'right',
-      width:  '120px',
-      render: (_, r) => (
-        <TableActions>
-          <TableAction
-            icon={Eye}
-            label="View"
-            onClick={() => viewModal.open(r)}
-          />
-          {r.reply_text && !r.admin_reply && (
-            <TableAction
-              icon={Reply}
-              label="Reply"
-              onClick={() => { replyModal.open(r); setReplyText('') }}
-              variant="success"
-            />
-          )}
-          <TableAction
-            icon={Trash2}
-            label="Delete"
-            onClick={() => deleteModal.open(r)}
-            variant="danger"
-          />
-        </TableActions>
-      ),
-    },
-  ]
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5 page-enter">
-
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Bell size={28} className="text-primary-600" />
-            Notifications
-          </h1>
-          <p className="page-subtitle">
-            Send and manage user notifications ({pag.total} total)
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => sendModal.open()}
-            className="btn-primary btn-sm"
-          >
-            <Send size={14} /> Send Notification
-          </button>
-          <button
-            onClick={() => { load(); loadStats() }}
-            disabled={loading}
-            className="btn-secondary btn-sm"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      {stats && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 16,
-        }}>
-          <StatBox label="Total Sent"     value={stats.total}          icon="📤" color="#059669" />
-          <StatBox label="Unread"         value={stats.unread}         icon="🔔" color="#f59e0b" />
-          <StatBox label="Broadcasts"     value={stats.broadcasts}     icon="📡" color="#6366f1" />
-          <StatBox label="User Replies"   value={stats.with_replies}   icon="💬" color="#0ea5e9" />
-          <StatBox label="Admin Replied"  value={stats.admin_replied}  icon="✅" color="#22c55e" />
-          <StatBox label="Last 24h"       value={stats.last_24h}       icon="⏱️" color="#ec4899" />
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="card p-4">
-        <FilterBar>
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Search notifications…"
-            className="max-w-sm"
-          />
-          <FilterSelect
-            label="Type"
-            value={typeFilter}
-            onChange={(v) => { setTypeFilter(v); pag.reset() }}
-            options={[{ value: '', label: 'All Types' }, ...NOTIFICATION_TYPE_OPTIONS]}
-          />
-          <FilterSelect
-            label="Scope"
-            value={scopeFilter}
-            onChange={(v) => { setScopeFilter(v); pag.reset() }}
-            options={SCOPE_OPTIONS}
-          />
-        </FilterBar>
-      </div>
-
-      {/* Table */}
-      <div className="card">
-        <Table
-          columns={columns}
-          data={items}
-          loading={loading}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSort}
-          onRowClick={(r) => viewModal.open(r)}
-        />
-        <Pagination
-          page={pag.page}
-          totalPages={pag.totalPages}
-          total={pag.total}
-          limit={pag.limit}
-          hasNext={pag.hasNext}
-          hasPrev={pag.hasPrev}
-          onNext={pag.next}
-          onPrev={pag.prev}
-          onGoTo={pag.goTo}
-          onPageSizeChange={pag.setPageSize}
-        />
-      </div>
-
-      {/* ── View Modal ── */}
-      <Modal
-        isOpen={viewModal.isOpen}
-        onClose={viewModal.close}
-        title="Notification Detail"
-        size="md"
-        icon={<Bell size={20} />}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={viewModal.close} className="btn-secondary">
-              Close
-            </button>
-            {viewModal.data?.reply_text && !viewModal.data?.admin_reply && (
-              <button
-                onClick={() => {
-                  viewModal.close()
-                  replyModal.open(viewModal.data)
-                  setReplyText('')
-                }}
-                className="btn-primary"
-              >
-                <Reply size={14} /> Reply to User
-              </button>
-            )}
-          </div>
-        }
-      >
-        {viewModal.data && (
-          <div className="space-y-6">
-            <ModalSection title="Notification">
-              <ModalGrid>
-                <ModalField
-                  label="Type"
-                  value={`${TYPE_ICONS[viewModal.data.type] || '💬'} ${viewModal.data.type}`}
-                />
-                <ModalField label="Priority"   value={<Badge label={viewModal.data.priority} status={viewModal.data.priority === 'urgent' ? 'cancelled' : 'confirmed'} />} />
-                <ModalField label="Scope"      value={viewModal.data.target_scope} />
-                <ModalField label="Read"       value={viewModal.data.is_read ? '✓ Yes' : '✗ No'} />
-                <ModalField label="Sent"       value={formatDate(viewModal.data.created_at)} />
-                <ModalField label="Sender"     value={viewModal.data.sender_name || 'System'} />
-              </ModalGrid>
-              <ModalField label="Title"   value={viewModal.data.title} />
-              <ModalField label="Message" value={viewModal.data.message} />
-              {viewModal.data.action_url && (
-                <ModalField
-                  label="Action"
-                  value={
-                    <a
-                      href={viewModal.data.action_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#059669', fontWeight: 600 }}
-                    >
-                      {viewModal.data.action_label || viewModal.data.action_url}
-                    </a>
-                  }
-                />
-              )}
-            </ModalSection>
-
-            {viewModal.data.recipient_name && (
-              <ModalSection title="Recipient">
-                <ModalGrid>
-                  <ModalField label="Name"  value={viewModal.data.recipient_name} />
-                  <ModalField label="Email" value={viewModal.data.recipient_email} />
-                </ModalGrid>
-              </ModalSection>
-            )}
-
-            {viewModal.data.reply_text && (
-              <ModalSection title="User Reply">
-                <div style={{
-                  background: '#f0f9ff', border: '1px solid #bae6fd',
-                  borderRadius: 12, padding: '14px 16px',
-                }}>
-                  <p style={{ margin: 0, color: '#0369a1', lineHeight: 1.6 }}>
-                    {viewModal.data.reply_text}
-                  </p>
-                  <p style={{ margin: '8px 0 0', fontSize: 12, color: '#94a3b8' }}>
-                    {formatDate(viewModal.data.replied_at)}
-                  </p>
-                </div>
-              </ModalSection>
-            )}
-
-            {viewModal.data.admin_reply && (
-              <ModalSection title="Admin Reply">
-                <div style={{
-                  background: '#f0fdf4', border: '1px solid #bbf7d0',
-                  borderRadius: 12, padding: '14px 16px',
-                }}>
-                  <p style={{ margin: 0, color: '#166534', lineHeight: 1.6 }}>
-                    {viewModal.data.admin_reply}
-                  </p>
-                  <p style={{ margin: '8px 0 0', fontSize: 12, color: '#94a3b8' }}>
-                    {formatDate(viewModal.data.admin_replied_at)}
-                  </p>
-                </div>
-              </ModalSection>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Send Notification Modal ── */}
-      <Modal
-        isOpen={sendModal.isOpen}
-        onClose={sendModal.close}
-        title="Send Notification"
-        size="md"
-        icon={<Send size={20} />}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={sendModal.close} className="btn-secondary" disabled={sending}>
-              Cancel
-            </button>
-            <button onClick={handleSend} className="btn-primary" disabled={sending}>
-              {sending ? 'Sending…' : 'Send Notification'}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-
-          {/* Target scope */}
-          <Dropdown
-            label="Send To"
-            value={form.target_scope}
-            onChange={(v) => setF('target_scope', v)}
-            options={SCOPE_SEND_OPTIONS}
-          />
-
-          {/* Individual fields */}
-          {form.target_scope === 'individual' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="input-group">
-                <label className="input-label">User ID</label>
-                <input
-                  className="input"
-                  type="number"
-                  placeholder="e.g. 42"
-                  value={form.user_id}
-                  onChange={(e) => setF('user_id', e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label className="input-label">OR User Email</label>
-                <input
-                  className="input"
-                  type="email"
-                  placeholder="user@example.com"
-                  value={form.user_email}
-                  onChange={(e) => setF('user_email', e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Role selector */}
-          {form.target_scope === 'role' && (
-            <Dropdown
-              label="Target Role"
-              value={form.target_role}
-              onChange={(v) => setF('target_role', v)}
-              options={ROLE_OPTIONS}
-            />
-          )}
-
-          {/* Type & Priority */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Dropdown
-              label="Notification Type"
-              value={form.type}
-              onChange={(v) => setF('type', v)}
-              options={NOTIFICATION_TYPE_OPTIONS}
-            />
-            <Dropdown
-              label="Priority"
-              value={form.priority}
-              onChange={(v) => setF('priority', v)}
-              options={PRIORITY_OPTIONS}
-            />
-          </div>
-
-          {/* Title */}
-          <div className="input-group">
-            <label className="input-label">Title *</label>
+    <div className="adm-compose">
+      <h3>📢 Send Notification</h3>
+      <form onSubmit={handleSend}>
+        <div className="adm-compose-grid">
+          <div className="adm-field full">
+            <label className="adm-label">Title *</label>
             <input
-              className="input"
-              placeholder="Notification title"
+              name="title"
+              className="adm-input"
               value={form.title}
-              onChange={(e) => setF('title', e.target.value)}
+              onChange={handleChange}
+              placeholder="Notification title…"
+              required
             />
           </div>
-
-          {/* Message */}
-          <div className="input-group">
-            <label className="input-label">Message *</label>
+          <div className="adm-field full">
+            <label className="adm-label">Message *</label>
             <textarea
-              className="input min-h-[100px]"
-              placeholder="Write your message here…"
+              name="message"
+              className="adm-textarea"
               value={form.message}
-              onChange={(e) => setF('message', e.target.value)}
+              onChange={handleChange}
+              placeholder="Write your message…"
+              required
             />
           </div>
-
-          {/* Action URL */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-            <div className="input-group">
-              <label className="input-label">Action URL (optional)</label>
-              <input
-                className="input"
-                placeholder="/my-bookings"
-                value={form.action_url}
-                onChange={(e) => setF('action_url', e.target.value)}
-              />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Button Label</label>
-              <input
-                className="input"
-                placeholder="View Booking"
-                value={form.action_label}
-                onChange={(e) => setF('action_label', e.target.value)}
-              />
-            </div>
+          <div className="adm-field">
+            <label className="adm-label">Type</label>
+            <select name="type" className="adm-select" value={form.type} onChange={handleChange}>
+              <option value="general">💬 General</option>
+              <option value="alert">🚨 Alert</option>
+              <option value="promotion">🎉 Promotion</option>
+              <option value="system">⚙️ System</option>
+              <option value="new_destination">🗺️ New Destination</option>
+              <option value="new_package">📦 New Package</option>
+              <option value="booking_confirmed">✅ Booking Confirmed</option>
+            </select>
           </div>
-
-          {/* Send email toggle */}
-          <label style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            cursor: 'pointer', userSelect: 'none',
-            padding: '10px 14px', background: '#f8fafc',
-            borderRadius: 10, border: '1px solid #e2e8f0',
-          }}>
-            <input
-              type="checkbox"
-              checked={form.send_email}
-              onChange={(e) => setF('send_email', e.target.checked)}
-            />
-            <span style={{ fontSize: 14, color: '#374151', fontWeight: 500 }}>
-              Also send via email
-            </span>
-          </label>
-        </div>
-      </Modal>
-
-      {/* ── Reply Modal ── */}
-      <Modal
-        isOpen={replyModal.isOpen}
-        onClose={replyModal.close}
-        title="Reply to User"
-        size="sm"
-        icon={<Reply size={20} />}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={replyModal.close} className="btn-secondary" disabled={replying}>
-              Cancel
-            </button>
-            <button onClick={handleReply} className="btn-primary" disabled={replying}>
-              {replying ? 'Sending…' : 'Send Reply'}
-            </button>
+          <div className="adm-field">
+            <label className="adm-label">Priority</label>
+            <select name="priority" className="adm-select" value={form.priority} onChange={handleChange}>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+            </select>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          {replyModal.data?.reply_text && (
-            <div style={{
-              background: '#f0f9ff', border: '1px solid #bae6fd',
-              borderRadius: 10, padding: '12px 14px',
-            }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#0369a1', fontWeight: 600 }}>
-                User said:
-              </p>
-              <p style={{ margin: '6px 0 0', color: '#0c4a6e', lineHeight: 1.6 }}>
-                {replyModal.data.reply_text}
-              </p>
+          <div className="adm-field">
+            <label className="adm-label">Target</label>
+            <select name="targetScope" className="adm-select" value={form.targetScope} onChange={handleChange}>
+              <option value="all">🌍 All Users</option>
+              <option value="individual">👤 Specific User</option>
+              <option value="role">🎭 By Role</option>
+            </select>
+          </div>
+          {form.targetScope === 'individual' && (
+            <div className="adm-field">
+              <label className="adm-label">User ID</label>
+              <input
+                name="userId"
+                type="number"
+                className="adm-input"
+                value={form.userId}
+                onChange={handleChange}
+                placeholder="User ID number"
+              />
             </div>
           )}
-          <div className="input-group">
-            <label className="input-label">Your Reply</label>
+          <div className="adm-field">
+            <label className="adm-label">Action URL (optional)</label>
+            <input
+              name="actionUrl"
+              className="adm-input"
+              value={form.actionUrl}
+              onChange={handleChange}
+              placeholder="/my-bookings"
+            />
+          </div>
+          <div className="adm-field">
+            <label className="adm-label">Action Label (optional)</label>
+            <input
+              name="actionLabel"
+              className="adm-input"
+              value={form.actionLabel}
+              onChange={handleChange}
+              placeholder="View Booking"
+            />
+          </div>
+        </div>
+        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
+          <button
+            type="submit"
+            className="adm-btn adm-btn-primary"
+            disabled={sending || !form.title || !form.message}
+          >
+            {sending
+              ? <><span className="adm-spin">↻</span> Sending…</>
+              : '📤 Send Notification'
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ─── Checklist Action Panel ────────────────────────────────────────────────────
+function ChecklistPanel({ notification, onDone }) {
+  const toast   = useToast();
+  const [pdfUrl,   setPdfUrl]   = useState('');
+  const [sending,  setSending]  = useState(false);
+
+  const userId = notification?.metadata?.requesterId
+    || notification?.userId
+    || notification?.user_id;
+
+  const tripTitle = notification?.metadata?.destination
+    || notification?.metadata?.checklistType
+    || 'Your Trip';
+
+  const handleSend = async () => {
+    if (!pdfUrl) { toast.error('Please enter a PDF URL or upload a file.'); return; }
+    if (!userId) { toast.error('Cannot determine user ID.'); return; }
+    setSending(true);
+    try {
+      await notificationsAPI.sendChecklist({
+        userId,
+        pdfUrl,
+        tripTitle,
+        requestNotifId: notification.id,
+      });
+      toast.success('✅ Checklist PDF sent to user!');
+      onDone?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed to send checklist.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="adm-checklist-panel">
+      <h4>📋 Send Checklist PDF to User</h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="adm-field">
+          <label className="adm-label">PDF URL or Upload Link</label>
+          <input
+            type="url"
+            className="adm-input"
+            value={pdfUrl}
+            onChange={(e) => setPdfUrl(e.target.value)}
+            placeholder="https://your-cdn.com/checklist.pdf"
+          />
+        </div>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: '#92400e' }}>
+          Upload your PDF to Cloudinary or any file host, then paste the link above.
+          The user will receive an instant notification with a download button.
+        </p>
+        <div>
+          <button
+            className="adm-btn adm-btn-primary adm-btn-sm"
+            onClick={handleSend}
+            disabled={sending || !pdfUrl}
+          >
+            {sending ? '⏳ Sending…' : '📤 Send to User'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Payment Action Panel ──────────────────────────────────────────────────────
+function PaymentPanel({ notification, onDone }) {
+  const toast = useToast();
+  const [action,   setAction]   = useState('confirm');
+  const [amount,   setAmount]   = useState('');
+  const [dueDate,  setDueDate]  = useState('');
+  const [sending,  setSending]  = useState(false);
+
+  const userId        = notification?.metadata?.requesterId || notification?.user_id;
+  const bookingId     = notification?.metadata?.bookingId;
+  const bookingNumber = notification?.metadata?.bookingNumber;
+
+  const handleSubmit = async () => {
+    setSending(true);
+    try {
+      if (action === 'confirm') {
+        await notificationsAPI.confirmPayment({
+          bookingId, userId, bookingNumber,
+          amount:   parseFloat(amount) || null,
+          currency: 'USD',
+        });
+        toast.success('✅ Payment confirmed and user notified!');
+      } else {
+        await notificationsAPI.requestPayment({
+          bookingId, userId, bookingNumber,
+          amount:   parseFloat(amount) || null,
+          currency: 'USD',
+          dueDate,
+        });
+        toast.success('💰 Payment request sent to user!');
+      }
+      onDone?.();
+    } catch (err) {
+      toast.error(err.message || 'Action failed.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="adm-payment-panel">
+      <h4>💳 Payment Action</h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={`adm-btn adm-btn-sm ${action === 'confirm' ? 'adm-btn-primary' : 'adm-btn-secondary'}`}
+            onClick={() => setAction('confirm')}
+          >
+            ✅ Confirm Payment
+          </button>
+          <button
+            className={`adm-btn adm-btn-sm ${action === 'request' ? 'adm-btn-primary' : 'adm-btn-secondary'}`}
+            onClick={() => setAction('request')}
+          >
+            💰 Request Payment
+          </button>
+        </div>
+        <input
+          type="number"
+          className="adm-input"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount (USD)"
+        />
+        {action === 'request' && (
+          <input
+            type="date"
+            className="adm-input"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            min={new Date().toISOString().split('T')[0]}
+          />
+        )}
+        <button
+          className="adm-btn adm-btn-primary adm-btn-sm"
+          onClick={handleSubmit}
+          disabled={sending}
+        >
+          {sending ? '⏳ Processing…' : action === 'confirm' ? '✅ Confirm' : '💰 Send Request'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Notification Card ────────────────────────────────────────────────────────
+function NotifCard({ notif, onRefresh }) {
+  const toast = useToast();
+  const [expanded,       setExpanded]       = useState(false);
+  const [replyText,      setReplyText]      = useState('');
+  const [replying,       setReplying]       = useState(false);
+  const [showChecklist,  setShowChecklist]  = useState(false);
+  const [showPayment,    setShowPayment]    = useState(false);
+  const [deleting,       setDeleting]       = useState(false);
+
+  const isChecklist = notif.type?.includes('checklist');
+  const isPayment   = notif.category === 'payment' || notif.type?.includes('payment');
+  const pCol        = PRIORITY_COLORS[notif.priority] || PRIORITY_COLORS.normal;
+
+  const cardClass = [
+    'adm-notif-card',
+    isChecklist  ? 'checklist' : '',
+    isPayment    ? 'payment'   : '',
+    notif.priority === 'high' ? 'high' : '',
+  ].filter(Boolean).join(' ');
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setReplying(true);
+    try {
+      await notificationsAPI.adminReply(notif.id, replyText.trim());
+      toast.success('Reply sent!');
+      setReplyText('');
+      setExpanded(false);
+      onRefresh?.();
+    } catch (err) {
+      toast.error(err.message || 'Reply failed.');
+    } finally {
+      setReplying(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this notification?')) return;
+    setDeleting(true);
+    try {
+      await notificationsAPI.adminDelete(notif.id);
+      toast.success('Deleted.');
+      onRefresh?.();
+    } catch { toast.error('Delete failed.'); }
+    finally { setDeleting(false); }
+  };
+
+  return (
+    <div className={cardClass}>
+      <div className="adm-notif-card-inner">
+        <div className="adm-notif-card-top">
+          <div className="adm-notif-icon">
+            {TYPE_ICONS[notif.type] || '💬'}
+          </div>
+          <div className="adm-notif-body">
+            <p className="adm-notif-card-title">{notif.title}</p>
+            <p className="adm-notif-card-message">{notif.message}</p>
+
+            <div className="adm-notif-card-meta">
+              <span
+                className="adm-notif-badge"
+                style={{ background: pCol.bg, color: pCol.color, border: `1px solid ${pCol.border}` }}
+              >
+                {notif.priority}
+              </span>
+              <span
+                className="adm-notif-badge"
+                style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }}
+              >
+                {notif.type}
+              </span>
+              {notif.user_full_name && (
+                <div className="adm-user-info">
+                  <div className="adm-user-avatar">
+                    {notif.user_full_name.charAt(0).toUpperCase()}
+                  </div>
+                  {notif.user_full_name} · {notif.user_email}
+                </div>
+              )}
+              <span className="adm-notif-time">{fmt(notif.created_at || notif.createdAt)}</span>
+            </div>
+
+            {/* User's reply to admin */}
+            {notif.reply_text && (
+              <div className="adm-reply-text">
+                <strong>User replied:</strong>
+                {notif.reply_text}
+              </div>
+            )}
+
+            {/* Admin's reply */}
+            {notif.admin_reply && (
+              <div style={{
+                marginTop: 8, padding: '8px 12px',
+                background: '#f0fdf4', border: '1px solid #bbf7d0',
+                borderRadius: 8, fontSize: '0.82rem', color: '#166534',
+              }}>
+                <strong style={{ display: 'block', fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>
+                  Your reply:
+                </strong>
+                {notif.admin_reply}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="adm-card-actions">
+          {/* Checklist action */}
+          {isChecklist && !notif.metadata?.handled && (
+            <button
+              className="adm-btn adm-btn-sm"
+              style={{ background: '#fefce8', color: '#d97706', border: '1.5px solid #fde68a' }}
+              onClick={() => { setShowChecklist(!showChecklist); setShowPayment(false); }}
+            >
+              📋 {showChecklist ? 'Close' : 'Send PDF'}
+            </button>
+          )}
+
+          {/* Payment action */}
+          {notif.category === 'payment' || notif.type?.includes('booking') ? (
+            <button
+              className="adm-btn adm-btn-sm"
+              style={{ background: '#f0f9ff', color: '#0369a1', border: '1.5px solid #bae6fd' }}
+              onClick={() => { setShowPayment(!showPayment); setShowChecklist(false); }}
+            >
+              💳 {showPayment ? 'Close' : 'Payment Action'}
+            </button>
+          ) : null}
+
+          {/* Reply */}
+          {notif.reply_text && !notif.admin_reply && (
+            <button
+              className="adm-btn adm-btn-sm adm-btn-secondary"
+              onClick={() => setExpanded(!expanded)}
+            >
+              💬 {expanded ? 'Close' : 'Reply to User'}
+            </button>
+          )}
+
+          <button
+            className="adm-btn adm-btn-sm adm-btn-danger"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? '⏳' : '🗑️'} Delete
+          </button>
+        </div>
+
+        {/* Checklist send panel */}
+        {showChecklist && (
+          <ChecklistPanel
+            notification={notif}
+            onDone={() => { setShowChecklist(false); onRefresh?.(); }}
+          />
+        )}
+
+        {/* Payment action panel */}
+        {showPayment && (
+          <PaymentPanel
+            notification={notif}
+            onDone={() => { setShowPayment(false); onRefresh?.(); }}
+          />
+        )}
+
+        {/* Reply form */}
+        {expanded && !notif.admin_reply && (
+          <div style={{ marginTop: 12 }}>
             <textarea
-              className="input min-h-[120px]"
-              placeholder="Write your reply to the user…"
+              className="adm-textarea"
+              style={{ width: '100%' }}
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Write your reply to the user…"
+              rows={3}
               autoFocus
             />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                className="adm-btn adm-btn-primary adm-btn-sm"
+                onClick={handleReply}
+                disabled={replying || !replyText.trim()}
+              >
+                {replying ? '⏳ Sending…' : '📤 Send Reply'}
+              </button>
+              <button
+                className="adm-btn adm-btn-secondary adm-btn-sm"
+                onClick={() => setExpanded(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function Notifications() {
+  const toast  = useToast();
+  const socket = useSocket?.();
+
+  const [tab,           setTab]           = useState('all');
+  const [notifications, setNotifications] = useState([]);
+  const [stats,         setStats]         = useState({});
+  const [loading,       setLoading]       = useState(true);
+  const [search,        setSearch]        = useState('');
+  const [showCompose,   setShowCompose]   = useState(false);
+  const [page,          setPage]          = useState(1);
+  const [totalPages,    setTotalPages]    = useState(1);
+
+  const fetchAll = useCallback(async (pageNum = 1) => {
+    setLoading(true);
+    try {
+      const params = { page: pageNum, limit: 30 };
+      if (tab === 'checklist') params.type = 'admin_checklist_request,checklist_request';
+      if (tab === 'payment')   params.type = 'payment_confirmed,payment_request';
+      if (tab === 'replies')   { /* filter client-side */ }
+
+      const [data, statsData] = await Promise.all([
+        notificationsAPI.getAll(params),
+        notificationsAPI.getStats(),
+      ]);
+
+      setNotifications(pageNum === 1 ? (data.data || []) : (prev) => [...prev, ...(data.data || [])]);
+      setTotalPages(data.pagination?.total_pages || 1);
+      setPage(pageNum);
+      setStats(statsData.data || {});
+    } catch (err) {
+      toast.error('Failed to load notifications.');
+    } finally {
+      setLoading(false);
+    }
+  }, [tab, toast]);
+
+  useEffect(() => { fetchAll(1); }, [fetchAll]);
+
+  // Live socket updates
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (notif) => {
+      setNotifications((prev) => [notif, ...prev]);
+      toast.info(`New: ${notif.title}`);
+    };
+    socket.on('notification:new', handler);
+    socket.on('notification:user-replied', () => fetchAll(1));
+    return () => {
+      socket.off('notification:new',       handler);
+      socket.off('notification:user-replied');
+    };
+  }, [socket, fetchAll, toast]);
+
+  const filtered = useMemo(() => {
+    let list = notifications;
+    if (tab === 'replies')   list = list.filter(n => n.reply_text && !n.admin_reply);
+    if (tab === 'checklist') list = list.filter(n => n.type?.includes('checklist'));
+    if (tab === 'payment')   list = list.filter(n => n.category === 'payment' || n.type?.includes('payment'));
+    if (tab === 'high')      list = list.filter(n => n.priority === 'high');
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(n =>
+        String(n.title   || '').toLowerCase().includes(q) ||
+        String(n.message || '').toLowerCase().includes(q) ||
+        String(n.user_email || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [notifications, tab, search]);
+
+  const TABS = [
+    { key: 'all',       label: `All (${notifications.length})`                    },
+    { key: 'checklist', label: `📋 Checklists (${stats.checklist_requests || 0})` },
+    { key: 'payment',   label: `💳 Payments`                                      },
+    { key: 'replies',   label: `💬 Replies (${stats.awaiting_reply || 0})`        },
+    { key: 'high',      label: `🚨 High Priority (${stats.high_priority || 0})`   },
+  ];
+
+  return (
+    <>
+      <style>{css}</style>
+      <div className="adm-notif">
+
+        {/* Header */}
+        <div className="adm-notif-header">
+          <div>
+            <h1 className="adm-notif-title">🔔 Notifications Center</h1>
+            <p className="adm-notif-subtitle">
+              Manage all user notifications, checklist requests, and payment actions
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="adm-btn adm-btn-secondary"
+              onClick={() => fetchAll(1)}
+              disabled={loading}
+            >
+              {loading ? '⏳' : '↻'} Refresh
+            </button>
+            <button
+              className="adm-btn adm-btn-primary"
+              onClick={() => setShowCompose(!showCompose)}
+            >
+              {showCompose ? '✕ Close' : '📤 Send Notification'}
+            </button>
           </div>
         </div>
-      </Modal>
 
-      {/* ── Delete Confirm ── */}
-      <ConfirmDialog
-        isOpen={deleteModal.isOpen}
-        onClose={deleteModal.close}
-        onConfirm={handleDelete}
-        type="delete"
-        title="Delete this notification?"
-        description="This cannot be undone."
-      />
-    </div>
-  )
+        {/* Stats */}
+        <div className="adm-stat-row">
+          {[
+            { value: stats.total         || 0, label: 'Total',           color: '#0f172a' },
+            { value: stats.unread        || 0, label: 'Unread',          color: '#059669' },
+            { value: stats.checklist_requests || 0, label: 'Checklist Requests', color: '#d97706' },
+            { value: stats.awaiting_reply || 0, label: 'Awaiting Reply', color: '#7c3aed' },
+            { value: stats.high_priority || 0, label: 'High Priority',  color: '#dc2626' },
+            { value: stats.last_24h      || 0, label: 'Last 24h',       color: '#0891b2' },
+          ].map((s) => (
+            <div key={s.label} className="adm-stat">
+              <p className="adm-stat-value" style={{ color: s.color }}>{s.value}</p>
+              <p className="adm-stat-label">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Compose */}
+        {showCompose && (
+          <ComposeForm onSent={() => { setShowCompose(false); fetchAll(1); }} />
+        )}
+
+        {/* Tabs */}
+        <div className="adm-tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              className={`adm-tab ${tab === t.key ? 'active' : ''}`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="adm-controls">
+          <input
+            className="adm-search"
+            type="text"
+            placeholder="Search by title, message, or email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* List */}
+        {loading && <div className="adm-spinner" />}
+
+        {!loading && filtered.length === 0 && (
+          <div className="adm-empty">
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>🔔</div>
+            <h3 style={{ margin: '0 0 8px', fontWeight: 800, color: '#0f172a' }}>
+              No notifications
+            </h3>
+            <p style={{ color: '#64748b', margin: 0 }}>
+              {tab === 'checklist' ? 'No checklist requests yet.'
+               : tab === 'replies' ? 'No user replies awaiting response.'
+               : 'Nothing here yet.'}
+            </p>
+          </div>
+        )}
+
+        {filtered.map((n) => (
+          <NotifCard
+            key={n.id}
+            notif={n}
+            onRefresh={() => fetchAll(1)}
+          />
+        ))}
+
+        {/* Load more */}
+        {page < totalPages && !loading && (
+          <div style={{ textAlign: 'center', paddingTop: 16 }}>
+            <button
+              className="adm-btn adm-btn-secondary"
+              onClick={() => fetchAll(page + 1)}
+            >
+              Load More
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
