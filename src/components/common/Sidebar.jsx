@@ -604,6 +604,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/countries',    label: 'Countries',    icon: 'Globe2'     },
       { path: '/destinations', label: 'Destinations', icon: 'MapPin'     },
+      { path: '/comments',     label: 'Comments',     icon: 'MessageSquare' },
       { path: '/posts',        label: 'Blog Posts',   icon: 'FileText'   },
       { path: '/tips',         label: 'Travel Tips',  icon: 'Lightbulb'  },
       { path: '/faqs',         label: 'FAQs',         icon: 'HelpCircle' },

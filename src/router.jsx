@@ -32,6 +32,7 @@ const Dashboard     = lazy(() => import('@pages/Dashboard'))
 const Countries     = lazy(() => import('@pages/Countries'))
 
 const Destinations  = lazy(() => import('@pages/Destinations'))
+const Comments      = lazy(() => import('@pages/Comments'))
 
 const Bookings      = lazy(() => import('@pages/Bookings'))
 const Packages      = lazy(() => import('@pages/Packages'))
@@ -185,6 +186,7 @@ const router = createBrowserRouter(
         { path: 'dashboard',   element: <Page><Dashboard    /></Page> },
         { path: 'countries',   element: <Page><Countries    /></Page> },
         { path: 'destinations',element: <Page><Destinations /></Page> },
+        { path: 'comments',    element: <Page><Comments     /></Page> },
         { path: 'bookings',    element: <Page><Bookings     /></Page> },
         { path: 'packages',    element: <Page><Packages    /></Page> },
         { path: 'users',       element: <Page><Users        /></Page> },
