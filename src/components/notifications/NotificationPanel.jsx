@@ -1,5 +1,6 @@
 // src/components/notifications/NotificationPanel.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNotifications } from "@context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
 
@@ -125,6 +126,11 @@ function EmptyState() {
 // ── Main Panel ─────────────────────────────────────────────────────────────
 
 export default function NotificationPanel() {
+  const dispatch = useDispatch();
+  const panelOpen = useSelector(
+    (state) => state.notifications.panelOpen,
+  );
+
   const {
     notifications,
     unreadCount,
@@ -138,27 +144,27 @@ export default function NotificationPanel() {
     clearAll,
   } = useNotifications();
 
-  const [open,   setOpen]   = useState(false);
   const [filter, setFilter] = useState("all"); // all | unread
   const panelRef            = useRef(null);
-  const triggerRef          = useRef(null);
 
   // ── Close on outside click ───────────────────────────────────────────────
 
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
 
     const handleClick = (e) => {
       if (
-        panelRef.current   && !panelRef.current.contains(e.target) &&
-        triggerRef.current && !triggerRef.current.contains(e.target)
+        panelRef.current && !panelRef.current.contains(e.target) &&
+        !e.target.closest?.("[data-notif-trigger]")
       ) {
-        setOpen(false);
+        dispatch({ type: "notifications/setPanelOpen", payload: false });
       }
     };
 
     const handleKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        dispatch({ type: "notifications/setPanelOpen", payload: false });
+      }
     };
 
     document.addEventListener("mousedown", handleClick);
@@ -167,13 +173,13 @@ export default function NotificationPanel() {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown",   handleKey);
     };
-  }, [open]);
+  }, [panelOpen, dispatch]);
 
   // ── Refresh on open ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (open) refresh();
-  }, [open, refresh]);
+    if (panelOpen) refresh();
+  }, [panelOpen, refresh]);
 
   // ── Derived list ─────────────────────────────────────────────────────────
 
@@ -194,8 +200,8 @@ export default function NotificationPanel() {
   }, [clearAll]);
 
   const handleToggle = useCallback(() => {
-    setOpen((v) => !v);
-  }, []);
+    dispatch({ type: "notifications/togglePanel" });
+  }, [dispatch]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -206,8 +212,9 @@ export default function NotificationPanel() {
         ref={triggerRef}
         onClick={handleToggle}
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
-        aria-expanded={open}
+        aria-expanded={panelOpen}
         aria-haspopup="true"
+        data-notif-trigger
         className="relative p-2 rounded-lg text-gray-500 hover:text-gray-700
                    hover:bg-gray-100 transition-colors focus:outline-none
                    focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -237,7 +244,7 @@ export default function NotificationPanel() {
       </button>
 
       {/* Dropdown panel */}
-      {open && (
+      {panelOpen && (
         <div
           ref={panelRef}
           role="dialog"
@@ -341,14 +348,16 @@ export default function NotificationPanel() {
           {/* Footer — link to full page */}
           <div className="border-t border-gray-100 px-4 py-2.5 bg-gray-50
                           flex justify-center">
-            <a
-              href="/notifications"
-              onClick={() => setOpen(false)}
-              className="text-xs text-blue-600 hover:text-blue-800
-                         font-medium transition-colors"
-            >
-              View all notifications →
-            </a>
+              <a
+                href="/notifications"
+                onClick={() =>
+                  dispatch({ type: "notifications/setPanelOpen", payload: false })
+                }
+                className="text-xs text-blue-600 hover:text-blue-800
+                           font-medium transition-colors"
+              >
+                View all notifications →
+              </a>
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ import {
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
-  Bell, Check, Trash2, RefreshCw, ExternalLink,
+  Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone,
   Wifi, WifiOff, CheckSquare, Filter, Search,
 } from 'lucide-react'
 import { useAuth }           from '@hooks/useAuth'
@@ -585,7 +585,7 @@ function AdminNotificationBell() {
 const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
-  Image, MessageSquare, Mail, MessagesSquare, Settings, Package,
+  Image, MessageSquare, Mail, MessagesSquare, Settings, Package, Megaphone,
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -631,6 +631,7 @@ const NAV_GROUPS = [
     label: 'System',
     items: [
       { path: '/notifications', label: 'Notifications', icon: 'Bell',           badge: 'notif' },
+      { path: '/broadcast',     label: 'Broadcast',     icon: 'Megaphone' },
       { path: '/settings',      label: 'Settings',      icon: 'Settings'        },
     ],
   },

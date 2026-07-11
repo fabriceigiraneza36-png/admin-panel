@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth }                     from '@hooks/useAuth'
 import { useToast }                    from '@hooks/useToast'
-import { useSocketContext }            from '@context/SocketContext'
+import { useSocket }                    from '@context/SocketContext'
 import {
   selectUnreadCount,
   togglePanel,
@@ -185,7 +185,7 @@ export default function Header({ onMenuClick, isMobileOpen }) {
   const { success: toastSuccess } = useToast()
 
    /* Socket connection status */
-   const { isConnected } = useSocketContext()
+   const { isConnected } = useSocket()
    const connected = isConnected
 
   const notifUnread = useSelector(selectUnreadCount)
@@ -282,6 +282,7 @@ export default function Header({ onMenuClick, isMobileOpen }) {
           {/* Notifications button */}
           <button
             onClick={() => dispatch(togglePanel())}
+            data-notif-trigger
             className="relative w-9 h-9 flex items-center justify-center
                        rounded-xl transition-all duration-150"
             style={{ color: '#6b7280', background: 'transparent' }}

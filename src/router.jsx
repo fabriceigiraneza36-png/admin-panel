@@ -47,6 +47,7 @@ const Contact       = lazy(() => import('@pages/Contact'))
 const Subscribers   = lazy(() => import('@pages/Subscribers'))
 const Settings      = lazy(() => import('@pages/Settings'))
 const PagesPage     = lazy(() => import('@pages/Pages'))
+const Broadcast     = lazy(() => import('@pages/Broadcast'))
 
 /**
  * AdminLayout — imported lazily and handles both named + default export shapes.
@@ -203,8 +204,9 @@ const router = createBrowserRouter(
         { path: 'gallery',     element: <Page><Gallery      /></Page> },
         { path: 'contact',     element: <Page><Contact      /></Page> },
         { path: 'subscribers', element: <Page><Subscribers  /></Page> },
-        { path: 'settings',    element: <Page><Settings     /></Page> },
-        { path: 'pages',       element: <Page><PagesPage    /></Page> },
+        { path: 'settings',      element: <Page><Settings     /></Page> },
+        { path: 'broadcast',     element: <Page><Broadcast     /></Page> },
+        { path: 'pages',         element: <Page><PagesPage     /></Page> },
       ],
     },
 

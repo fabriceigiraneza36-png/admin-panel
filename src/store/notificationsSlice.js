@@ -149,6 +149,7 @@ const initialState = {
   page:        1,
   totalPages:  1,
   total:       0,
+  panelOpen:   false,
 };
 
 // ── Slice ──────────────────────────────────────────────────────────────────
@@ -158,6 +159,15 @@ const notificationsSlice = createSlice({
   initialState,
 
   reducers: {
+    // Notification dropdown panel (controlled from the Header bell)
+    togglePanel(state) {
+      state.panelOpen = !state.panelOpen;
+    },
+
+    setPanelOpen(state, action) {
+      state.panelOpen = action.payload ?? false;
+    },
+
     // Real-time push from socket
     addNotification(state, action) {
       const notif = action.payload;
@@ -260,6 +270,8 @@ export const {
   updateNotification,
   setUnreadCount,
   resetNotifications,
+  togglePanel,
+  setPanelOpen,
 } = notificationsSlice.actions;
 
 // ── Selectors ──────────────────────────────────────────────────────────────
@@ -268,6 +280,7 @@ export const selectAllNotifications  = (state) => state.notifications.items;
 export const selectUnreadCount       = (state) => state.notifications.unreadCount;
 export const selectNotificationsLoading = (state) => state.notifications.loading;
 export const selectNotificationsError   = (state) => state.notifications.error;
+export const selectNotificationsPanelOpen = (state) => state.notifications.panelOpen;
 export const selectUnreadNotifications  = (state) =>
   state.notifications.items.filter((n) => !n.is_read);
 
