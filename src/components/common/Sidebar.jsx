@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { useAuth }           from '@hooks/useAuth'
 import { useToast }          from '@hooks/useToast'
-import { selectTotalUnread } from '@store/chatSlice'
 import Header                from './Header'
 
 /* ═══════════════════════════════════════════════════════════
@@ -631,7 +630,6 @@ const NAV_GROUPS = [
   {
     label: 'System',
     items: [
-      { path: '/chat',          label: 'Live Chat',     icon: 'MessagesSquare', badge: 'chat' },
       { path: '/notifications', label: 'Notifications', icon: 'Bell',           badge: 'notif' },
       { path: '/settings',      label: 'Settings',      icon: 'Settings'        },
     ],
@@ -699,11 +697,9 @@ const resolveIcon = (icon) => {
 /* ═══════════════════════════════════════════════════════════
    SIDEBAR LINK
 ═══════════════════════════════════════════════════════════ */
-function SidebarLink({ item, collapsed, chatUnread, notifUnread }) {
+function SidebarLink({ item, collapsed, notifUnread }) {
   const Icon  = resolveIcon(item.icon)
-  const badge =
-    item.badge === 'chat'  ? chatUnread  :
-    item.badge === 'notif' ? notifUnread : 0
+  const badge = item.badge === 'notif' ? notifUnread : 0
 
   return (
     <NavLink to={item.path} style={{ textDecoration: 'none', display: 'block' }}>
@@ -889,7 +885,6 @@ export default function Sidebar({
 }) {
   const { admin, logout }      = useAuth()
   const { error: toastError }  = useToast()
-  const chatUnread              = useSelector(selectTotalUnread)
   const { unreadCount: notifUnread } = useAdminNotifications()
 
   useEffect(() => {
@@ -1183,7 +1178,6 @@ export default function Sidebar({
                   key={item.path}
                   item={item}
                   collapsed={isCollapsed}
-                  chatUnread={chatUnread}
                   notifUnread={notifUnread}
                 />
               ))}

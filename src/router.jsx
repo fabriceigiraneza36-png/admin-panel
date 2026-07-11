@@ -45,7 +45,6 @@ const Testimonials  = lazy(() => import('@pages/Testimonials'))
 const Gallery       = lazy(() => import('@pages/Gallery'))
 const Contact       = lazy(() => import('@pages/Contact'))
 const Subscribers   = lazy(() => import('@pages/Subscribers'))
-const Chat          = lazy(() => import('@pages/Chat'))
 const Settings      = lazy(() => import('@pages/Settings'))
 const PagesPage     = lazy(() => import('@pages/Pages'))
 
@@ -204,7 +203,6 @@ const router = createBrowserRouter(
         { path: 'gallery',     element: <Page><Gallery      /></Page> },
         { path: 'contact',     element: <Page><Contact      /></Page> },
         { path: 'subscribers', element: <Page><Subscribers  /></Page> },
-        { path: 'chat',        element: <Page><Chat         /></Page> },
         { path: 'settings',    element: <Page><Settings     /></Page> },
         { path: 'pages',       element: <Page><PagesPage    /></Page> },
       ],

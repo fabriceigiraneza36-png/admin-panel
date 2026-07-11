@@ -3,7 +3,7 @@ import { useLocation, useNavigate }    from 'react-router-dom'
 import { useDispatch, useSelector }    from 'react-redux'
 import { motion, AnimatePresence }     from 'framer-motion'
 import {
-  Bell, MessageCircle, ChevronDown,
+  Bell, ChevronDown,
   User, Settings, LogOut, Shield, WifiOff, Wifi,
 } from 'lucide-react'
 import { useAuth }                     from '@hooks/useAuth'
@@ -13,10 +13,6 @@ import {
   selectUnreadCount,
   togglePanel,
 } from '@store/notificationsSlice'
-import {
-  selectTotalUnread,
-  toggleChatPanel,
-} from '@store/chatSlice'
 
 /* ── import getInitials + getAvatarColor from formatters (correct location) ── */
 import { getInitials, getAvatarColor } from '@utils/formatters'
@@ -193,7 +189,6 @@ export default function Header({ onMenuClick, isMobileOpen }) {
    const connected = isConnected
 
   const notifUnread = useSelector(selectUnreadCount)
-  const chatUnread  = useSelector(selectTotalUnread)
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const adminMenuRef = useRef(null)
@@ -283,33 +278,6 @@ export default function Header({ onMenuClick, isMobileOpen }) {
               : <><WifiOff size={11} /> Offline</>
             }
           </div>
-
-          {/* Chat button */}
-          <button
-            onClick={() => dispatch(toggleChatPanel())}
-            className="relative w-9 h-9 flex items-center justify-center
-                       rounded-xl transition-all duration-150"
-            style={{ color: '#6b7280', background: 'transparent' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f0fdf4'
-              e.currentTarget.style.color      = '#059669'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color      = '#6b7280'
-            }}
-            title="Live Chat"
-          >
-            <MessageCircle size={19} />
-            {chatUnread > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px]
-                               px-1 flex items-center justify-center
-                               rounded-full text-white text-[10px] font-bold"
-                    style={{ background: '#ef4444' }}>
-                {chatUnread > 9 ? '9+' : chatUnread}
-              </span>
-            )}
-          </button>
 
           {/* Notifications button */}
           <button

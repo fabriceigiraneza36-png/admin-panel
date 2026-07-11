@@ -1,141 +1,274 @@
-// admin/src/store/notificationsSlice.js
-import { createSlice, nanoid } from '@reduxjs/toolkit'
+// src/store/notificationsSlice.js
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-// ─── Initial state ────────────────────────────────────────────────────────────
+const API_BASE  = import.meta.env.VITE_API_URL || "https://backend-jd8f.onrender.com/api";
+const TOKEN_KEY = "altuvera_admin_token";
+
+const getToken = () => {
+  try {
+    return (
+      localStorage.getItem(TOKEN_KEY) ||
+      sessionStorage.getItem(TOKEN_KEY) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+const authFetch = (url, opts = {}) => {
+  const token = getToken();
+  return fetch(url, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...opts.headers,
+    },
+  });
+};
+
+// ── Thunks ─────────────────────────────────────────────────────────────────
+
+export const fetchNotifications = createAsyncThunk(
+  "notifications/fetchAll",
+  async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(
+        `${API_BASE}/notifications/admin?page=${page}&limit=${limit}`,
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const fetchUnreadCount = createAsyncThunk(
+  "notifications/fetchUnreadCount",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(
+        `${API_BASE}/notifications/admin/unread-count`,
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data.count ?? 0;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const markNotificationRead = createAsyncThunk(
+  "notifications/markRead",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(`${API_BASE}/notifications/${id}/read`, {
+        method: "PATCH",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const markAllNotificationsRead = createAsyncThunk(
+  "notifications/markAllRead",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(
+        `${API_BASE}/notifications/mark-all-read`,
+        { method: "PATCH" },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return true;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const deleteNotification = createAsyncThunk(
+  "notifications/deleteOne",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(`${API_BASE}/notifications/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const clearAllNotifications = createAsyncThunk(
+  "notifications/clearAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(
+        `${API_BASE}/notifications/clear-all`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return true;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+export const sendNotification = createAsyncThunk(
+  "notifications/send",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await authFetch(`${API_BASE}/notifications`, {
+        method: "POST",
+        body:   JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
+// ── Initial State ──────────────────────────────────────────────────────────
+
 const initialState = {
-  items:      [],   // UI toast notifications (local)
-  panelOpen:  false,
-  // Note: unreadCount is derived via selector (see below)
-}
+  items:       [],
+  unreadCount: 0,
+  loading:     false,
+  error:       null,
+  page:        1,
+  totalPages:  1,
+  total:       0,
+};
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
+// ── Slice ──────────────────────────────────────────────────────────────────
+
 const notificationsSlice = createSlice({
-  name: 'notifications',
+  name: "notifications",
   initialState,
+
   reducers: {
-    // Add a UI toast notification
-    addNotification: {
-      reducer(state, action) {
-        // Dedupe: don't add the same server id twice
-        if (action.payload.serverId) {
-          const exists = state.items.some(
-            (n) => n.serverId === action.payload.serverId,
-          )
-          if (exists) return
-        }
-        state.items.unshift(action.payload)
-        // Cap at 50 to avoid memory growth
-        if (state.items.length > 50) state.items.length = 50
-      },
-      prepare(payload) {
-        return {
-          payload: {
-            id:        nanoid(),
-            serverId:  payload.data?.id   || null,
-            type:      payload.type       || 'info',
-            title:     payload.title      || '',
-            message:   payload.message    || '',
-            data:      payload.data       || null,
-            read:      false,
-            createdAt: new Date().toISOString(),
-          },
-        }
-      },
+    // Real-time push from socket
+    addNotification(state, action) {
+      const notif = action.payload;
+      if (state.items.some((n) => n.id === notif.id)) return;
+      state.items.unshift(notif);
+      state.unreadCount += 1;
+      state.total       += 1;
     },
 
-    // Mark a single toast as read
-    markRead(state, action) {
-      const item = state.items.find((n) => n.id === action.payload)
-      if (item) item.read = true
-    },
-
-    // Mark ALL toasts as read
-    markAllRead(state) {
-      state.items.forEach((n) => { n.read = true })
-    },
-
-    // Remove a single toast
-    removeNotification(state, action) {
-      state.items = state.items.filter((n) => n.id !== action.payload)
-    },
-
-    // Clear all toasts
-    clearAll(state) {
-      state.items = []
-    },
-
-    // Panel open/close
-    togglePanel(state) {
-      state.panelOpen = !state.panelOpen
-    },
-    closePanel(state) {
-      state.panelOpen = false
-    },
-    openPanel(state) {
-      state.panelOpen = true
-    },
-
-    /**
-     * syncUnread — called by NotificationContext when it fetches the
-     * real unread count from the server.  Instead of replacing all
-     * items (which would blow away existing toasts), we just add
-     * placeholder "unread" markers so the badge number is correct.
-     *
-     * If the server says there are 3 unread but Redux only has 1,
-     * we add 2 synthetic read=false items so the selector returns 3.
-     *
-     * In practice this keeps the bell badge in sync without
-     * touching visible toast items.
-     */
-    syncUnread(state, action) {
-      const serverCount = parseInt(action.payload || 0, 10)
-      const localUnread = state.items.filter((n) => !n.read).length
-      if (serverCount > localUnread) {
-        const diff = serverCount - localUnread
-        for (let i = 0; i < diff; i++) {
-          state.items.unshift({
-            id:        nanoid(),
-            serverId:  null,
-            type:      'info',
-            title:     '',
-            message:   '',
-            data:      null,
-            read:      false,
-            synthetic: true,   // flagged so UI can skip rendering
-            createdAt: new Date().toISOString(),
-          })
-        }
-        if (state.items.length > 50) state.items.length = 50
+    updateNotification(state, action) {
+      const notif = action.payload;
+      const idx   = state.items.findIndex((n) => n.id === notif.id);
+      if (idx !== -1) {
+        state.items[idx] = { ...state.items[idx], ...notif };
       }
     },
-  },
-})
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
+    setUnreadCount(state, action) {
+      state.unreadCount = action.payload ?? 0;
+    },
+
+    resetNotifications() {
+      return initialState;
+    },
+  },
+
+  extraReducers: (builder) => {
+    // fetchNotifications
+    builder
+      .addCase(fetchNotifications.pending, (state) => {
+        state.loading = true;
+        state.error   = null;
+      })
+      .addCase(fetchNotifications.fulfilled, (state, action) => {
+        state.loading = false;
+        const { data, unread_count, pagination } = action.payload;
+        const page = action.meta.arg?.page ?? 1;
+
+        state.items       = page === 1 ? (data || []) : [...state.items, ...(data || [])];
+        state.unreadCount = unread_count ?? state.unreadCount;
+        state.total       = pagination?.total       ?? state.total;
+        state.totalPages  = pagination?.total_pages ?? state.totalPages;
+        state.page        = page;
+      })
+      .addCase(fetchNotifications.rejected, (state, action) => {
+        state.loading = false;
+        state.error   = action.payload;
+      });
+
+    // fetchUnreadCount
+    builder.addCase(fetchUnreadCount.fulfilled, (state, action) => {
+      state.unreadCount = action.payload;
+    });
+
+    // markRead (optimistic)
+    builder.addCase(markNotificationRead.pending, (state, action) => {
+      const id  = action.meta.arg;
+      const idx = state.items.findIndex((n) => n.id === id);
+      if (idx !== -1 && !state.items[idx].is_read) {
+        state.items[idx].is_read  = true;
+        state.items[idx].read_at  = new Date().toISOString();
+        state.unreadCount         = Math.max(0, state.unreadCount - 1);
+      }
+    });
+
+    // markAllRead (optimistic)
+    builder.addCase(markAllNotificationsRead.pending, (state) => {
+      const now = new Date().toISOString();
+      state.items       = state.items.map((n) => ({ ...n, is_read: true, read_at: now }));
+      state.unreadCount = 0;
+    });
+
+    // deleteOne (optimistic)
+    builder.addCase(deleteNotification.pending, (state, action) => {
+      const id = action.meta.arg;
+      state.items = state.items.filter((n) => n.id !== id);
+      state.total = Math.max(0, state.total - 1);
+    });
+
+    // clearAll (optimistic)
+    builder.addCase(clearAllNotifications.pending, (state) => {
+      state.items       = [];
+      state.unreadCount = 0;
+      state.total       = 0;
+    });
+
+    // sendNotification
+    builder.addCase(sendNotification.fulfilled, (state, action) => {
+      const notif = action.payload?.data || action.payload;
+      if (notif?.id && !state.items.some((n) => n.id === notif.id)) {
+        state.items.unshift(notif);
+        state.total += 1;
+      }
+    });
+  },
+});
+
 export const {
   addNotification,
-  markRead,
-  markAllRead,
-  removeNotification,
-  clearAll,
-  togglePanel,
-  closePanel,
-  openPanel,
-  syncUnread,
-} = notificationsSlice.actions
+  updateNotification,
+  setUnreadCount,
+  resetNotifications,
+} = notificationsSlice.actions;
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
+// ── Selectors ──────────────────────────────────────────────────────────────
 
-/** All toast items (excluding synthetic placeholders for rendering) */
-export const selectNotifications = (state) =>
-  state.notifications.items.filter((n) => !n.synthetic)
+export const selectAllNotifications  = (state) => state.notifications.items;
+export const selectUnreadCount       = (state) => state.notifications.unreadCount;
+export const selectNotificationsLoading = (state) => state.notifications.loading;
+export const selectNotificationsError   = (state) => state.notifications.error;
+export const selectUnreadNotifications  = (state) =>
+  state.notifications.items.filter((n) => !n.is_read);
 
-/** True unread count — includes synthetic placeholders */
-export const selectUnreadCount = (state) =>
-  state.notifications.items.filter((n) => !n.read).length
-
-/** Panel open state */
-export const selectPanelOpen = (state) =>
-  state.notifications.panelOpen
-
-export default notificationsSlice.reducer
+export default notificationsSlice.reducer;

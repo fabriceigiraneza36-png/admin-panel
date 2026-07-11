@@ -93,7 +93,6 @@ export const NAV_ITEMS = [
   { path: '/gallery',        label: 'Gallery',        icon: 'Image'           },
   { path: '/contact',        label: 'Contact',        icon: 'MessageSquare'   },
   { path: '/subscribers',    label: 'Subscribers',    icon: 'Mail'            },
-  { path: '/chat',           label: 'Live Chat',      icon: 'MessagesSquare'  },
   { path: '/notifications',  label: 'Notifications',  icon: 'Bell'            }, // ← NEW
   { path: '/settings',       label: 'Settings',       icon: 'Settings'        },
 ]

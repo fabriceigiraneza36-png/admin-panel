@@ -1,177 +1,357 @@
-// admin/src/components/notifications/NotificationPanel.jsx
-import React, { useEffect, useRef } from 'react';
-import { useNotifications } from '../../hooks/useNotifications';
-import { Link } from 'react-router-dom';
+// src/components/notifications/NotificationPanel.jsx
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNotifications } from "@context/NotificationContext";
+import { formatDistanceToNow } from "date-fns";
 
-const fmt = (d) => {
-  if (!d) return '';
-  const diff = Date.now() - new Date(d).getTime();
-  const m    = Math.floor(diff / 60000);
-  if (m < 1)  return 'Just now';
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "—";
+  try {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+  } catch {
+    return dateStr;
+  }
 };
 
-const TYPE_ICONS = {
-  admin_checklist_request: '📋',
-  checklist_ready:         '✅',
-  payment_confirmed:       '💳',
-  payment_request:         '💰',
-  booking_created:         '📅',
-  general:                 '💬',
+const typeStyles = (type = "") => {
+  if (type.startsWith("booking"))  return { dot: "bg-blue-500",   badge: "bg-blue-100 text-blue-700"   };
+  if (type.includes("alert"))      return { dot: "bg-red-500",    badge: "bg-red-100 text-red-700"     };
+  if (type.includes("success"))    return { dot: "bg-green-500",  badge: "bg-green-100 text-green-700" };
+  if (type.includes("warning"))    return { dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700"};
+  return                                  { dot: "bg-gray-400",   badge: "bg-gray-100 text-gray-600"   };
 };
 
-export default function NotificationPanel({ onClose }) {
-  const { notifications, unreadCount, loading, fetchAll } = useNotifications();
-  const panelRef = useRef(null);
+// ── Bell Icon ──────────────────────────────────────────────────────────────
 
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        onClose?.();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
+function BellIcon({ className = "w-5 h-5" }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.8}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12
+           0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6
+           0v-1m6 0H9"
+      />
+    </svg>
+  );
+}
 
-  const recent = notifications.slice(0, 8);
+// ── Single Notification Row ────────────────────────────────────────────────
+
+function NotifRow({ notif, onMarkRead, onDelete }) {
+  const { dot, badge } = typeStyles(notif.type);
 
   return (
     <div
-      ref={panelRef}
-      style={{
-        position:    'absolute',
-        top:         '100%',
-        right:       0,
-        width:       360,
-        background:  '#fff',
-        borderRadius: 16,
-        border:      '1.5px solid #e2e8f0',
-        boxShadow:   '0 16px 40px rgba(0,0,0,0.12)',
-        zIndex:      999,
-        overflow:    'hidden',
-      }}
+      className={`group flex items-start gap-3 px-4 py-3 hover:bg-gray-50
+                  transition-colors border-b border-gray-100 last:border-0 ${
+        notif.is_read ? "opacity-80" : ""
+      }`}
     >
-      {/* Header */}
-      <div style={{
-        padding:         '14px 18px',
-        borderBottom:    '1px solid #f1f5f9',
-        background:      '#fafdfb',
-        display:         'flex',
-        alignItems:      'center',
-        justifyContent:  'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '1.1rem' }}>🔔</span>
-          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>
-            Notifications
+      {/* Dot */}
+      <span
+        className={`mt-1.5 flex-shrink-0 h-2 w-2 rounded-full ${
+          notif.is_read ? "bg-gray-300" : dot
+        }`}
+      />
+
+      {/* Body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${badge}`}>
+            {notif.type || "system"}
           </span>
-          {unreadCount > 0 && (
-            <span style={{
-              background: '#059669', color: '#fff',
-              borderRadius: 999, fontSize: 10, fontWeight: 800,
-              padding: '1px 7px',
-            }}>
-              {unreadCount}
+          {notif.title && (
+            <span className="text-sm font-medium text-gray-800 truncate">
+              {notif.title}
             </span>
           )}
         </div>
+        {notif.message && (
+          <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+            {notif.message}
+          </p>
+        )}
+        <p className="mt-0.5 text-[10px] text-gray-400">
+          {formatDate(notif.created_at || notif.createdAt)}
+        </p>
+      </div>
+
+      {/* Actions — visible on hover */}
+      <div className="flex-shrink-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!notif.is_read && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkRead(notif.id); }}
+            title="Mark as read"
+            className="text-[10px] text-blue-600 hover:text-blue-800 font-medium
+                       whitespace-nowrap"
+          >
+            ✓ Read
+          </button>
+        )}
         <button
-          onClick={() => fetchAll()}
-          style={{
-            background: 'transparent', border: 'none',
-            cursor: 'pointer', fontSize: '1rem', color: '#64748b',
-          }}
-          title="Refresh"
+          onClick={(e) => { e.stopPropagation(); onDelete(notif.id); }}
+          title="Delete"
+          className="text-[10px] text-red-500 hover:text-red-700 font-medium"
         >
-          ↻
+          ✕
         </button>
       </div>
+    </div>
+  );
+}
 
-      {/* List */}
-      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-        {loading && (
-          <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>
-            Loading…
-          </div>
-        )}
-        {!loading && recent.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>
-            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔔</div>
-            <p style={{ margin: 0, fontSize: '0.85rem' }}>All caught up!</p>
-          </div>
-        )}
-        {recent.map((n, idx) => (
-          <div
-            key={n.id}
-            style={{
-              padding:      '12px 18px',
-              borderBottom: idx < recent.length - 1 ? '1px solid #f8fafc' : 'none',
-              background:   n.priority === 'high' ? '#fef2f2' : '#fff',
-              display:      'flex',
-              gap:          10,
-              alignItems:   'flex-start',
-              transition:   'background 0.15s',
-              cursor:       'default',
-            }}
+// ── Empty State ────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+      <BellIcon className="w-10 h-10 text-gray-300 mb-3" />
+      <p className="text-sm font-medium text-gray-500">All caught up!</p>
+      <p className="text-xs text-gray-400 mt-1">No notifications right now.</p>
+    </div>
+  );
+}
+
+// ── Main Panel ─────────────────────────────────────────────────────────────
+
+export default function NotificationPanel() {
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    hasMore,
+    refresh,
+    loadMore,
+    markRead,
+    markAllRead,
+    deleteOne,
+    clearAll,
+  } = useNotifications();
+
+  const [open,   setOpen]   = useState(false);
+  const [filter, setFilter] = useState("all"); // all | unread
+  const panelRef            = useRef(null);
+  const triggerRef          = useRef(null);
+
+  // ── Close on outside click ───────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClick = (e) => {
+      if (
+        panelRef.current   && !panelRef.current.contains(e.target) &&
+        triggerRef.current && !triggerRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown",   handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown",   handleKey);
+    };
+  }, [open]);
+
+  // ── Refresh on open ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (open) refresh();
+  }, [open, refresh]);
+
+  // ── Derived list ─────────────────────────────────────────────────────────
+
+  const displayed =
+    filter === "unread"
+      ? notifications.filter((n) => !n.is_read)
+      : notifications;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleMarkAllRead = useCallback(async () => {
+    await markAllRead();
+  }, [markAllRead]);
+
+  const handleClearAll = useCallback(async () => {
+    if (!window.confirm("Clear all notifications?")) return;
+    await clearAll();
+  }, [clearAll]);
+
+  const handleToggle = useCallback(() => {
+    setOpen((v) => !v);
+  }, []);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="relative">
+      {/* Bell trigger */}
+      <button
+        ref={triggerRef}
+        onClick={handleToggle}
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className="relative p-2 rounded-lg text-gray-500 hover:text-gray-700
+                   hover:bg-gray-100 transition-colors focus:outline-none
+                   focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <BellIcon />
+
+        {/* Unread badge */}
+        {unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center
+                       justify-center rounded-full bg-red-500 text-[9px]
+                       font-bold text-white ring-2 ring-white"
           >
-            <div style={{
-              width: 36, height: 36, borderRadius: 9,
-              background: '#f0fdf4', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontSize: '1rem', flexShrink: 0,
-            }}>
-              {TYPE_ICONS[n.type] || '💬'}
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+
+        {/* Pulsing ring when unread */}
+        {unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full
+                       bg-red-400 opacity-75 animate-ping"
+          />
+        )}
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Notifications panel"
+          className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl
+                     shadow-xl border border-gray-200 z-50 flex flex-col
+                     max-h-[520px] overflow-hidden"
+          style={{ top: "calc(100% + 8px)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3
+                          border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-800">
+                Notifications
+              </h2>
+              {unreadCount > 0 && (
+                <span className="bg-red-100 text-red-700 text-xs font-bold
+                                 px-1.5 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: '0 0 2px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                {n.title}
-              </p>
-              <p style={{
-                margin: 0, fontSize: '0.78rem', color: '#64748b',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {n.message}
-              </p>
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                {fmt(n.created_at || n.createdAt)}
-              </span>
+
+            {/* Filter toggles */}
+            <div className="flex gap-1 text-xs">
+              {["all", "unread"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-2 py-1 rounded-md capitalize font-medium
+                              transition-colors ${
+                    filter === f
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
             </div>
-            {n.priority === 'high' && (
-              <span style={{
-                fontSize: 9, fontWeight: 800, background: '#fecaca',
-                color: '#dc2626', padding: '2px 6px', borderRadius: 4,
-                textTransform: 'uppercase', flexShrink: 0,
-              }}>
-                HIGH
-              </span>
+          </div>
+
+          {/* Action bar */}
+          {notifications.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-2
+                            border-b border-gray-100 bg-gray-50">
+              <button
+                onClick={handleMarkAllRead}
+                disabled={unreadCount === 0}
+                className="text-xs text-blue-600 hover:text-blue-800
+                           disabled:opacity-40 font-medium transition-colors"
+              >
+                Mark all read
+              </button>
+              <button
+                onClick={handleClearAll}
+                className="text-xs text-red-500 hover:text-red-700
+                           font-medium transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            {loading && displayed.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent
+                               rounded-full animate-spin" />
+              </div>
+            ) : displayed.length === 0 ? (
+              <EmptyState />
+            ) : (
+              displayed.map((notif) => (
+                <NotifRow
+                  key={notif.id}
+                  notif={notif}
+                  onMarkRead={markRead}
+                  onDelete={deleteOne}
+                />
+              ))
+            )}
+
+            {/* Load more */}
+            {hasMore && (
+              <div className="px-4 py-3 text-center border-t border-gray-100">
+                <button
+                  onClick={loadMore}
+                  disabled={loading}
+                  className="text-xs text-blue-600 hover:text-blue-800
+                             font-medium disabled:opacity-50 transition-colors"
+                >
+                  {loading ? "Loading…" : "Load more"}
+                </button>
+              </div>
             )}
           </div>
-        ))}
-      </div>
 
-      {/* Footer */}
-      <div style={{
-        padding:      '12px 18px',
-        borderTop:    '1px solid #f1f5f9',
-        textAlign:    'center',
-        background:   '#fafdfb',
-      }}>
-        <Link
-          to="/notifications"
-          onClick={onClose}
-          style={{
-            fontSize:   '0.82rem',
-            color:      '#059669',
-            fontWeight: 700,
-            textDecoration: 'none',
-          }}
-        >
-          View All Notifications →
-        </Link>
-      </div>
+          {/* Footer — link to full page */}
+          <div className="border-t border-gray-100 px-4 py-2.5 bg-gray-50
+                          flex justify-center">
+            <a
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="text-xs text-blue-600 hover:text-blue-800
+                         font-medium transition-colors"
+            >
+              View all notifications →
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
