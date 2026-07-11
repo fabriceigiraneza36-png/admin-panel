@@ -4,7 +4,7 @@ import {
   CalendarCheck, Eye, Pencil, Trash2, RefreshCw,
   CheckCircle, Download, Plus, User, ChevronRight,
   ChevronLeft, Check, Calendar, Users, FileText,
-  Bell, Shield,
+  Bell, Shield, Ban, DollarSign, CheckCircle2, XCircle,
 } from 'lucide-react'
 import { bookingsAPI }      from '@api/bookings'
 import { notificationsAPI } from '@api/notifications'
@@ -211,6 +211,142 @@ function PaymentActions({ booking, onUpdate }) {
   );
 }
 
+// ─── Cancellation / Refund Request Panel ──────────────────────────────────────
+
+function CancellationRequestPanel({ booking, review, setReview, reviewing, onReview }) {
+  if (!booking.cancel_request_status || booking.cancel_request_status === 'none') return null
+
+  const isRefund   = booking.cancel_request_type === 'refund'
+  const isPending  = booking.cancel_request_status === 'pending'
+  const isApproved = booking.cancel_request_status === 'approved'
+
+  const setDecision = (d) =>
+    setReview(p => ({ ...p, decision: p.decision === d ? null : d }))
+
+  return (
+    <div style={{
+      border: '1.5px solid #fde68a', borderRadius: 16, padding: 18,
+      background: isPending ? '#fffbeb' : '#f8fafc', marginTop: 16,
+    }}>
+      <div className="flex items-center gap-2 mb-3">
+        {isRefund ? <DollarSign size={18} className="text-amber-600" />
+                  : <Ban size={18} className="text-amber-600" />}
+        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#92400e' }}>
+          {isRefund ? 'Refund' : 'Cancellation'} Request
+        </h4>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ml-auto
+          ${isPending ? 'bg-amber-200 text-amber-800'
+            : isApproved ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-rose-100 text-rose-700'}`}>
+          {booking.cancel_request_status}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Requested At</p>
+          <p className="font-semibold text-slate-700">
+            {booking.cancel_requested_at ? new Date(booking.cancel_requested_at).toLocaleString() : '—'}
+          </p>
+        </div>
+        {isRefund && (
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Paid</p>
+            <p className="font-semibold text-slate-700">
+              {booking.total_price != null ? `${booking.currency || ''} ${booking.total_price}` : '—'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-3">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Reason</p>
+        <p className="text-slate-700 bg-white border border-slate-200 rounded-xl p-3">
+          {booking.cancel_request_reason || 'No reason provided.'}
+        </p>
+      </div>
+
+      {isPending ? (
+        <>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setDecision('approved')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all
+                ${review.decision === 'approved'
+                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'}`}>
+              <CheckCircle2 size={15} className="inline mr-1" />
+              {isRefund ? 'Approve Refund' : 'Approve Cancel'}
+            </button>
+            <button onClick={() => setDecision('rejected')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all
+                ${review.decision === 'rejected'
+                  ? 'bg-rose-500 border-rose-500 text-white'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-rose-300'}`}>
+              <XCircle size={15} className="inline mr-1" /> Reject
+            </button>
+          </div>
+
+          {isRefund && (
+            <div className="mb-3">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+                Refund Amount ({booking.currency || 'USD'})
+              </label>
+              <input type="number" value={review.refund_amount}
+                onChange={e => setReview(p => ({ ...p, refund_amount: e.target.value }))}
+                placeholder="Leave blank for full"
+                className="input" style={{ maxWidth: 220 }} />
+            </div>
+          )}
+
+          <div className="mb-3">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+              Response to Customer (optional)
+            </label>
+            <textarea value={review.response}
+              onChange={e => setReview(p => ({ ...p, response: e.target.value }))}
+              placeholder="Add a note the customer will see…"
+              className="input min-h-[70px] resize-none" />
+          </div>
+
+          {review.decision && (
+            <button onClick={() => onReview(booking, review.decision)}
+              disabled={reviewing}
+              className={`btn-primary ${reviewing ? 'opacity-60' : ''}`}>
+              {reviewing
+                ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing…</>
+                : <>Submit {review.decision === 'approved' ? 'Approval' : 'Rejection'}</>}
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl p-3">
+          <p className="text-sm font-bold mb-1" style={{ color: isApproved ? '#059669' : '#be123c' }}>
+            {isApproved
+              ? `✅ ${isRefund ? 'Refund' : 'Cancellation'} approved by admin`
+              : '❌ Request rejected by admin'}
+          </p>
+          {booking.cancel_admin_response && (
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold">Admin note: </span>{booking.cancel_admin_response}
+            </p>
+          )}
+          {isRefund && booking.refund_amount != null && (
+            <p className="text-sm text-slate-600 mt-1">
+              <span className="font-semibold">Refund amount: </span>
+              {booking.currency || ''} {booking.refund_amount}
+            </p>
+          )}
+          {booking.cancel_reviewed_at && (
+            <p className="text-[11px] text-slate-400 mt-1">
+              Reviewed: {new Date(booking.cancel_reviewed_at).toLocaleString()}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Bookings() {
@@ -234,6 +370,16 @@ export default function Bookings() {
   const [createStep, setCreateStep] = useState('guest')
   const [createDone, setCreateDone] = useState([])
 
+  // ── Cancellation / refund requests ─────────────────────────────────────────
+  const [requestFilter, setRequestFilter] = useState('')
+  const [review,        setReview]        = useState({ decision: null, response: '', refund_amount: '' })
+  const [reviewing,     setReviewing]     = useState(false)
+
+  const openView = (b) => {
+    setReview({ decision: null, response: '', refund_amount: '' })
+    viewModal.open(b)
+  }
+
   const dSearch = useDebounce(search, 400)
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -245,6 +391,7 @@ export default function Bookings() {
         page: pag.page, limit: pag.limit, sortBy, order: sortOrder,
         ...(dSearch && { search: dSearch }),
         ...(status  && { status }),
+        ...(requestFilter && { cancel_request_status: requestFilter }),
       }
       const res  = await bookingsAPI.getAll(params)
       const body = res?.data ?? res
@@ -258,6 +405,29 @@ export default function Bookings() {
   }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, status])
 
   useEffect(() => { load() }, [load])
+
+  // ── Review cancellation / refund ────────────────────────────────────────────
+
+  const handleReviewRequest = async (booking, decision) => {
+    setReviewing(true)
+    try {
+      const res = await bookingsAPI.reviewCancellation(booking.id, {
+        decision,
+        admin_response: review.response,
+        refund_amount: review.refund_amount || null,
+      })
+      toast.success(`Request ${decision}! User has been notified.`)
+      setReview({ decision: null, response: '', refund_amount: '' })
+      load()
+      const payload = res?.data ?? res
+      const updated = payload?.data ?? payload
+      if (viewModal.data?.id === booking.id) viewModal.open(updated)
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setReviewing(false)
+    }
+  }
 
   // ── Edit ──────────────────────────────────────────────────────────────────
 
@@ -414,7 +584,21 @@ export default function Bookings() {
     },
     {
       key: 'status', label: 'Status',
-      render: v => <Badge status={v} label={v} />,
+      render: (v, r) => (
+        <div className="flex flex-col items-start gap-1">
+          <Badge status={v} label={v} />
+          {r.cancel_request_status && r.cancel_request_status !== 'none' && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide
+              ${r.cancel_request_status === 'pending'
+                ? 'bg-amber-100 text-amber-700'
+                : r.cancel_request_status === 'approved'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-rose-100 text-rose-700'}`}>
+              {r.cancel_request_type === 'refund' ? 'Refund' : 'Cancel'} · {r.cancel_request_status}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'created_at', label: 'Created', sortable: true,
@@ -424,7 +608,7 @@ export default function Bookings() {
       key: 'actions', label: '', align: 'right', width: '140px',
       render: (_, r) => (
         <TableActions>
-          <TableAction icon={Eye} label="View" onClick={() => viewModal.open(r)} />
+          <TableAction icon={Eye} label="View" onClick={() => openView(r)} />
           {r.status === 'pending' && (
             <TableAction icon={CheckCircle} label="Confirm"
               onClick={() => handleQuickStatus(r, 'confirmed')} variant="success" />
@@ -685,6 +869,15 @@ export default function Bookings() {
           <FilterSelect label="Status" value={status}
             onChange={v => { setStatus(v); pag.reset() }}
             options={[{ value: '', label: 'All Status' }, ...BOOKING_STATUSES]} />
+          <FilterSelect label="Requests" value={requestFilter}
+            onChange={v => { setRequestFilter(v); pag.reset() }}
+            options={[
+              { value: '', label: 'All Requests' },
+              { value: 'pending',  label: '⏳ Pending Requests' },
+              { value: 'approved', label: '✅ Approved' },
+              { value: 'rejected', label: '❌ Rejected' },
+              { value: 'none',     label: 'No Request' },
+            ]} />
         </FilterBar>
       </div>
 
@@ -692,7 +885,7 @@ export default function Bookings() {
       <div className="card">
         <Table columns={columns} data={items} loading={loading}
           sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
-          onRowClick={r => viewModal.open(r)} />
+          onRowClick={r => openView(r)} />
         <Pagination
           page={pag.page} totalPages={pag.totalPages} total={pag.total}
           limit={pag.limit} hasNext={pag.hasNext} hasPrev={pag.hasPrev}
@@ -746,6 +939,16 @@ export default function Bookings() {
               </ModalGrid>
               <ModalField label="Special Requests" value={viewModal.data.special_requests} />
               <ModalField label="Admin Notes"      value={viewModal.data.admin_notes} />
+            </ModalSection>
+
+            <ModalSection title="Cancellation / Refund">
+              <CancellationRequestPanel
+                booking={viewModal.data}
+                review={review}
+                setReview={setReview}
+                reviewing={reviewing}
+                onReview={handleReviewRequest}
+              />
             </ModalSection>
           </div>
         )}

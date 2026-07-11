@@ -24,4 +24,10 @@ export const bookingsAPI = {
 
   // ── NEW v6.8: Admin creates booking on behalf of user ─────────────────────
   adminCreate:  (data)      => apiClient.post(`${BASE}/admin`, data),
+
+  // ── NEW: Cancellation / refund requests ──────────────────────────────────
+  getCancellationRequests: (params) =>
+    apiClient.get(`${BASE}/cancellation-requests`, { params }),
+  reviewCancellation: (id, data) =>
+    apiClient.post(`${BASE}/${id}/review-cancellation`, data),
 }
