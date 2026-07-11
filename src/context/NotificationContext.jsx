@@ -1,261 +1,209 @@
 // admin/src/context/NotificationContext.jsx
 import React, {
-  createContext,
-  useContext,
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+  createContext, useContext, useCallback,
+  useEffect, useRef, useState,
+} from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
-  addNotification,
-  markRead,
-  markAllRead,
-  removeNotification,
-  clearAll,
-  togglePanel,
-  closePanel,
-  selectNotifications,
-  selectUnreadCount,
-  selectPanelOpen,
-} from '@store/notificationsSlice'
-import { NOTIFICATION_TYPES } from '@utils/constants'
-import notificationsAPI        from '@api/notifications'
-import { useSocket }           from '@hooks/useSocket'
+  addNotification, markRead, markAllRead,
+  removeNotification, clearAll, togglePanel, closePanel,
+  selectNotifications, selectUnreadCount, selectPanelOpen,
+} from '@store/notificationsSlice';
+import { NOTIFICATION_TYPES } from '@utils/constants';
+import notificationsAPI        from '@api/notifications';
+import { useSocket }           from '@hooks/useSocket';
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-const NotificationContext = createContext(null)
+const NotificationContext = createContext(null);
+const POLL_MS = 60_000;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const POLL_MS        = 60_000   // fallback poll every 60 s
-const MAX_PANEL_ITEMS = 8       // items shown in the slide-down panel
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
 export function NotificationProvider({ children }) {
-  const dispatch = useDispatch()
-  const socket   = useSocket?.()
+  const dispatch = useDispatch();
+  const socket   = useSocket?.();
 
-  // ── Redux state ─────────────────────────────────────────────────────────────
-  const items       = useSelector(selectNotifications)
-  const unreadCount = useSelector(selectUnreadCount)
-  const panelOpen   = useSelector(selectPanelOpen)
+  const items       = useSelector(selectNotifications);
+  const unreadCount = useSelector(selectUnreadCount);
+  const panelOpen   = useSelector(selectPanelOpen);
 
-  // ── Remote API state (server notifications, not just UI toasts) ──────────────
-  const [serverNotifs,   setServerNotifs]   = React.useState([])
-  const [serverStats,    setServerStats]    = React.useState({})
-  const [serverLoading,  setServerLoading]  = React.useState(false)
-  const [serverPage,     setServerPage]     = React.useState(1)
-  const [serverTotal,    setServerTotal]    = React.useState(0)
-  const [serverPages,    setServerPages]    = React.useState(1)
+  const [serverNotifs,  setServerNotifs]  = useState([]);
+  const [serverStats,   setServerStats]   = useState({});
+  const [serverLoading, setServerLoading] = useState(false);
+  const [serverPage,    setServerPage]    = useState(1);
+  const [serverTotal,   setServerTotal]   = useState(0);
+  const [serverPages,   setServerPages]   = useState(1);
+  const [targetGroups,  setTargetGroups]  = useState([]);
 
-  const pollRef    = useRef(null)
-  const mountedRef = useRef(true)
+  const pollRef    = useRef(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    mountedRef.current = true
-    return () => { mountedRef.current = false }
-  }, [])
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SERVER FETCH
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Fetch server notifications ─────────────────────────────────────────────
 
   const fetchServerNotifs = useCallback(async (pageNum = 1, silent = false) => {
-    if (!silent) setServerLoading(true)
+    if (!silent) setServerLoading(true);
     try {
-      const [data, statsData] = await Promise.all([
+      const [data, statsData, groupsData] = await Promise.all([
         notificationsAPI.getAll({ page: pageNum, limit: 30 }),
         notificationsAPI.getStats(),
-      ])
-      if (!mountedRef.current) return
-
-      setServerNotifs((prev) =>
+        notificationsAPI.getTargetGroups?.() || Promise.resolve({ groups: [] }),
+      ]);
+      if (!mountedRef.current) return;
+      setServerNotifs(prev =>
         pageNum === 1 ? (data.data || []) : [...prev, ...(data.data || [])],
-      )
-      setServerStats(statsData.data || {})
-      setServerTotal(data.pagination?.total       || 0)
-      setServerPages(data.pagination?.total_pages || 1)
-      setServerPage(pageNum)
+      );
+      setServerStats(statsData.data  || {});
+      setTargetGroups(groupsData.groups || []);
+      setServerTotal(data.pagination?.total       || 0);
+      setServerPages(data.pagination?.total_pages || 1);
+      setServerPage(pageNum);
 
-      // Sync unread badge with server reality
-      const serverUnread = parseInt(statsData.data?.unread || 0, 10)
+      const serverUnread = parseInt(statsData.data?.unread || 0, 10);
       if (serverUnread > 0) {
-        // Push a synthetic "sync" action so the Redux badge stays accurate.
-        // We don't want to blow away existing toast items, so we just
-        // ensure the count matches via a lightweight dispatch.
-        dispatch({ type: 'notifications/syncUnread', payload: serverUnread })
+        dispatch({ type: 'notifications/syncUnread', payload: serverUnread });
       }
     } catch (err) {
-      console.warn('[NotificationContext] fetch failed:', err.message)
+      console.warn('[NotificationContext] fetch failed:', err.message);
     } finally {
-      if (mountedRef.current) setServerLoading(false)
+      if (mountedRef.current) setServerLoading(false);
     }
-  }, [dispatch])
+  }, [dispatch]);
 
-  // Initial load
-  useEffect(() => { fetchServerNotifs(1) }, [fetchServerNotifs])
-
-  // Poll fallback (when socket unavailable)
-  useEffect(() => {
-    pollRef.current = setInterval(
-      () => fetchServerNotifs(1, true),
-      POLL_MS,
-    )
-    return () => clearInterval(pollRef.current)
-  }, [fetchServerNotifs])
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SOCKET — live delivery
-  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => { fetchServerNotifs(1); }, [fetchServerNotifs]);
 
   useEffect(() => {
-    if (!socket) return
+    pollRef.current = setInterval(() => fetchServerNotifs(1, true), POLL_MS);
+    return () => clearInterval(pollRef.current);
+  }, [fetchServerNotifs]);
 
-    // New notification arrives from user action (checklist request, reply, etc.)
+  // ── Socket ─────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!socket) return;
+
     const onNew = (notif) => {
-      if (!mountedRef.current) return
-
-      // 1. Push into server list (for the full Notifications page)
-      setServerNotifs((prev) => {
-        if (prev.some((n) => n.id === notif.id)) return prev
-        return [notif, ...prev]
-      })
-      setServerTotal((t) => t + 1)
-
-      // 2. Also push a UI toast into Redux (bell badge + panel)
+      if (!mountedRef.current) return;
+      setServerNotifs(prev => {
+        if (prev.some(n => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+      setServerTotal(t => t + 1);
       dispatch(addNotification({
         type:    mapTypeToRedux(notif.type),
         title:   notif.title,
         message: notif.message,
         data:    notif,
-      }))
-    }
+      }));
+    };
 
-    // A user replied to a notification — refresh list
-    const onUserReplied = () => fetchServerNotifs(1, true)
-
-    // Server pushed updated notification (admin replied, etc.)
     const onUpdated = (notif) => {
-      if (!mountedRef.current) return
-      setServerNotifs((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, ...notif } : n)),
-      )
-    }
+      if (!mountedRef.current) return;
+      setServerNotifs(prev =>
+        prev.map(n => n.id === notif.id ? { ...n, ...notif } : n),
+      );
+    };
 
-    socket.on('notification:new',          onNew)
-    socket.on('notification:updated',      onUpdated)
-    socket.on('notification:user-replied', onUserReplied)
+    const onUserReplied = ({ notificationId, replyText, userName }) => {
+      if (!mountedRef.current) return;
+      setServerNotifs(prev =>
+        prev.map(n =>
+          n.id === notificationId
+            ? { ...n, reply_text: replyText, replyText, replierName: userName }
+            : n,
+        ),
+      );
+      // Toast for admin
+      dispatch(addNotification({
+        type:    NOTIFICATION_TYPES.MESSAGE || 'message',
+        title:   `💬 ${userName || 'User'} replied`,
+        message: replyText?.slice(0, 80),
+        data:    { notificationId },
+      }));
+    };
+
+    const onBroadcastSent = ({ count, title }) => {
+      if (!mountedRef.current) return;
+      fetchServerNotifs(1, true);
+      dispatch(addNotification({
+        type:    NOTIFICATION_TYPES.INFO || 'info',
+        title:   '📢 Broadcast sent',
+        message: `"${title}" delivered to ${count} users`,
+      }));
+    };
+
+    socket.on('notification:new',            onNew);
+    socket.on('notification:updated',        onUpdated);
+    socket.on('notification:user-replied',   onUserReplied);
+    socket.on('notification:broadcast-sent', onBroadcastSent);
 
     return () => {
-      socket.off('notification:new',          onNew)
-      socket.off('notification:updated',      onUpdated)
-      socket.off('notification:user-replied', onUserReplied)
-    }
-  }, [socket, dispatch, fetchServerNotifs])
+      socket.off('notification:new',            onNew);
+      socket.off('notification:updated',        onUpdated);
+      socket.off('notification:user-replied',   onUserReplied);
+      socket.off('notification:broadcast-sent', onBroadcastSent);
+    };
+  }, [socket, dispatch, fetchServerNotifs]);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UI TOAST HELPERS  (these stay exactly as before — dispatch to Redux)
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── UI toast helpers ───────────────────────────────────────────────────────
 
   const notify = useCallback(
     (type, title, message, data) =>
       dispatch(addNotification({ type, title, message, data })),
     [dispatch],
-  )
+  );
 
   const notifyBooking = useCallback(
     (msg, data) => notify(NOTIFICATION_TYPES.BOOKING, 'New Booking', msg, data),
     [notify],
-  )
-
+  );
   const notifyMessage = useCallback(
     (msg, data) => notify(NOTIFICATION_TYPES.MESSAGE, 'New Message', msg, data),
     [notify],
-  )
-
+  );
   const notifyChat = useCallback(
     (msg, data) => notify(NOTIFICATION_TYPES.CHAT, 'Live Chat', msg, data),
     [notify],
-  )
+  );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SERVER-SIDE ACTIONS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Server actions ─────────────────────────────────────────────────────────
 
   const sendNotification = useCallback(async (payload) => {
-    const result = await notificationsAPI.create(payload)
-    fetchServerNotifs(1, true)
-    return result
-  }, [fetchServerNotifs])
-
-  const broadcastNotification = useCallback(async (payload) => {
-    const result = await notificationsAPI.broadcast(payload)
-    fetchServerNotifs(1, true)
-    return result
-  }, [fetchServerNotifs])
+    const result = await notificationsAPI.create(payload);
+    fetchServerNotifs(1, true);
+    return result;
+  }, [fetchServerNotifs]);
 
   const sendAdminReply = useCallback(async (notifId, adminReply) => {
-    const result = await notificationsAPI.adminReply(notifId, adminReply)
-    setServerNotifs((prev) =>
-      prev.map((n) =>
-        n.id === notifId ? { ...n, admin_reply: adminReply } : n,
-      ),
-    )
-    return result
-  }, [])
+    const result = await notificationsAPI.adminReply(notifId, adminReply);
+    setServerNotifs(prev =>
+      prev.map(n => n.id === notifId ? { ...n, admin_reply: adminReply } : n),
+    );
+    return result;
+  }, []);
 
   const deleteServerNotif = useCallback(async (notifId) => {
-    await notificationsAPI.adminDelete(notifId)
-    setServerNotifs((prev) => prev.filter((n) => n.id !== notifId))
-    setServerTotal((t) => Math.max(0, t - 1))
-  }, [])
+    await notificationsAPI.adminDelete(notifId);
+    setServerNotifs(prev => prev.filter(n => n.id !== notifId));
+    setServerTotal(t => Math.max(0, t - 1));
+  }, []);
 
-  const sendChecklist = useCallback(async (payload) => {
-    const result = await notificationsAPI.sendChecklist(payload)
-    fetchServerNotifs(1, true)
-    return result
-  }, [fetchServerNotifs])
-
-  const confirmPayment = useCallback(async (payload) => {
-    const result = await notificationsAPI.confirmPayment(payload)
-    fetchServerNotifs(1, true)
-    return result
-  }, [fetchServerNotifs])
-
-  const requestPayment = useCallback(async (payload) => {
-    const result = await notificationsAPI.requestPayment(payload)
-    fetchServerNotifs(1, true)
-    return result
-  }, [fetchServerNotifs])
+  const sendChecklist  = useCallback(async (p) => { const r = await notificationsAPI.sendChecklist(p);  fetchServerNotifs(1, true); return r; }, [fetchServerNotifs]);
+  const confirmPayment = useCallback(async (p) => { const r = await notificationsAPI.confirmPayment(p); fetchServerNotifs(1, true); return r; }, [fetchServerNotifs]);
+  const requestPayment = useCallback(async (p) => { const r = await notificationsAPI.requestPayment(p); fetchServerNotifs(1, true); return r; }, [fetchServerNotifs]);
 
   const loadMoreServer = useCallback(() => {
-    if (serverPage < serverPages && !serverLoading) {
-      fetchServerNotifs(serverPage + 1)
-    }
-  }, [fetchServerNotifs, serverLoading, serverPage, serverPages])
+    if (serverPage < serverPages && !serverLoading) fetchServerNotifs(serverPage + 1);
+  }, [fetchServerNotifs, serverLoading, serverPage, serverPages]);
 
-  // ─── Derived ────────────────────────────────────────────────────────────────
-  const checklistRequests = serverNotifs.filter(
-    (n) => n.type === 'admin_checklist_request',
-  )
-  const awaitingReply = serverNotifs.filter(
-    (n) => n.reply_text && !n.admin_reply,
-  )
-  const panelItems = serverNotifs.slice(0, MAX_PANEL_ITEMS)
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CONTEXT VALUE
-  // ═══════════════════════════════════════════════════════════════════════════
+  const checklistRequests = serverNotifs.filter(n => n.type === 'admin_checklist_request');
+  const awaitingReply     = serverNotifs.filter(n => n.reply_text && !n.admin_reply);
 
   const value = {
-    // ── UI toast (Redux) ────────────────────────────────────────────────────
-    items,
-    unreadCount,
-    panelOpen,
-    notify,
-    notifyBooking,
-    notifyMessage,
-    notifyChat,
+    // UI toasts (Redux)
+    items, unreadCount, panelOpen,
+    notify, notifyBooking, notifyMessage, notifyChat,
     markRead:    (id) => dispatch(markRead(id)),
     markAllRead: ()   => dispatch(markAllRead()),
     remove:      (id) => dispatch(removeNotification(id)),
@@ -263,56 +211,37 @@ export function NotificationProvider({ children }) {
     togglePanel: ()   => dispatch(togglePanel()),
     closePanel:  ()   => dispatch(closePanel()),
 
-    // ── Server notifications ────────────────────────────────────────────────
-    serverNotifs,
-    serverStats,
-    serverLoading,
-    serverTotal,
-    serverPage,
-    serverPages,
-    panelItems,
-    checklistRequests,
-    awaitingReply,
+    // Server state
+    serverNotifs, serverStats, serverLoading,
+    serverTotal, serverPage, serverPages,
+    targetGroups, checklistRequests, awaitingReply,
+    panelItems: serverNotifs.slice(0, 8),
 
-    // ── Server actions ──────────────────────────────────────────────────────
-    fetchServerNotifs,
-    loadMoreServer,
-    sendNotification,
-    broadcastNotification,
-    sendAdminReply,
-    deleteServerNotif,
-    sendChecklist,
-    confirmPayment,
-    requestPayment,
-  }
+    // Server actions
+    fetchServerNotifs, loadMoreServer,
+    sendNotification, sendAdminReply,
+    deleteServerNotif, sendChecklist,
+    confirmPayment, requestPayment,
+  };
 
   return (
     <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
-  )
+  );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export const useNotificationContext = () => {
-  const ctx = useContext(NotificationContext)
-  if (!ctx) {
-    throw new Error(
-      'useNotificationContext must be used inside NotificationProvider',
-    )
-  }
-  return ctx
-}
+  const ctx = useContext(NotificationContext);
+  if (!ctx) throw new Error('useNotificationContext must be inside NotificationProvider');
+  return ctx;
+};
 
-export default NotificationContext
+export default NotificationContext;
 
-// ─── Internal helper ──────────────────────────────────────────────────────────
 function mapTypeToRedux(serverType = '') {
-  if (serverType.includes('booking')) return NOTIFICATION_TYPES.BOOKING
-  if (serverType.includes('chat')  ) return NOTIFICATION_TYPES.CHAT
-  if (serverType.includes('message')) return NOTIFICATION_TYPES.MESSAGE
-  return NOTIFICATION_TYPES.INFO || 'info'
+  if (serverType.includes('booking')) return NOTIFICATION_TYPES.BOOKING || 'booking';
+  if (serverType.includes('chat'))    return NOTIFICATION_TYPES.CHAT    || 'chat';
+  if (serverType.includes('message')) return NOTIFICATION_TYPES.MESSAGE || 'message';
+  return NOTIFICATION_TYPES.INFO || 'info';
 }

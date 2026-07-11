@@ -162,7 +162,7 @@ export function SocketProvider({ children }) {
 
     socket.on("connect", () => {
       if (destroyingRef.current) return;
-      console.log("[Socket] Connected:", socket.id);
+      if (import.meta.env.DEV) console.log("[Socket] Connected:", socket.id);
       attemptRef.current = 0;
       setIsConnected(true);
       setConnectionError(null);
@@ -172,7 +172,7 @@ export function SocketProvider({ children }) {
 
     socket.on("disconnect", (reason) => {
       if (destroyingRef.current) return;
-      console.log("[Socket] Disconnected:", reason);
+      if (import.meta.env.DEV) console.log("[Socket] Disconnected:", reason);
       setIsConnected(false);
       stopPing();
 
@@ -185,7 +185,7 @@ export function SocketProvider({ children }) {
 
     socket.on("connect_error", (err) => {
       if (destroyingRef.current) return;
-      console.warn("[Socket] connect_error:", err.message);
+      if (import.meta.env.DEV) console.warn("[Socket] connect_error:", err.message);
       setConnectionError(err.message);
       setIsConnected(false);
       stopPing();
@@ -209,16 +209,18 @@ export function SocketProvider({ children }) {
     attemptRef.current += 1;
 
     if (attemptRef.current > MAX_RECONNECT) {
-      console.error("[Socket] Max reconnect attempts reached");
+      if (import.meta.env.DEV) console.error("[Socket] Max reconnect attempts reached");
       setConnectionError("Unable to connect. Please refresh the page.");
       setReconnectAttempts(MAX_RECONNECT);
       return;
     }
 
     const delay = backoffMs(attemptRef.current);
-    console.log(
-      `[Socket] Reconnecting in ${Math.round(delay)}ms (attempt ${attemptRef.current}/${MAX_RECONNECT})`
-    );
+    if (import.meta.env.DEV) {
+      console.log(
+        `[Socket] Reconnecting in ${Math.round(delay)}ms (attempt ${attemptRef.current}/${MAX_RECONNECT})`
+      );
+    }
     setReconnectAttempts(attemptRef.current);
 
     reconnTimerRef.current = setTimeout(() => {
@@ -286,7 +288,7 @@ export function SocketProvider({ children }) {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible" && !socketRef.current?.connected) {
-        console.log("[Socket] Tab visible — reconnecting…");
+        if (import.meta.env.DEV) console.log("[Socket] Tab visible — reconnecting…");
         reconnect();
       }
     };

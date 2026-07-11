@@ -34,13 +34,18 @@ const relativeTime = (ts) => {
 }
 
 // ── Session card ──────────────────────────────────────────────────────────────
-const SessionCard = memo(({ session, isActive, onSelect, search }) => {
+const SessionCard = memo(({ session, isActive, onSelect, search, selectable, selected, onToggle }) => {
   const name = session.full_name || session.email || 'Guest'
   const email = session.email || ''
   const lastMsg = session.lastMessage || ''
   const unread = session.unreadCount || session.unread_admin || 0
   const isClosed = session.status === 'closed'
   const ts = session.lastMessageAt || session.last_active || session.created_at
+
+  const onCardClick = () => {
+    if (selectable) onToggle?.(session)
+    else onSelect?.(session)
+  }
 
   const highlightText = (text, query) => {
     if (!query || !text) return text
@@ -59,14 +64,33 @@ const SessionCard = memo(({ session, isActive, onSelect, search }) => {
 
   return (
     <button
-      onClick={() => onSelect(session)}
+      onClick={onCardClick}
       type="button"
       className={`group relative flex w-full min-w-0 items-start gap-3 px-3 py-3 text-left transition-all duration-150 sm:px-4 ${
         isActive
           ? 'bg-green-50 before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-green-600'
-          : 'hover:bg-green-50/70'
+          : selectable
+            ? selected
+              ? 'bg-green-100/70'
+              : 'hover:bg-green-50/70'
+            : 'hover:bg-green-50/70'
       }`}
     >
+      {/* Selection checkbox */}
+      {selectable && (
+        <div
+          className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+            selected ? 'border-green-600 bg-green-600 text-white' : 'border-green-300 bg-white'
+          }`}
+        >
+          {selected && (
+            <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2.5 6.5L5 9l4.5-5.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </div>
+      )}
+
       {/* Avatar */}
       <div className="relative shrink-0">
         <img
@@ -156,6 +180,9 @@ export default function ChatSidebar({
   onSelect,
   loading,
   search,
+  selectable = false,
+  selectedIds = [],
+  onToggleSelect,
 }) {
   const list = safeArr(sessions)
 
@@ -208,6 +235,9 @@ export default function ChatSidebar({
           }
           onSelect={onSelect}
           search={search}
+          selectable={selectable}
+          selected={selectedIds.includes(session.id)}
+          onToggle={onToggleSelect}
         />
       ))}
     </div>

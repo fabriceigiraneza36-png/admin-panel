@@ -28,8 +28,16 @@ export function ChatProvider({ children }) {
   const [allUsers,          setAllUsers]          = useState([]);
   const [isLoadingAllUsers, setIsLoadingAllUsers] = useState(false);
 
+  /* ── Selection + Trash ── */
+  const [selectedIds,   setSelectedIds]   = useState([]);
+  const [view,          setView]          = useState("inbox"); // 'inbox' | 'trash'
+  const [isBulkBusy,    setIsBulkBusy]    = useState(false);
+
   const selectedRef = useRef(null);
+  const viewRef     = useRef("inbox");
   const mountedRef  = useRef(true);
+
+  useEffect(() => { viewRef.current = view; }, [view]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -46,11 +54,12 @@ export function ChatProvider({ children }) {
     if (!mountedRef.current) return;
     setIsLoadingSessions(true);
     try {
-      const res = await chatAPI.getConversations({ status: "all", limit: 100, ...params });
+      const trash = params.trash ?? (viewRef.current === "trash") ? 1 : 0;
+      const res = await chatAPI.getConversations({ status: "all", limit: 100, trash, ...params });
       const data = res.data?.data ?? res.data ?? [];
       if (!mountedRef.current) return;
       setSessions(Array.isArray(data) ? data : []);
-      // Sum unread
+      // Sum unread (inbox only)
       const unread = (Array.isArray(data) ? data : []).reduce(
         (s, c) => s + (c.unreadAdmin ?? 0), 0,
       );
@@ -65,6 +74,9 @@ export function ChatProvider({ children }) {
   const refreshSessions = useCallback(() => fetchSessions(), [fetchSessions]);
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+  // Reload when switching inbox <-> trash
+  useEffect(() => { fetchSessions({ trash: view === "trash" ? 1 : 0 }); }, [view, fetchSessions]);
 
   /* ══════════════════════════════════════════════════════════
      SELECT SESSION — load messages + join socket room
@@ -257,6 +269,62 @@ export function ChatProvider({ children }) {
     }
   }, []);
 
+  /* ══════════════════════════════════════════════════════════════
+      SELECTION + TRASH (bulk actions)
+   ══════════════════════════════════════════════════════════════ */
+  const toggleSelect   = useCallback((id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }, []);
+
+  const selectAll      = useCallback((ids) => setSelectedIds(ids), []);
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+
+  const bulkToTrash  = useCallback(async (ids = selectedIds) => {
+    if (!ids.length) return;
+    setIsBulkBusy(true);
+    try {
+      await chatAPI.bulkConvo(ids, "trash");
+      setSessions((prev) => prev.filter((s) => !ids.includes(s.id)));
+      setSelectedIds([]);
+    } finally { setIsBulkBusy(false); }
+  }, [selectedIds]);
+
+  const bulkRestore = useCallback(async (ids = selectedIds) => {
+    if (!ids.length) return;
+    setIsBulkBusy(true);
+    try {
+      await chatAPI.bulkConvo(ids, "restore");
+      setSessions((prev) => prev.filter((s) => !ids.includes(s.id)));
+      setSelectedIds([]);
+    } finally { setIsBulkBusy(false); }
+  }, [selectedIds]);
+
+  const bulkDeletePermanent = useCallback(async (ids = selectedIds) => {
+    if (!ids.length) return;
+    setIsBulkBusy(true);
+    try {
+      await chatAPI.bulkConvo(ids, "delete");
+      setSessions((prev) => prev.filter((s) => !ids.includes(s.id)));
+      setSelectedIds([]);
+    } finally { setIsBulkBusy(false); }
+  }, [selectedIds]);
+
+  const emptyTrash = useCallback(async () => {
+    setIsBulkBusy(true);
+    try {
+      await chatAPI.emptyTrash();
+      setSessions([]);
+      setSelectedIds([]);
+    } finally { setIsBulkBusy(false); }
+  }, []);
+
+  const switchView = useCallback((next) => {
+    setSelectedIds([]);
+    setView(next);
+  }, []);
+
   /* ══════════════════════════════════════════════════════════
      STUB actions (edit/delete/pin/react — extend as needed)
   ══════════════════════════════════════════════════════════ */
@@ -372,12 +440,18 @@ export function ChatProvider({ children }) {
       });
     };
 
+    const onBulkUpdated = () => {
+      if (!mountedRef.current) return;
+      fetchSessions();
+    };
+
     socket.on("msg:message",              onMessage);
     socket.on("msg:new-from-user",        onNewFromUser);
     socket.on("msg:read",                 onRead);
     socket.on("msg:typing",               onTyping);
     socket.on("msg:conversation-updated", onSessionUpdated);
     socket.on("msg:user-registered",      onUserRegistered);
+    socket.on("msg:conversations-bulk-updated", onBulkUpdated);
 
     // Legacy compat
     socket.on("chat:message",             onMessage);
@@ -390,6 +464,7 @@ export function ChatProvider({ children }) {
       socket.off("msg:typing",               onTyping);
       socket.off("msg:conversation-updated", onSessionUpdated);
       socket.off("msg:user-registered",      onUserRegistered);
+      socket.off("msg:conversations-bulk-updated", onBulkUpdated);
       socket.off("chat:message",             onMessage);
       socket.off("new-chat-message",         onNewFromUser);
     };
@@ -420,6 +495,17 @@ export function ChatProvider({ children }) {
     deleteAdminMessage,
     pinAdminMessage,
     reactAdminMessage,
+    selectedIds,
+    view,
+    isBulkBusy,
+    toggleSelect,
+    selectAll,
+    clearSelection,
+    bulkToTrash,
+    bulkRestore,
+    bulkDeletePermanent,
+    emptyTrash,
+    switchView,
   }), [
     sessions, isLoadingSessions, selectedSession,
     messages, isLoadingMessages, isSending,
@@ -430,6 +516,9 @@ export function ChatProvider({ children }) {
     startSessionWithUser, fetchAllUsers,
     editAdminMessage, deleteAdminMessage,
     pinAdminMessage, reactAdminMessage,
+    selectedIds, view, isBulkBusy,
+    toggleSelect, selectAll, clearSelection,
+    bulkToTrash, bulkRestore, bulkDeletePermanent, emptyTrash, switchView,
   ]);
 
   return <ChatCtx.Provider value={value}>{children}</ChatCtx.Provider>;

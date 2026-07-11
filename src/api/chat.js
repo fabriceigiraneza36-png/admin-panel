@@ -11,7 +11,11 @@ export const chatAPI = {
   adminReply:       (id, d)    => apiClient.post(`${BASE}/conversations/${id}/admin-reply`, d),
   markRead:         (id)       => apiClient.post(`${BASE}/conversations/${id}/admin-read`),
   updateStatus:     (id, d)    => apiClient.patch(`${BASE}/conversations/${id}/status`, d),
-  deleteConvo:      (id)       => apiClient.delete(`${BASE}/conversations/${id}`),
+  deleteConvo:      (id, perm) => apiClient.delete(`${BASE}/conversations/${id}`, { params: perm ? { permanent: true } : {} }),
+  restoreConvo:     (id)       => apiClient.patch(`${BASE}/conversations/${id}/restore`),
+  bulkConvo:        (ids, action) => apiClient.post(`${BASE}/conversations/bulk`, { ids, action }),
+  emptyTrash:       ()         => apiClient.delete(`${BASE}/conversations/trash`),
+  getTrash:         (params)   => apiClient.get(`${BASE}/conversations`, { params: { trash: 1, limit: 100, ...params } }),
   getStats:         ()         => apiClient.get(`${BASE}/stats`),
 
   /* ── Users ── */

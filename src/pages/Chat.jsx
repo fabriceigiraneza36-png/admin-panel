@@ -11,10 +11,12 @@ import {
   Search, Plus, X, Check,
   MessageSquare, Users, RefreshCw,
   Pin, Image, Palette,
+  Trash2, RotateCcw, ArchiveRestore,
 } from 'lucide-react'
 import { useChatContext }   from '@context/ChatContext'
 import { useSocketContext } from '@context/SocketContext'
 import { useDebounce }      from '@hooks/useDebounce'
+import { useToast }         from '@hooks/useToast'
 import ChatSidebar          from '@components/chat/ChatSidebar'
 import ChatWindow           from '@components/chat/ChatWindow'
 
@@ -292,9 +294,21 @@ export default function Chat() {
     deleteAdminMessage,
     pinAdminMessage,
     reactAdminMessage,
+    selectedIds,
+    view,
+    isBulkBusy,
+    toggleSelect,
+    selectAll,
+    clearSelection,
+    bulkToTrash,
+    bulkRestore,
+    bulkDeletePermanent,
+    emptyTrash,
+    switchView,
   } = useChatContext()
 
   const { isConnected } = useSocketContext()
+  const toast = useToast()
 
   const sessions = safeArr(rawSessions)
   const messages = safeArr(rawMessages)
@@ -306,6 +320,7 @@ export default function Chat() {
   const [mobileSide,   setMobileSide]   = useState(true)
   const [showBgPicker, setShowBgPicker] = useState(false)
   const [chatBg,       setChatBg]       = useState(ADMIN_BACKGROUNDS[0])
+  const [selectionMode, setSelectionMode] = useState(false)
   const [pinnedMsgs,   setPinnedMsgs]   = useState([])
   const [showPinned,   setShowPinned]   = useState(false)
 
@@ -374,6 +389,42 @@ export default function Chat() {
 
   const currentId = selectedSession?.sessionId ?? null
 
+  const allSelected = paged.length > 0 && paged.every((s) => selectedIds.includes(s.id))
+  const isTrash     = view === "trash"
+
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode((p) => {
+      const next = !p
+      if (!next) clearSelection()
+      return next
+    })
+  }, [clearSelection])
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) clearSelection()
+    else selectAll(paged.map((s) => s.id))
+  }, [allSelected, clearSelection, selectAll, paged])
+
+  const handleBulkTrash = useCallback(async () => {
+    await bulkToTrash()
+    toast.success("Moved to trash")
+  }, [bulkToTrash, toast])
+
+  const handleBulkRestore = useCallback(async () => {
+    await bulkRestore()
+    toast.success("Restored")
+  }, [bulkRestore, toast])
+
+  const handleBulkDelete = useCallback(async () => {
+    await bulkDeletePermanent()
+    toast.success("Permanently deleted")
+  }, [bulkDeletePermanent, toast])
+
+  const handleEmptyTrash = useCallback(async () => {
+    await emptyTrash()
+    toast.success("Trash emptied")
+  }, [emptyTrash, toast])
+
   const tabs = useMemo(() => [
     { key: 'all',    label: 'All',    count: sessions.length },
     { key: 'open',   label: 'Open',   count: sessions.filter((s) => (s.status || 'open') === 'open').length },
@@ -423,20 +474,36 @@ export default function Chat() {
                   )}
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button onClick={() => refreshSessions()} title="Refresh"
-                  className="rounded-xl p-2 text-green-300 transition-colors hover:bg-green-50 hover:text-green-600"
-                  type="button">
-                  <RefreshCw size={15} />
-                </button>
-                <button onClick={() => setShowModal(true)} title="New conversation"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-green-200 transition-colors hover:bg-green-700"
-                  type="button">
-                  <Plus size={14} />
-                  <span className="hidden sm:inline">New</span>
-                </button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button onClick={() => switchView(isTrash ? "inbox" : "trash")} title={isTrash ? "Inbox" : "Trash"}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${
+                      isTrash ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-50 hover:text-green-600'
+                    }`}
+                    type="button">
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline">{isTrash ? "Inbox" : "Trash"}</span>
+                  </button>
+                  <button onClick={toggleSelectionMode} title="Select"
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${
+                      selectionMode ? 'bg-green-600 text-white' : 'text-green-300 hover:bg-green-50 hover:text-green-600'
+                    }`}
+                    type="button">
+                    <Check size={14} />
+                    <span className="hidden sm:inline">Select</span>
+                  </button>
+                  <button onClick={() => refreshSessions()} title="Refresh"
+                    className="rounded-xl p-2 text-green-300 transition-colors hover:bg-green-50 hover:text-green-600"
+                    type="button">
+                    <RefreshCw size={15} />
+                  </button>
+                  <button onClick={() => setShowModal(true)} title="New conversation"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-green-200 transition-colors hover:bg-green-700"
+                    type="button">
+                    <Plus size={14} />
+                    <span className="hidden sm:inline">New</span>
+                  </button>
+                </div>
               </div>
-            </div>
 
             {/* Search */}
             <div className="relative">
@@ -475,11 +542,63 @@ export default function Chat() {
             </div>
           </div>
 
+          {/* Bulk action bar */}
+          {selectionMode && (
+            <div className="shrink-0 border-b border-green-100 bg-green-50/60 px-4 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-green-700">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                  />
+                  Select all on page
+                  <span className="text-green-400">({selectedIds.length} selected)</span>
+                </label>
+
+                <div className="flex items-center gap-1.5">
+                  {isTrash ? (
+                    <>
+                      <button onClick={handleBulkRestore} disabled={!selectedIds.length || isBulkBusy}
+                        className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-40"
+                        type="button">
+                        <RotateCcw size={13} /> Restore
+                      </button>
+                      <button onClick={handleBulkDelete} disabled={!selectedIds.length || isBulkBusy}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-40"
+                        type="button">
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={handleBulkTrash} disabled={!selectedIds.length || isBulkBusy}
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-40"
+                      type="button">
+                      <ArchiveRestore size={13} /> Move to trash
+                    </button>
+                  )}
+                </div>
+              </div>
+              {isTrash && paged.length > 0 && (
+                <button onClick={handleEmptyTrash} disabled={isBulkBusy}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40"
+                  type="button">
+                  <Trash2 size={13} /> Empty trash permanently
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Session list */}
           <div className="min-h-0 flex-1 overflow-y-auto">
             <ChatSidebar
               sessions={paged} activeId={currentId}
-              onSelect={handleSelect} loading={isLoadingSessions} search={dSearch} />
+              onSelect={handleSelect} loading={isLoadingSessions} search={dSearch}
+              selectable={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+            />
           </div>
 
           {/* Pagination */}
