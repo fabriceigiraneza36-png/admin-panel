@@ -1,128 +1,733 @@
-// src/api/notifications.js
-const API_BASE  = import.meta.env.VITE_API_URL || "https://backend-jd8f.onrender.com/api";
-const TOKEN_KEY = "altuvera_admin_token";
+// backend/routes/notificationRoutes.js
+"use strict";
 
-const getToken = () => {
+const express = require("express");
+const { query } = require("../config/db");
+const logger  = require("../utils/logger");
+
+let sendEmail = null;
+try {
+  const eu = require("../utils/email");
+  sendEmail = typeof eu.sendEmail === "function" ? eu.sendEmail : null;
+} catch { /* email not configured */ }
+
+/* ─────────────────────────────────────────────────────────────
+   AUTH MIDDLEWARE
+───────────────────────────────────────────────────────────────*/
+let protect, restrictTo;
+
+const candidates = [
+  "../middleware/authMiddleware",
+  "../middleware/auth",
+  "../middleware/userAuth",
+];
+
+for (const p of candidates) {
   try {
-    return (
-      localStorage.getItem(TOKEN_KEY) ||
-      sessionStorage.getItem(TOKEN_KEY) ||
-      null
+    const m = require(p);
+    protect    = protect    || m.protect    || m.authenticate || m.verifyToken || m.auth;
+    restrictTo = restrictTo || m.restrictTo || m.authorize    || m.requireRole || m.adminOnly;
+    if (protect && restrictTo) break;
+  } catch { /* try next */ }
+}
+
+/* Minimal JWT fallback */
+if (!protect) {
+  const jwt = require("jsonwebtoken");
+  protect = (req, res, next) => {
+    const raw =
+      (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim() ||
+      req.cookies?.token ||
+      req.cookies?.adminToken;
+    if (!raw)
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    try {
+      req.user = jwt.verify(raw, process.env.JWT_SECRET);
+      next();
+    } catch {
+      return res.status(401).json({ success: false, message: "Invalid token" });
+    }
+  };
+}
+
+if (!restrictTo) {
+  restrictTo = (...roles) =>
+    (req, res, next) => {
+      const role = req.user?.role || req.user?.type || "";
+      if (!roles.includes(role))
+        return res.status(403).json({ success: false, message: "Forbidden" });
+      next();
+    };
+}
+
+/* ─────────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────────────*/
+const toInt = (v, fb = 0) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : fb;
+};
+const clamp = (v, mn, mx) => Math.min(Math.max(toInt(v, mn), mn), mx);
+
+const userScopeSQL = (userId, userEmail, userRole) => ({
+  sql: `
+    deleted_at IS NULL
+    AND (expires_at IS NULL OR expires_at > NOW())
+    AND (
+      user_id       = $1
+      OR user_email = $2
+      OR target_scope = 'all'
+      OR (target_scope = 'role' AND target_role = $3)
+    )
+  `,
+  params: [userId, userEmail || "", userRole || "user"],
+});
+
+/* ─────────────────────────────────────────────────────────────
+   SOCKET EMIT
+───────────────────────────────────────────────────────────────*/
+const emitNotification = (req, notif) => {
+  try {
+    const io = req.app?.get?.("io");
+    if (!io) return;
+    const { target_scope, target_role, user_id } = notif;
+
+    if (target_scope === "all") {
+      io.to("all-users").emit("notification:new", notif);
+      io.to("admins").emit("notification:new", notif);
+      io.to("admin-room").emit("notification:new", notif);
+    } else if (target_scope === "admin") {
+      io.to("admins").emit("notification:new", notif);
+      io.to("admin-room").emit("notification:new", notif);
+    } else if (target_scope === "role" && target_role) {
+      io.to(`role-${target_role}`).emit("notification:new", notif);
+      io.to("admins").emit("notification:new", notif);
+    } else if (user_id) {
+      io.to(`user-${user_id}`).emit("notification:new", notif);
+    }
+
+    // Always ping admins
+    io.to("admins").emit("notification:admin-ping", notif);
+  } catch (err) {
+    logger.warn("[Notifications] emitNotification:", err.message);
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────
+   INTERNAL CREATE
+───────────────────────────────────────────────────────────────*/
+const createNotificationInternal = async ({
+  userId        = null,
+  userEmail     = null,
+  senderType    = "system",
+  senderId      = null,
+  senderName    = "Altuvera",
+  type          = "general",
+  category      = "general",
+  title,
+  message,
+  actionUrl     = null,
+  actionLabel   = null,
+  imageUrl      = null,
+  priority      = "normal",
+  targetScope   = "individual",
+  targetRole    = null,
+  targetSegment = null,
+  metadata      = {},
+  expiresAt     = null,
+}) => {
+  if (!title?.trim() || !message?.trim())
+    throw new Error("title and message are required");
+
+  const result = await query(
+    `INSERT INTO notifications (
+       user_id, user_email, sender_type, sender_id, sender_name,
+       type, category, title, message,
+       action_url, action_label, image_url,
+       priority, target_scope, target_role, target_segment,
+       metadata, expires_at
+     ) VALUES (
+       $1,$2,$3,$4,$5,
+       $6,$7,$8,$9,
+       $10,$11,$12,
+       $13,$14,$15,$16,
+       $17,$18
+     ) RETURNING *`,
+    [
+      userId,        userEmail,    senderType,    senderId,      senderName,
+      type,          category,     title.trim(),  message.trim(),
+      actionUrl,     actionLabel,  imageUrl,
+      priority,      targetScope,  targetRole,    targetSegment,
+      JSON.stringify(metadata),    expiresAt,
+    ],
+  );
+  return result.rows[0];
+};
+
+module.exports.createNotificationInternal = createNotificationInternal;
+
+/* ─────────────────────────────────────────────────────────────
+   EMAIL HELPERS
+───────────────────────────────────────────────────────────────*/
+const sendNotificationEmail = async (notif, recipientEmail, recipientName) => {
+  if (!sendEmail || !recipientEmail) return;
+  try {
+    await sendEmail({
+      to:      recipientEmail,
+      subject: notif.title || "New notification from Altuvera",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#0f172a;">
+          <h2 style="color:#059669;">${notif.title}</h2>
+          <p style="font-size:16px;line-height:1.6;">${notif.message}</p>
+          ${notif.action_url
+            ? `<a href="${notif.action_url}" style="display:inline-block;padding:10px 20px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">${notif.action_label || "View Details"}</a>`
+            : ""}
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>
+          <p style="font-size:12px;color:#94a3b8;">Altuvera Travel — Notification</p>
+        </div>
+      `,
+    });
+    await query(
+      `UPDATE notifications SET email_sent=true, email_sent_at=NOW() WHERE id=$1`,
+      [notif.id],
+    ).catch(() => {});
+  } catch (err) {
+    logger.warn("[Notifications] email error:", err.message);
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ROUTER
+═══════════════════════════════════════════════════════════════*/
+const router = express.Router();
+
+/* ══════════════════════════════════
+   USER — GET /my
+══════════════════════════════════*/
+router.get("/my", protect, async (req, res) => {
+  try {
+    const userId    = req.user.id;
+    const userEmail = req.user.email || "";
+    const userRole  = req.user.role  || "user";
+    const limit     = clamp(req.query.limit, 1, 100);
+    const page      = clamp(req.query.page,  1, 9999);
+    const offset    = (page - 1) * limit;
+    const tab       = req.query.tab || "all";
+
+    let tabFilter = "";
+    if (tab === "unread")  tabFilter = "AND is_read = false";
+    if (tab === "booking") tabFilter = "AND category = 'booking'";
+    if (tab === "system")  tabFilter = "AND category = 'system'";
+
+    const { sql: sw, params: sp } = userScopeSQL(userId, userEmail, userRole);
+    const lIdx = sp.length + 1;
+    const oIdx = sp.length + 2;
+
+    const [dataRes, countRes, unreadRes] = await Promise.all([
+      query(
+        `SELECT id, user_id, type, category, title, message,
+                action_url, action_label, image_url, metadata,
+                priority, is_read, read_at, reaction, reacted_at,
+                reply_text, replied_at, admin_reply, admin_replied_at,
+                target_scope, created_at, updated_at
+           FROM notifications
+          WHERE ${sw} ${tabFilter}
+          ORDER BY created_at DESC
+          LIMIT $${lIdx} OFFSET $${oIdx}`,
+        [...sp, limit, offset],
+      ),
+      query(
+        `SELECT COUNT(*)::INT AS total FROM notifications WHERE ${sw} ${tabFilter}`,
+        sp,
+      ),
+      query(
+        `SELECT COUNT(*)::INT AS cnt FROM notifications WHERE ${sw} AND is_read = false`,
+        sp,
+      ),
+    ]);
+
+    const total       = countRes.rows[0]?.total ?? 0;
+    const unreadCount = unreadRes.rows[0]?.cnt   ?? 0;
+
+    const tripRes = await query(
+      `SELECT b.id, b.travel_date, b.booking_number,
+              COALESCE(d.name, 'Your Adventure') AS destination_name
+         FROM bookings b
+         LEFT JOIN destinations d ON d.id = b.destination_id
+        WHERE b.user_id = $1
+          AND b.status = 'confirmed'
+          AND b.travel_date >= CURRENT_DATE
+          AND b.travel_date <= CURRENT_DATE + INTERVAL '14 days'
+        ORDER BY b.travel_date ASC LIMIT 10`,
+      [userId],
+    ).catch(() => ({ rows: [] }));
+
+    const tripAlerts = tripRes.rows.map((b) => {
+      const days = Math.ceil((new Date(b.travel_date) - Date.now()) / 86_400_000);
+      return {
+        id:         `trip-${b.id}`,
+        bookingId:  b.id,
+        travelDate: b.travel_date,
+        message:
+          days === 0 ? `✈️ Your trip to ${b.destination_name} is TODAY!` :
+          days === 1 ? `✈️ Your trip to ${b.destination_name} is TOMORROW!` :
+                       `✈️ ${days} days until your trip to ${b.destination_name}`,
+        type: days <= 1 ? "urgent" : days <= 3 ? "warning" : "info",
+      };
+    });
+
+    return res.json({
+      success:      true,
+      data:         dataRes.rows,
+      tripAlerts,
+      unread_count: unreadCount,
+      pagination: {
+        page, limit, total,
+        total_pages: Math.ceil(total / limit),
+        has_more:    offset + dataRes.rows.length < total,
+      },
+    });
+  } catch (err) {
+    logger.error("[Notifications] GET /my:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/* ══════════════════════════════════
+   USER — GET /my/unread-count
+══════════════════════════════════*/
+router.get("/my/unread-count", protect, async (req, res) => {
+  try {
+    const { sql: sw, params: sp } = userScopeSQL(
+      req.user.id, req.user.email, req.user.role,
     );
-  } catch {
-    return null;
+    const result = await query(
+      `SELECT COUNT(*)::INT AS count FROM notifications WHERE ${sw} AND is_read = false`,
+      sp,
+    );
+    return res.json({ success: true, count: result.rows[0]?.count ?? 0 });
+  } catch (err) {
+    logger.error("[Notifications] GET /my/unread-count:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
-};
+});
 
-const request = async (endpoint, opts = {}) => {
-  const token = getToken();
-  const url   = endpoint.startsWith("http")
-    ? endpoint
-    : `${API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+/* ══════════════════════════════════
+   ADMIN — GET /admin
+   Serves BOTH:
+     /api/notifications/admin        (NotificationContext)
+     /api/admin/notifications        (Sidebar — alias mount)
+══════════════════════════════════*/
+router.get(
+  "/admin",
+  protect,
+  restrictTo("admin", "manager"),
+  async (req, res) => {
+    try {
+      const limit  = clamp(req.query.limit, 1, 200);
+      const page   = clamp(req.query.page,  1, 9999);
+      const offset = (page - 1) * limit;
 
-  const isForm = opts.body instanceof FormData;
+      const conds  = ["deleted_at IS NULL"];
+      const params = [];
 
-  const res = await fetch(url, {
-    ...opts,
-    headers: {
-      ...(isForm ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts.headers,
-    },
-  });
+      if (req.query.type) {
+        params.push(req.query.type);
+        conds.push(`type = $${params.length}`);
+      }
+      if (req.query.scope) {
+        params.push(req.query.scope);
+        conds.push(`target_scope = $${params.length}`);
+      }
+      if (req.query.unread === "true") conds.push("is_read = false");
+      if (req.query.search) {
+        params.push(`%${req.query.search}%`);
+        const i = params.length;
+        conds.push(`(title ILIKE $${i} OR message ILIKE $${i} OR user_email ILIKE $${i})`);
+      }
 
-  if (res.status === 204) return {};
+      const where = conds.join(" AND ");
+      const lIdx  = params.length + 1;
+      const oIdx  = params.length + 2;
 
-  const data = await res.json().catch(() => ({}));
+      const [dataRes, countRes, unreadRes] = await Promise.all([
+        query(
+          `SELECT id, user_id, user_email, sender_type, sender_name,
+                  type, category, title, message,
+                  action_url, action_label, priority,
+                  is_read, read_at, reaction, reply_text, admin_reply,
+                  target_scope, target_role, email_sent, created_at, updated_at
+             FROM notifications
+            WHERE ${where}
+            ORDER BY created_at DESC
+            LIMIT $${lIdx} OFFSET $${oIdx}`,
+          [...params, limit, offset],
+        ),
+        query(
+          `SELECT COUNT(*)::INT AS total FROM notifications WHERE ${where}`,
+          params,
+        ),
+        query(
+          `SELECT COUNT(*)::INT AS cnt FROM notifications
+            WHERE deleted_at IS NULL AND is_read = false`,
+          [],
+        ),
+      ]);
 
-  if (!res.ok) {
-    const msg = data?.message || data?.error || `Request failed (${res.status})`;
-    const err  = new Error(msg);
-    err.status = res.status;
-    err.data   = data;
-    throw err;
+      const total = countRes.rows[0]?.total ?? 0;
+
+      return res.json({
+        success:      true,
+        data:         dataRes.rows,
+        notifications: dataRes.rows,      // Sidebar compat alias
+        unread_count: unreadRes.rows[0]?.cnt ?? 0,
+        unreadCount:  unreadRes.rows[0]?.cnt ?? 0,  // Sidebar compat alias
+        pagination: {
+          page, limit, total,
+          total_pages: Math.ceil(total / limit),
+          has_more:    offset + dataRes.rows.length < total,
+        },
+      });
+    } catch (err) {
+      logger.error("[Notifications] GET /admin:", err.message);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+  },
+);
+
+/* ══════════════════════════════════
+   ADMIN — GET /admin/unread-count
+   Serves BOTH:
+     /api/notifications/admin/unread-count   (NotificationContext)
+     /api/admin/notifications/unread-count   (Sidebar alias)
+══════════════════════════════════*/
+router.get(
+  "/admin/unread-count",
+  protect,
+  restrictTo("admin", "manager"),
+  async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT COUNT(*)::INT AS count FROM notifications
+          WHERE deleted_at IS NULL AND is_read = false`,
+        [],
+      );
+      return res.json({ success: true, count: result.rows[0]?.count ?? 0 });
+    } catch (err) {
+      logger.error("[Notifications] GET /admin/unread-count:", err.message);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+  },
+);
+
+/* ══════════════════════════════════
+   PATCH /mark-all-read
+   ⚠ Must be BEFORE /:id routes
+══════════════════════════════════*/
+router.patch("/mark-all-read", protect, async (req, res) => {
+  try {
+    const userId    = req.user.id;
+    const userEmail = req.user.email || "";
+    const userRole  = req.user.role  || "user";
+    const isAdmin   = ["admin", "manager"].includes(userRole);
+
+    let result;
+    if (isAdmin) {
+      result = await query(
+        `UPDATE notifications
+            SET is_read = true, read_at = NOW(), updated_at = NOW()
+          WHERE is_read = false AND deleted_at IS NULL`,
+        [],
+      );
+    } else {
+      const { sql: sw, params: sp } = userScopeSQL(userId, userEmail, userRole);
+      result = await query(
+        `UPDATE notifications
+            SET is_read = true, read_at = NOW(), updated_at = NOW()
+          WHERE ${sw} AND is_read = false`,
+        sp,
+      );
+    }
+
+    return res.json({
+      success: true,
+      updated: result.rowCount,
+      message: `${result.rowCount} notification(s) marked as read`,
+    });
+  } catch (err) {
+    logger.error("[Notifications] PATCH /mark-all-read:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
+});
 
-  return data;
-};
+/* Sidebar calls /read-all (old URL) — alias */
+router.patch("/read-all", protect, async (req, res) => {
+  req.url = "/mark-all-read";
+  return router.handle(req, res, () => {});
+});
 
-// ── API ────────────────────────────────────────────────────────────────────
+/* ══════════════════════════════════
+   DELETE /clear-all
+   ⚠ Must be BEFORE /:id routes
+══════════════════════════════════*/
+router.delete("/clear-all", protect, async (req, res) => {
+  try {
+    const userId    = req.user.id;
+    const userEmail = req.user.email || "";
+    const userRole  = req.user.role  || "user";
+    const isAdmin   = ["admin", "manager"].includes(userRole);
 
-export const notificationsAPI = {
-  /**
-   * Get admin notifications (paginated)
-   */
-  getAll: ({ page = 1, limit = 20 } = {}) =>
-    request(`/notifications/admin?page=${page}&limit=${limit}`),
+    let result;
+    if (isAdmin) {
+      result = await query(
+        `UPDATE notifications
+            SET deleted_at = NOW(), updated_at = NOW()
+          WHERE deleted_at IS NULL`,
+        [],
+      );
+    } else {
+      result = await query(
+        `UPDATE notifications
+            SET deleted_at = NOW(), updated_at = NOW()
+          WHERE (user_id = $1 OR user_email = $2)
+            AND deleted_at IS NULL`,
+        [userId, userEmail],
+      );
+    }
 
-  /**
-   * Get unread count
-   */
-  getUnreadCount: () =>
-    request("/notifications/admin/unread-count"),
+    return res.json({
+      success: true,
+      deleted: result.rowCount,
+      message: `${result.rowCount} notification(s) cleared`,
+    });
+  } catch (err) {
+    logger.error("[Notifications] DELETE /clear-all:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 
-  /**
-   * Get a single notification by ID
-   */
-  getById: (id) =>
-    request(`/notifications/${id}`),
+/* ══════════════════════════════════
+   POST /  — Admin create/broadcast
+══════════════════════════════════*/
+router.post(
+  "/",
+  protect,
+  restrictTo("admin", "manager"),
+  async (req, res) => {
+    try {
+      const {
+        title, message,
+        type          = "general",
+        category      = "general",
+        priority      = "normal",
+        target_scope  = "individual",
+        target_role, target_segment,
+        user_id, user_email,
+        action_url, action_label, image_url,
+        expires_at, metadata = {},
+      } = req.body;
 
-  /**
-   * Send / create a notification
-   */
-  send: (payload) =>
-    request("/notifications", {
-      method: "POST",
-      body:   JSON.stringify(payload),
-    }),
+      if (!title?.trim())
+        return res.status(400).json({ success: false, message: "title required" });
+      if (!message?.trim())
+        return res.status(400).json({ success: false, message: "message required" });
+      if (target_scope === "individual" && !user_id && !user_email)
+        return res.status(400).json({
+          success: false,
+          message: "user_id or user_email required for individual scope",
+        });
 
-  /**
-   * Broadcast to all users
-   */
-  broadcast: (payload) =>
-    request("/notifications/broadcast", {
-      method: "POST",
-      body:   JSON.stringify(payload),
-    }),
+      const notif = await createNotificationInternal({
+        userId:        user_id        || null,
+        userEmail:     user_email     || null,
+        senderType:    "admin",
+        senderId:      req.user.id,
+        senderName:    req.user.full_name || req.user.name || req.user.email || "Admin",
+        type, category, title, message,
+        actionUrl:     action_url     || null,
+        actionLabel:   action_label   || null,
+        imageUrl:      image_url      || null,
+        priority,
+        targetScope:   target_scope,
+        targetRole:    target_role    || null,
+        targetSegment: target_segment || null,
+        metadata,
+        expiresAt:     expires_at     || null,
+      });
 
-  /**
-   * Mark one notification as read
-   */
-  markRead: (id) =>
-    request(`/notifications/${id}/read`, { method: "PATCH" }),
+      emitNotification(req, notif);
 
-  /**
-   * Mark all notifications as read
-   */
-  markAllRead: () =>
-    request("/notifications/mark-all-read", { method: "PATCH" }),
+      // Fire-and-forget email
+      if (sendEmail && notif.user_email) {
+        sendNotificationEmail(notif, notif.user_email, "").catch(() => {});
+      }
 
-  /**
-   * Delete one notification
-   */
-  deleteOne: (id) =>
-    request(`/notifications/${id}`, { method: "DELETE" }),
+      return res.status(201).json({ success: true, data: notif });
+    } catch (err) {
+      logger.error("[Notifications] POST /:", err.message);
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+  },
+);
 
-  /**
-   * Clear all notifications
-   */
-  clearAll: () =>
-    request("/notifications/clear-all", { method: "DELETE" }),
+/* ══════════════════════════════════
+   PER-ID ROUTES (after named routes)
+══════════════════════════════════*/
 
-  /**
-   * Reply to a notification (admin → user)
-   */
-  reply: (id, replyText) =>
-    request(`/notifications/${id}/reply`, {
-      method: "POST",
-      body:   JSON.stringify({ replyText }),
-    }),
+/* PATCH /:id/read */
+router.patch("/:id/read", protect, async (req, res) => {
+  try {
+    const id      = toInt(req.params.id);
+    const userId  = req.user.id;
+    const isAdmin = ["admin", "manager"].includes(req.user.role);
 
-  /**
-   * Get notifications for a specific user
-   */
-  getForUser: (userId, { page = 1, limit = 20 } = {}) =>
-    request(`/notifications/user/${userId}?page=${page}&limit=${limit}`),
-};
+    const result = await query(
+      isAdmin
+        ? `UPDATE notifications
+              SET is_read = true, read_at = NOW(), updated_at = NOW()
+            WHERE id = $1 AND deleted_at IS NULL
+            RETURNING id, is_read, read_at`
+        : `UPDATE notifications
+              SET is_read = true, read_at = NOW(), updated_at = NOW()
+            WHERE id = $1
+              AND (user_id = $2 OR user_email = $3 OR target_scope IN ('all','role'))
+              AND deleted_at IS NULL
+            RETURNING id, is_read, read_at`,
+      isAdmin ? [id] : [id, userId, req.user.email || ""],
+    );
 
-export default notificationsAPI;
+    if (!result.rows.length)
+      return res.status(404).json({ success: false, message: "Not found" });
+
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error("[Notifications] PATCH /:id/read:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/* PATCH /:id/react */
+router.patch("/:id/react", protect, async (req, res) => {
+  try {
+    const id           = toInt(req.params.id);
+    const { reaction } = req.body;
+    const allowed      = [null, "like", "love", "laugh", "sad", "angry"];
+
+    if (!allowed.includes(reaction))
+      return res.status(400).json({ success: false, message: "Invalid reaction" });
+
+    const result = await query(
+      `UPDATE notifications
+          SET reaction   = $1,
+              reacted_at = CASE WHEN $1 IS NOT NULL THEN NOW() ELSE NULL END,
+              updated_at = NOW()
+        WHERE id = $2
+          AND (user_id = $3 OR user_email = $4)
+          AND deleted_at IS NULL
+        RETURNING id, reaction, reacted_at`,
+      [reaction, id, req.user.id, req.user.email || ""],
+    );
+
+    if (!result.rows.length)
+      return res.status(404).json({ success: false, message: "Not found" });
+
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error("[Notifications] PATCH /:id/react:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/* POST /:id/reply */
+router.post("/:id/reply", protect, async (req, res) => {
+  try {
+    const id      = toInt(req.params.id);
+    const userId  = req.user.id;
+    const isAdmin = ["admin", "manager"].includes(req.user.role);
+
+    if (isAdmin) {
+      const text = (
+        req.body.reply || req.body.replyText || req.body.text || ""
+      ).trim();
+      if (!text)
+        return res.status(400).json({ success: false, message: "reply required" });
+
+      const result = await query(
+        `UPDATE notifications
+            SET admin_reply = $1, admin_replied_at = NOW(), admin_replied_by = $2, updated_at = NOW()
+          WHERE id = $3 AND deleted_at IS NULL
+          RETURNING id, admin_reply, admin_replied_at`,
+        [text, userId, id],
+      );
+      if (!result.rows.length)
+        return res.status(404).json({ success: false, message: "Not found" });
+
+      try {
+        const io = req.app?.get?.("io");
+        const nr = await query(`SELECT user_id FROM notifications WHERE id = $1`, [id])
+          .catch(() => ({ rows: [] }));
+        if (io && nr.rows[0]?.user_id) {
+          io.to(`user-${nr.rows[0].user_id}`).emit("notification:admin-replied", {
+            notificationId: id, adminReply: text,
+          });
+        }
+      } catch { /* non-fatal */ }
+
+      return res.json({ success: true, data: result.rows[0] });
+    }
+
+    const text = (
+      req.body.replyText || req.body.reply || req.body.text || ""
+    ).trim();
+    if (!text)
+      return res.status(400).json({ success: false, message: "replyText required" });
+    if (text.length > 2000)
+      return res.status(400).json({ success: false, message: "Reply too long" });
+
+    const result = await query(
+      `UPDATE notifications
+          SET reply_text = $1, replied_at = NOW(), updated_at = NOW()
+        WHERE id = $2
+          AND (user_id = $3 OR user_email = $4)
+          AND deleted_at IS NULL
+          AND reply_text IS NULL
+        RETURNING id, reply_text, replied_at`,
+      [text, id, userId, req.user.email || ""],
+    );
+    if (!result.rows.length)
+      return res.status(404).json({ success: false, message: "Not found or already replied" });
+
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error("[Notifications] POST /:id/reply:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+/* DELETE /:id */
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    const id      = toInt(req.params.id);
+    const userId  = req.user.id;
+    const isAdmin = ["admin", "manager"].includes(req.user.role);
+
+    const result = await query(
+      isAdmin
+        ? `UPDATE notifications SET deleted_at=NOW(), updated_at=NOW()
+            WHERE id=$1 AND deleted_at IS NULL RETURNING id`
+        : `UPDATE notifications SET deleted_at=NOW(), updated_at=NOW()
+            WHERE id=$1 AND (user_id=$2 OR user_email=$3) AND deleted_at IS NULL RETURNING id`,
+      isAdmin ? [id] : [id, userId, req.user.email || ""],
+    );
+
+    if (!result.rows.length)
+      return res.status(404).json({ success: false, message: "Not found" });
+
+    return res.json({ success: true, message: "Notification dismissed" });
+  } catch (err) {
+    logger.error("[Notifications] DELETE /:id:", err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+module.exports = router;
