@@ -146,6 +146,7 @@ export default function NotificationPanel() {
 
   const [filter, setFilter] = useState("all"); // all | unread
   const panelRef            = useRef(null);
+  const triggerRef          = useRef(null);
 
   // ── Close on outside click ───────────────────────────────────────────────
 
