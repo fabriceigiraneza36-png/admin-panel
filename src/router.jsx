@@ -1,21 +1,15 @@
-/**
- * ═══════════════════════════════════════════════════════════════════════════════
- * ROUTER v2.0
- * ═══════════════════════════════════════════════════════════════════════════════
- *
- * Fixes applied:
- *  - v7 future flags on both createBrowserRouter AND RouterProvider
- *  - AdminLayoutLoader replaced with a clean lazy + error-boundary pattern
- *  - Suspense fallbacks consolidated — no nested duplicate Suspense wrappers
- *  - Catch-all redirects to /dashboard (authenticated) or /login (guest)
- *  - React Router deprecation warnings silenced
- */
+// admin/src/router.jsx
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTER v2.1
+// ═══════════════════════════════════════════════════════════════════════════════
+// Fixes:
+//  - /notifications route moved inside protected layout with Page wrapper
+//  - v7 future flags on both createBrowserRouter AND RouterProvider
+//  - AdminLayout lazy + error-boundary pattern
+//  - Suspense fallbacks consolidated
+// ═══════════════════════════════════════════════════════════════════════════════
 
-import React, {
-  lazy,
-  Suspense,
-  Component,
-} from 'react'
+import React, { lazy, Suspense, Component } from 'react'
 import {
   createBrowserRouter,
   RouterProvider,
@@ -24,16 +18,14 @@ import {
 import ProtectedRoute from '@components/common/ProtectedRoute'
 import Loader         from '@components/common/Loader'
 
-// ─── Lazy pages ───────────────────────────────────────────────────────────────
+// ── Lazy pages ────────────────────────────────────────────────────────────────
 
 const Login         = lazy(() => import('@pages/Login'))
-const Notifications = lazy(() => import('@pages/Notifications'))
 const Dashboard     = lazy(() => import('@pages/Dashboard'))
+const Notifications = lazy(() => import('@pages/Notifications'))
 const Countries     = lazy(() => import('@pages/Countries'))
-
 const Destinations  = lazy(() => import('@pages/Destinations'))
 const Comments      = lazy(() => import('@pages/Comments'))
-
 const Bookings      = lazy(() => import('@pages/Bookings'))
 const Packages      = lazy(() => import('@pages/Packages'))
 const Users         = lazy(() => import('@pages/Users'))
@@ -50,18 +42,15 @@ const PagesPage     = lazy(() => import('@pages/Pages'))
 const Broadcast     = lazy(() => import('@pages/Broadcast'))
 
 /**
- * AdminLayout — imported lazily and handles both named + default export shapes.
- * Vite/Rollup always resolves the correct export; the factory handles both.
+ * AdminLayout — lazy, handles both named + default export shapes.
  */
 const AdminLayout = lazy(() =>
   import('@components/common/Sidebar').then((mod) => ({
-    // Support:  export default AdminLayout
-    //           export { AdminLayout }
     default: mod.AdminLayout ?? mod.default,
   })),
 )
 
-// ─── Error boundary (catches lazy-load / render failures) ────────────────────
+// ── Error boundary ────────────────────────────────────────────────────────────
 
 class RouteErrorBoundary extends Component {
   constructor(props) {
@@ -91,6 +80,8 @@ class RouteErrorBoundary extends Component {
           gap:            '12px',
           fontFamily:     'Inter, system-ui, sans-serif',
           background:     '#f9fafb',
+          padding:        '24px',
+          textAlign:      'center',
         }}
       >
         <p style={{ fontSize: '16px', color: '#dc2626', fontWeight: 600, margin: 0 }}>
@@ -116,11 +107,10 @@ class RouteErrorBoundary extends Component {
   }
 }
 
-// ─── Suspense wrapper ─────────────────────────────────────────────────────────
+// ── Page wrapper ──────────────────────────────────────────────────────────────
 
 /**
- * Wrap every lazy page in a single Suspense + ErrorBoundary.
- * No need to nest Suspense — one is enough per route subtree.
+ * Wraps every lazy page in a single Suspense + ErrorBoundary.
  */
 const Page = ({ children }) => (
   <RouteErrorBoundary>
@@ -130,12 +120,8 @@ const Page = ({ children }) => (
   </RouteErrorBoundary>
 )
 
-// ─── Router definition ────────────────────────────────────────────────────────
+// ── v7 future flags ───────────────────────────────────────────────────────────
 
-/**
- * All v7 future flags are set here on createBrowserRouter.
- * They are also forwarded to RouterProvider for full compatibility.
- */
 const FUTURE_FLAGS = {
   v7_startTransition:             true,
   v7_relativeSplatPath:           true,
@@ -144,6 +130,8 @@ const FUTURE_FLAGS = {
   v7_partialHydration:            true,
   v7_skipActionErrorRevalidation: true,
 }
+
+// ── Router ────────────────────────────────────────────────────────────────────
 
 const router = createBrowserRouter(
   [
@@ -162,12 +150,6 @@ const router = createBrowserRouter(
       path: '/',
       element: (
         <ProtectedRoute>
-          {/*
-           * One Suspense here covers the AdminLayout chunk.
-           * Child route Suspenses cover each page chunk independently —
-           * so navigating between pages shows a loader only for that page,
-           * not the whole shell.
-           */}
           <RouteErrorBoundary>
             <Suspense fallback={<Loader fullScreen />}>
               <AdminLayout />
@@ -176,37 +158,33 @@ const router = createBrowserRouter(
         </ProtectedRoute>
       ),
       children: [
-        // Index → redirect to dashboard
+        // Index → dashboard
         {
           index:   true,
           element: <Navigate to="/dashboard" replace />,
         },
 
-        // ── Admin pages ───────────────────────────────────────────────────────
-        { path: 'dashboard',   element: <Page><Dashboard    /></Page> },
-        { path: 'countries',   element: <Page><Countries    /></Page> },
-        { path: 'destinations',element: <Page><Destinations /></Page> },
-        { path: 'comments',    element: <Page><Comments     /></Page> },
-        { path: 'bookings',    element: <Page><Bookings     /></Page> },
-        { path: 'packages',    element: <Page><Packages    /></Page> },
-        { path: 'users',       element: <Page><Users        /></Page> },
-        { path: 'posts',       element: <Page><Posts        /></Page> },
-        { path: 'faqs',        element: <Page><FAQs         /></Page> },
-        { path: 'tips',        element: <Page><Tips         /></Page> },
-        { path: 'team',        element: <Page><Team         /></Page> },
-        {
-  path: '/notifications',
-  element: (
-      <Notifications />
-  ),
-},
-        { path: 'testimonials',element: <Page><Testimonials /></Page> },
-        { path: 'gallery',     element: <Page><Gallery      /></Page> },
-        { path: 'contact',     element: <Page><Contact      /></Page> },
-        { path: 'subscribers', element: <Page><Subscribers  /></Page> },
+        // ── Pages ─────────────────────────────────────────────────────────────
+        { path: 'dashboard',     element: <Page><Dashboard    /></Page> },
+        { path: 'countries',     element: <Page><Countries    /></Page> },
+        { path: 'destinations',  element: <Page><Destinations /></Page> },
+        { path: 'comments',      element: <Page><Comments     /></Page> },
+        { path: 'bookings',      element: <Page><Bookings     /></Page> },
+        { path: 'packages',      element: <Page><Packages     /></Page> },
+        { path: 'users',         element: <Page><Users        /></Page> },
+        { path: 'posts',         element: <Page><Posts        /></Page> },
+        { path: 'faqs',          element: <Page><FAQs         /></Page> },
+        { path: 'tips',          element: <Page><Tips         /></Page> },
+        { path: 'team',          element: <Page><Team         /></Page> },
+        // ✅ Fixed: notifications inside protected layout with Page wrapper
+        { path: 'notifications', element: <Page><Notifications /></Page> },
+        { path: 'testimonials',  element: <Page><Testimonials /></Page> },
+        { path: 'gallery',       element: <Page><Gallery      /></Page> },
+        { path: 'contact',       element: <Page><Contact      /></Page> },
+        { path: 'subscribers',   element: <Page><Subscribers  /></Page> },
         { path: 'settings',      element: <Page><Settings     /></Page> },
-        { path: 'broadcast',     element: <Page><Broadcast     /></Page> },
-        { path: 'pages',         element: <Page><PagesPage     /></Page> },
+        { path: 'broadcast',     element: <Page><Broadcast    /></Page> },
+        { path: 'pages',         element: <Page><PagesPage    /></Page> },
       ],
     },
 
@@ -219,7 +197,7 @@ const router = createBrowserRouter(
   { future: FUTURE_FLAGS },
 )
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+// ── Export ────────────────────────────────────────────────────────────────────
 
 export default function AppRouter() {
   return (
