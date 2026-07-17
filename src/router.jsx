@@ -40,6 +40,7 @@ const Subscribers   = lazy(() => import('@pages/Subscribers'))
 const Settings      = lazy(() => import('@pages/Settings'))
 const PagesPage     = lazy(() => import('@pages/Pages'))
 const Broadcast     = lazy(() => import('@pages/Broadcast'))
+const MessagesPage  = lazy(() => import('@pages/Messages'))
 
 /**
  * AdminLayout — lazy, handles both named + default export shapes.
@@ -184,6 +185,7 @@ const router = createBrowserRouter(
         { path: 'subscribers',   element: <Page><Subscribers  /></Page> },
         { path: 'settings',      element: <Page><Settings     /></Page> },
         { path: 'broadcast',     element: <Page><Broadcast    /></Page> },
+        { path: 'messages',      element: <Page><MessagesPage /></Page> },
         { path: 'pages',         element: <Page><PagesPage    /></Page> },
       ],
     },

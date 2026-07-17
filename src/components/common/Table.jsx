@@ -2,6 +2,40 @@ import React, { useState, useMemo } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown, ArrowUpDown } from 'lucide-react'
 import { SkeletonTable } from './Loader'
 
+/**
+ * Coerce any cell value into something React can render.
+ * React error #310 ("Objects are not valid as a React child") is thrown when a
+ * raw object/array/naked Promise reaches the DOM. Data APIs occasionally return
+ * nested objects for fields we expect to be scalar, so we stringify defensively
+ * instead of crashing the whole page.
+ */
+function sanitizeCell(value) {
+  if (value === null || value === undefined) return '—'
+  const t = typeof value
+  if (t === 'string' || t === 'number' || t === 'boolean') return value
+  if (t === 'function') return '—'
+  try {
+    if (Array.isArray(value)) return value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+/**
+ * Run a column's render fn and guarantee a renderable result.
+ * If the render returns a raw object/array (not a React node), coerce it to a
+ * string instead of letting React throw error #310.
+ */
+function safeRender(render, value, row, idx, isHovered) {
+  const out = render(value, row, idx, isHovered)
+  if (out === null || out === undefined) return '—'
+  if (React.isValidElement(out) || typeof out === 'string' || typeof out === 'number' || typeof out === 'boolean') {
+    return out
+  }
+  return sanitizeCell(out)
+}
+
 export default function Table({
   columns,
   data         = [],
@@ -175,8 +209,8 @@ export default function Table({
                           `}
                         >
                           {col.render
-                            ? col.render(row[col.key], row, idx, isHovered)
-                            : (row[col.key] ?? '—')}
+                            ? safeRender(col.render, row[col.key], row, idx, isHovered)
+                            : sanitizeCell(row[col.key])},
                         </td>
                       ))}
                     </tr>
@@ -204,11 +238,11 @@ export default function Table({
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       {col.label}
                     </span>
-                    <span className="text-sm text-slate-800 text-right max-w-[60%]">
-                      {col.render
-                        ? col.render(row[col.key], row, idx, true)
-                        : (row[col.key] ?? '—')}
-                    </span>
+                     <span className="text-sm text-slate-800 text-right max-w-[60%]">
+                       {col.render
+                         ? safeRender(col.render, row[col.key], row, idx, true)
+                         : sanitizeCell(row[col.key])}
+                     </span>
                   </div>
                 ))}
                 {hasHoverActions && (
