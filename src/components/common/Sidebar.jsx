@@ -17,8 +17,8 @@ import Header                from './Header'
 
 /* ═══════════════════════════════════════════════════════════
    ADMIN NOTIFICATIONS HOOK  (inline — no extra file needed)
-═══════════════════════════════════════════════════════════ */
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+═══════════════════════════════════════════════════════════*/
+const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
 
 const NOTIF_TYPES = {
   booking_new:       { icon: '📋', color: '#059669', bg: '#ecfdf5', label: 'New Booking'      },
@@ -34,8 +34,10 @@ const NOTIF_TYPES = {
 
 function getToken() {
   return (
+    localStorage.getItem('altuvera_admin_token') ||
     localStorage.getItem('adminToken') ||
     localStorage.getItem('token')      ||
+    sessionStorage.getItem('altuvera_admin_token') ||
     sessionStorage.getItem('adminToken') ||
     ''
   )
@@ -91,7 +93,7 @@ function useAdminNotifications() {
   /* ── Fetch ── */
   const fetchNotifications = React.useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/notifications?limit=50`, {
+      const res = await fetch(`${API_BASE}/notifications/admin?limit=50`, {
         headers: {
           'Authorization': `Bearer ${getToken()}`,
           'Content-Type':  'application/json',
@@ -119,7 +121,7 @@ function useAdminNotifications() {
     setNotifications(p => p.map(n => n.id === id ? { ...n, is_read: true } : n))
     setUnreadCount(c => Math.max(0, c - 1))
     try {
-      await fetch(`${API_BASE}/admin/notifications/${id}/read`, {
+      await fetch(`${API_BASE}/notifications/${id}/read`, {
         method:  'PATCH',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       })
@@ -131,7 +133,7 @@ function useAdminNotifications() {
     setNotifications(p => p.map(n => ({ ...n, is_read: true })))
     setUnreadCount(0)
     try {
-      await fetch(`${API_BASE}/admin/notifications/read-all`, {
+      await fetch(`${API_BASE}/notifications/mark-all-read`, {
         method:  'PATCH',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       })
@@ -146,7 +148,7 @@ function useAdminNotifications() {
       return p.filter(n => n.id !== id)
     })
     try {
-      await fetch(`${API_BASE}/admin/notifications/${id}`, {
+      await fetch(`${API_BASE}/notifications/${id}`, {
         method:  'DELETE',
         headers: { 'Authorization': `Bearer ${getToken()}` },
       })
