@@ -454,50 +454,6 @@ export default function Testimonials() {
         </span>
       ),
     },
-    {
-      key:    "actions",
-      label:  "",
-      align:  "right",
-      width:  "120px",
-      render: (_, row) => {
-        const isPending = !row.is_active && row.user_id != null;
-        return (
-          <TableActions>
-            <TableAction
-              icon={Eye}
-              label="View"
-              onClick={() => viewModal.open(row)}
-            />
-            {isPending && (
-              <TableAction
-                icon={CheckCircle}
-                label="Approve"
-                onClick={() => handleApprove(row)}
-                className="text-emerald-600 hover:text-emerald-700"
-              />
-            )}
-            {!isPending && (
-              <TableAction
-                icon={row.is_active ? XCircle : CheckCircle}
-                label={row.is_active ? "Deactivate" : "Activate"}
-                onClick={() => handleApprove(row)}
-              />
-            )}
-            <TableAction
-              icon={Pencil}
-              label="Edit"
-              onClick={() => openEdit(row)}
-            />
-            <TableAction
-              icon={Trash2}
-              label="Delete"
-              onClick={() => deleteModal.open(row)}
-              variant="danger"
-            />
-          </TableActions>
-        );
-      },
-    },
   ], [
     handleToggleFeatured, handleApprove,
     viewModal, deleteModal, openEdit,
@@ -618,7 +574,7 @@ export default function Testimonials() {
       {/* ── Table ───────────────────────────────────────────────────────── */}
       <div className="card">
         <Table
-          columns={columns}
+          columns={columns.filter(c => c.key !== 'actions')}
           data={items}
           loading={loading}
           emptyMessage={
@@ -629,6 +585,13 @@ export default function Testimonials() {
                 : "No testimonials yet. Add one or wait for user submissions."
           }
           onRowClick={(row) => viewModal.open(row)}
+          hoverActions={[
+            { icon: Eye,    label: "View",   onClick: (r) => viewModal.open(r), alwaysVisible: true },
+            { icon: CheckCircle, label: "Approve", onClick: (r) => handleApprove(r), variant: "success", disabled: (r) => r.is_active },
+            { icon: XCircle, label: "Deactivate", onClick: (r) => handleApprove(r), variant: "warning", disabled: (r) => !r.is_active },
+            { icon: Pencil, label: "Edit",   onClick: (r) => openEdit(r), alwaysVisible: true },
+            { icon: Trash2, label: "Delete", onClick: (r) => deleteModal.open(r), variant: "danger", alwaysVisible: true },
+          ]}
         />
         <Pagination
           {...pag}

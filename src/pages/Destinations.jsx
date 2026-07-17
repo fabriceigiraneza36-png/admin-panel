@@ -722,9 +722,15 @@ export default function Destinations() {
       {/* â”€â”€ Table â”€â”€ */}
       <div className="card">
         <Table
-          columns={columns} data={items} loading={loading}
+          columns={columns.filter(c => c.key !== 'actions')}
+          data={items} loading={loading}
           sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
           onRowClick={r => viewModal.open(r)}
+          hoverActions={[
+            { icon: Eye,    label: "View",   onClick: (r) => viewModal.open(r), alwaysVisible: true },
+            { icon: Pencil, label: "Edit",   onClick: (r) => openEdit(r),      alwaysVisible: true },
+            { icon: Trash2, label: "Delete", onClick: (r) => deleteModal.open(r), variant: "danger", alwaysVisible: true },
+          ]}
         />
         <Pagination
           page={pag.page} totalPages={pag.totalPages} total={pag.total}
