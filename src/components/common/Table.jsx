@@ -56,24 +56,10 @@ export default function Table({
 }) {
   const [hoveredRow, setHoveredRow] = useState(null)
 
-  const handleSort = (col) => {
-    if (!onSort || !col.sortable) return
-    const newOrder =
-      sortBy === col.key && sortOrder === 'asc' ? 'desc' : 'asc'
-    onSort(col.key, newOrder)
-  }
-
-  const SortIcon = ({ colKey }) => {
-    if (sortBy !== colKey) return <ChevronsUpDown size={13} className="text-slate-300" />
-    return sortOrder === 'asc'
-      ? <ChevronUp   size={13} className="text-primary-600" />
-      : <ChevronDown size={13} className="text-primary-600" />
-  }
-
-  if (loading) return <SkeletonTable rows={6} cols={columns.length} />
-
   const hasHoverActions = hoverActions && hoverActions.length > 0
 
+  // NOTE: All hooks MUST run before any early return, otherwise the hook order
+  // changes between renders (loading → loaded) and React throws error #310.
   const effectiveColumns = useMemo(() => {
     if (!hasHoverActions) return columns
     const actionsCol = {
@@ -114,6 +100,22 @@ export default function Table({
     }
     return [...columns, actionsCol]
   }, [columns, hoverActions, hasHoverActions])
+
+  const handleSort = (col) => {
+    if (!onSort || !col.sortable) return
+    const newOrder =
+      sortBy === col.key && sortOrder === 'asc' ? 'desc' : 'asc'
+    onSort(col.key, newOrder)
+  }
+
+  const SortIcon = ({ colKey }) => {
+    if (sortBy !== colKey) return <ChevronsUpDown size={13} className="text-slate-300" />
+    return sortOrder === 'asc'
+      ? <ChevronUp   size={13} className="text-primary-600" />
+      : <ChevronDown size={13} className="text-primary-600" />
+  }
+
+  if (loading) return <SkeletonTable rows={6} cols={columns.length} />
 
   return (
     <div className="w-full">
@@ -196,7 +198,7 @@ export default function Table({
                         ${isHovered ? 'bg-primary-50/30' : ''}
                       `}
                     >
-                      {effectiveColumns.map((col, colIdx) => (
+                      {effectiveColumns.map((col) => (
                         <td
                           key={col.key}
                           className={`
@@ -210,7 +212,7 @@ export default function Table({
                         >
                           {col.render
                             ? safeRender(col.render, row[col.key], row, idx, isHovered)
-                            : sanitizeCell(row[col.key])},
+                            : sanitizeCell(row[col.key])}
                         </td>
                       ))}
                     </tr>
