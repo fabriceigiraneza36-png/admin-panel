@@ -1,4 +1,5 @@
 import React from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import AppRouter from './router'
 import { AuthProvider } from '@context/AuthContext'
 import { SocketProvider } from '@context/SocketContext'
@@ -77,6 +78,7 @@ export default function App() {
                 <SocketProvider>
                     <NotificationProvider>
                         <AppRouter />
+                        <Analytics />
                     </NotificationProvider>
                 </SocketProvider>
             </AuthProvider>
