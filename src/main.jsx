@@ -27,11 +27,11 @@ if (!root) {
                         duration: 3500,
                         style: {
                             borderRadius: '12px',
-                            padding: '12px 16px',
-                            fontWeight: 600,
-                            fontSize: '14px',
-                            fontFamily: 'Inter, sans-serif',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                            padding:      '12px 16px',
+                            fontWeight:   600,
+                            fontSize:     '14px',
+                            fontFamily:   'Inter, sans-serif',
+                            boxShadow:    '0 4px 20px rgba(0,0,0,0.1)',
                         },
                     }}
                 />
