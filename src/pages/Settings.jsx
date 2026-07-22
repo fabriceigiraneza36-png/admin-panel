@@ -12,14 +12,16 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Settings as SettingsIcon, Save, TestTubes, RefreshCw, Lock,
   Globe, Mail, Phone, User as UserIcon, Eye, EyeOff, Check,
-  MapPin, AlertCircle, Link as LinkIcon,
+  MapPin, AlertCircle, Link as LinkIcon, Trash2, Database,
 } from 'lucide-react'
 
 import { settingsAPI }     from '@api/settings'
 import { authAPI }         from '@api/auth'
+import { maintenanceAPI }  from '@api/maintenance'
 import { useAuth }         from '@hooks/useAuth'
 import { useToast }        from '@hooks/useToast'
 import { getErrorMessage } from '@api/client'
+import ConfirmDialog       from '@components/common/ConfirmDialog'
 
 /* ─── Inline brand icons (safe from lucide-react changes) ────────────────── */
 
@@ -183,6 +185,12 @@ export default function SettingsPage() {
 
   const [testingEmail,     setTestingEmail]     = useState(false)
 
+  const [categories,       setCategories]       = useState([])
+  const [catsLoading,      setCatsLoading]      = useState(false)
+  const [purging,          setPurging]          = useState(false)
+  const [purgeTarget,      setPurgeTarget]      = useState(null)
+  const [purgeConfirm,     setPurgeConfirm]     = useState('')
+
   /* ── Load site settings ────────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -216,6 +224,61 @@ export default function SettingsPage() {
       setOriginalProfile(p)
     }
   }, [admin])
+
+  /* ── Load maintenance categories ───────────────────────────────────────── */
+
+  useEffect(() => {
+    const loadCats = async () => {
+      setCatsLoading(true)
+      try {
+        const { data } = await maintenanceAPI.listCategories()
+        setCategories(data.data || [])
+      } catch (e) {
+        toast.error(getErrorMessage(e))
+      } finally {
+        setCatsLoading(false)
+      }
+    }
+    loadCats()
+  }, [toast])
+
+  const refreshCategories = useCallback(async () => {
+    setCatsLoading(true)
+    try {
+      const { data } = await maintenanceAPI.listCategories()
+      setCategories(data.data || [])
+      toast.success('Counts refreshed')
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setCatsLoading(false)
+    }
+  }, [toast])
+
+  const openPurge = useCallback((cat) => {
+    setPurgeTarget(cat)
+    setPurgeConfirm('')
+  }, [])
+
+  const closePurge = useCallback(() => {
+    setPurgeTarget(null)
+    setPurgeConfirm('')
+  }, [])
+
+  const handlePurge = useCallback(async () => {
+    if (!purgeTarget || purgeConfirm !== 'DELETE_ALL') return
+    setPurging(true)
+    try {
+      const { data } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
+      toast.success(data.message || 'Category purged')
+      closePurge()
+      await refreshCategories()
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setPurging(false)
+    }
+  }, [purgeTarget, purgeConfirm, toast, closePurge, refreshCategories])
 
   /* ── Dirty tracking ────────────────────────────────────────────────────── */
 
@@ -515,6 +578,70 @@ export default function SettingsPage() {
           </button>
         </div>
       </SectionCard>
+
+      {/* ══════════ DATA MANAGEMENT ══════════ */}
+      <SectionCard icon={Database} title="Data Management" action={
+        <button onClick={refreshCategories} disabled={catsLoading} className="btn-ghost btn-sm">
+          <RefreshCw size={14} className={catsLoading ? 'animate-spin' : ''} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      }>
+        <p className="text-xs text-slate-500 mb-4">
+          Purging a category deletes <strong>all records</strong> in its associated tables. This action is irreversible.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {catsLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-24 bg-slate-200 rounded animate-pulse" />
+                <div className="h-16 bg-slate-200 rounded-xl animate-pulse" />
+              </div>
+            ))
+          ) : (
+            categories.map((cat) => (
+              <div key={cat.category} className="border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-800 capitalize">{cat.category}</h4>
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {cat.totalRecords} records
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {cat.tables.map((t) => (
+                    <div key={t.table} className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600 font-mono">{t.table}</span>
+                      <span className="text-slate-400">{t.count}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => openPurge(cat.category)}
+                  disabled={cat.totalRecords === 0}
+                  className="w-full btn-danger disabled:opacity-40 disabled:cursor-not-allowed text-xs py-2"
+                >
+                  <Trash2 size={12} />
+                  Delete All
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </SectionCard>
+
+      <ConfirmDialog
+        isOpen={!!purgeTarget}
+        onClose={closePurge}
+        onConfirm={handlePurge}
+        type="delete"
+        title={`Purge ${purgeTarget || ''}?`}
+        description={
+          purgeTarget
+            ? `This will permanently delete ALL records in every table under "${purgeTarget}". This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Purge All"
+        loading={purging}
+      />
     </div>
   )
 }
