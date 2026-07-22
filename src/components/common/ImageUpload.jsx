@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, Image, Link2, Loader2, CheckCircle } from 'lucide-react'
+import { Upload, X, Image, Link2, Loader2, CheckCircle, Replace, Check, ImageOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import apiClient from '@api/client'
 
@@ -19,6 +19,12 @@ export default function ImageUpload({
   const [error,     setError]     = useState('')
   const [urlInput,  setUrlInput]  = useState('')
   const [mode,      setMode]      = useState('upload') // 'upload' | 'url'
+  const [imgFailed, setImgFailed] = useState(false)
+  const [editingLink, setEditingLink] = useState(false)
+  const [linkDraft, setLinkDraft] = useState('')
+
+  // Reset the broken-image flag whenever the value changes
+  useEffect(() => { setImgFailed(false) }, [value])
 
   const uploadFile = useCallback(async (file) => {
     setUploading(true)
@@ -32,9 +38,11 @@ export default function ImageUpload({
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
-      onChange(data.data?.url || data.url || data.secure_url)
+      const url = data.data?.url || data.url || data.secure_url
+      if (!url) throw new Error('No URL returned from server')
+      onChange(url)
     } catch (err) {
-      setError(err.response?.data?.error || 'Upload failed')
+      setError(err.response?.data?.error || err.message || 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -45,6 +53,7 @@ export default function ImageUpload({
     accept,
     maxSize,
     maxFiles: 1,
+    disabled: uploading,
     onDropRejected: (fileRejections) => {
       const err = fileRejections[0]?.errors[0]
       if (err?.code === 'file-too-large') setError('File too large (max 10MB)')
@@ -60,13 +69,24 @@ export default function ImageUpload({
     }
   }
 
-  const clear = () => { onChange(''); setError('') }
+  const clear = () => { onChange(''); setError(''); setEditingLink(false) }
+
+  const startEditLink = () => {
+    setLinkDraft(value || '')
+    setEditingLink(true)
+  }
+
+  const saveLink = () => {
+    onChange((linkDraft || '').trim())
+    setEditingLink(false)
+    setError('')
+  }
 
   return (
     <div className="space-y-2">
       {label && <label className="input-label">{label}</label>}
 
-      {/* Mode tabs */}
+      {/* Mode tabs — only when there is no image yet */}
       {urlMode && !value && (
         <div className="flex gap-1 bg-surface-100 rounded-lg p-1 w-fit mb-3">
           {['upload', 'url'].map((m) => (
@@ -89,40 +109,125 @@ export default function ImageUpload({
 
       <AnimatePresence mode="wait">
         {value ? (
-          /* Preview */
+          /* ── Preview + edit controls ────────────────────────────── */
           <motion.div
             key="preview"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="relative group rounded-2xl overflow-hidden border-2
-                       border-primary-200 bg-surface-50"
-            style={{ aspectRatio: aspectRatio || '16/9' }}
+            className="space-y-2"
           >
-            <img
-              src={value}
-              alt="Preview"
-              className="w-full h-full object-cover"
-            />
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30
-                            transition-all duration-200 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={clear}
-                className="opacity-0 group-hover:opacity-100 transition-opacity
-                           duration-200 btn-danger btn-sm"
-              >
-                <X size={14} /> Remove
-              </button>
+            <div
+              className="relative group rounded-2xl overflow-hidden border-2
+                         border-primary-200 bg-surface-50"
+              style={{ aspectRatio: aspectRatio || '16/9' }}
+            >
+              {imgFailed ? (
+                <div className="w-full h-full flex flex-col items-center justify-center
+                                gap-2 text-slate-400 bg-surface-100 p-4 text-center">
+                  <ImageOff size={30} />
+                  <p className="text-xs font-medium">
+                    Image failed to load. Check the link below.
+                  </p>
+                </div>
+              ) : (
+                <img
+                  src={value}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={() => setImgFailed(true)}
+                />
+              )}
+
+              {/* Hover overlay actions */}
+              {!editingLink && (
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40
+                                transition-all duration-200 flex items-center
+                                justify-center gap-2">
+                  <div {...getRootProps()} className="contents">
+                    <input {...getInputProps()} />
+                    <button
+                      type="button"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity
+                                 duration-200 btn bg-white text-slate-700 hover:bg-slate-100 btn-sm"
+                    >
+                      {uploading
+                        ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+                        : <><Replace size={14} /> Replace</>}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clear}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity
+                               duration-200 btn-danger btn-sm"
+                  >
+                    <X size={14} /> Remove
+                  </button>
+                </div>
+              )}
+
+              {/* Success badge */}
+              {!imgFailed && (
+                <div className="absolute top-2 right-2">
+                  <CheckCircle size={20} className="text-primary-500 drop-shadow" />
+                </div>
+              )}
             </div>
-            {/* Success badge */}
-            <div className="absolute top-2 right-2">
-              <CheckCircle size={20} className="text-primary-500 drop-shadow" />
-            </div>
+
+            {/* Link row — view / edit the URL directly */}
+            {editingLink ? (
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Link2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2
+                                              text-slate-400 pointer-events-none" />
+                  <input
+                    type="url"
+                    autoFocus
+                    value={linkDraft}
+                    onChange={(e) => setLinkDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && saveLink()}
+                    placeholder="https://example.com/image.jpg"
+                    className="input pl-9 text-xs"
+                  />
+                </div>
+                <button type="button" onClick={saveLink} className="btn-primary btn-sm">
+                  <Check size={14} /> Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingLink(false)}
+                  className="btn-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <a
+                  href={value}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={value}
+                  className="flex-1 truncate text-xs text-primary-600 hover:underline
+                             inline-flex items-center gap-1.5"
+                >
+                  <Link2 size={12} className="flex-shrink-0" />
+                  <span className="truncate">{value}</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={startEditLink}
+                  className="text-xs font-semibold text-slate-500 hover:text-primary-600
+                             whitespace-nowrap"
+                >
+                  Edit link
+                </button>
+              </div>
+            )}
           </motion.div>
         ) : mode === 'upload' ? (
-          /* Dropzone */
+          /* ── Dropzone ───────────────────────────────────────────── */
           <motion.div
             key="dropzone"
             initial={{ opacity: 0 }}
@@ -175,7 +280,7 @@ export default function ImageUpload({
             </div>
           </motion.div>
         ) : (
-          /* URL input */
+          /* ── URL input ──────────────────────────────────────────── */
           <motion.div
             key="url"
             initial={{ opacity: 0 }}

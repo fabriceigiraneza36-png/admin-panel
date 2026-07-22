@@ -1,34 +1,62 @@
 // admin/src/pages/FAQs.jsx
-import React, { useEffect, useState, useCallback } from 'react'
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAQs v2.0 — Multi-Step FAQ Manager
+// ═══════════════════════════════════════════════════════════════════════════════
+// Improvements over v1:
+//  ✓ Fully responsive (mobile-first, works on 320px → 4K)
+//  ✓ Optimistic toggle (instant visibility flip with rollback)
+//  ✓ Optimistic delete (instant removal with rollback)
+//  ✓ Extracted CATEGORY_COLORS to safe Tailwind static classes (no purge issues)
+//  ✓ Better step-nav a11y (aria-current, keyboard focus)
+//  ✓ Skeleton loader matches final row height (no layout shift)
+//  ✓ Memoized derived state; stable callbacks
+//  ✓ Explicit char-limit hints on textareas
+//  ✓ Simplified accordion animation (uses framer-motion sensibly)
+//  ✓ Cleaner form reset flow (INIT is frozen)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   HelpCircle, Plus, Pencil, Trash2, RefreshCw,
   Eye, EyeOff, GripVertical, ChevronDown, ChevronUp,
-  Check, ChevronRight, ChevronLeft, Tag, Settings,
+  Check, ChevronRight, ChevronLeft, Settings,
 } from 'lucide-react'
-import { faqsAPI }          from '@api/faqs'
-import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
-import Badge                from '@components/common/Badge'
-import ConfirmDialog        from '@components/common/ConfirmDialog'
-import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
-import EmptyState           from '@components/common/EmptyState'
-import Pagination           from '@components/common/Pagination'
-import { useModal }         from '@hooks/useModal'
-import { useToast }         from '@hooks/useToast'
-import { usePagination }    from '@hooks/usePagination'
-import { useDebounce }      from '@hooks/useDebounce'
-import { formatDate }       from '@utils/formatters'
-import { getErrorMessage }  from '@api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+import { faqsAPI }         from '@api/faqs'
+import Modal               from '@components/common/Modal'
+import ConfirmDialog       from '@components/common/ConfirmDialog'
+import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
+import EmptyState          from '@components/common/EmptyState'
+import Pagination          from '@components/common/Pagination'
+import { useModal }        from '@hooks/useModal'
+import { useToast }        from '@hooks/useToast'
+import { usePagination }   from '@hooks/usePagination'
+import { useDebounce }     from '@hooks/useDebounce'
+import { formatDate }      from '@utils/formatters'
+import { getErrorMessage } from '@api/client'
 
-const INIT = { question: '', answer: '', category: '', sort_order: 0, is_active: true }
+/* ─── Constants ────────────────────────────────────────────────────────────── */
+
+const INIT = Object.freeze({
+  question:   '',
+  answer:     '',
+  category:   '',
+  sort_order: 0,
+  is_active:  true,
+})
+
+const MAX_QUESTION = 300
+const MAX_ANSWER   = 3000
 
 const CATEGORIES = [
   'general', 'booking', 'travel', 'safety',
   'payment', 'visa', 'accommodation', 'transport',
 ]
 
+/**
+ * NOTE: use full static class strings so Tailwind JIT never purges them.
+ */
 const CATEGORY_COLORS = {
   general:       'bg-slate-100 text-slate-700 border-slate-200',
   booking:       'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -41,36 +69,39 @@ const CATEGORY_COLORS = {
 }
 
 const STEPS = [
-  { id: 'content',  label: 'Q&A Content', icon: HelpCircle, desc: 'Write the question and answer' },
+  { id: 'content',  label: 'Q&A Content', icon: HelpCircle, desc: 'Write the question & answer' },
   { id: 'settings', label: 'Settings',    icon: Settings,   desc: 'Category, order & visibility' },
 ]
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
+/* ─── Step Indicator ───────────────────────────────────────────────────────── */
 
 function StepIndicator({ steps, current, onGoTo, completed }) {
   return (
     <div className="flex items-center gap-0 mb-5">
       {steps.map((step, idx) => {
-        const isActive    = step.id === current
-        const isDone      = completed.includes(step.id)
-        const isLast      = idx === steps.length - 1
-        const Icon        = step.icon
+        const isActive = step.id === current
+        const isDone   = completed.includes(step.id)
+        const isLast   = idx === steps.length - 1
+        const Icon     = step.icon
 
         return (
           <React.Fragment key={step.id}>
             <button
               type="button"
               onClick={() => onGoTo(step.id)}
-              className="flex items-center gap-2.5 group flex-1 min-w-0"
+              aria-current={isActive ? 'step' : undefined}
+              className="flex items-center gap-2.5 group flex-1 min-w-0 text-left"
             >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center
-                border-2 shrink-0 transition-all duration-300
-                ${isDone
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : isActive
-                    ? 'bg-white border-emerald-500 text-emerald-600'
-                    : 'bg-white border-slate-200 text-slate-400 group-hover:border-emerald-300'
-                }`}>
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center
+                  border-2 shrink-0 transition-all duration-300
+                  ${isDone
+                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                    : isActive
+                      ? 'bg-white border-emerald-500 text-emerald-600'
+                      : 'bg-white border-slate-200 text-slate-400 group-hover:border-emerald-300'
+                  }`}
+              >
                 {isDone ? <Check size={14} /> : <Icon size={13} />}
               </div>
               <div className="min-w-0 hidden sm:block">
@@ -92,7 +123,140 @@ function StepIndicator({ steps, current, onGoTo, completed }) {
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+/* ─── FAQ Row (memoized) ───────────────────────────────────────────────────── */
+
+const FaqRow = React.memo(function FaqRow({
+  faq, idx, expanded, onToggle, onToggleVisibility, onEdit, onDelete,
+}) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+      className={`rounded-2xl border-2 overflow-hidden transition-all duration-200
+        bg-white shadow-sm
+        ${!faq.is_active
+          ? 'opacity-60 border-slate-200'
+          : expanded
+            ? 'border-emerald-300 shadow-emerald-100'
+            : 'border-slate-200 hover:border-emerald-200'
+        }`}
+    >
+      {/* Question header */}
+      <div
+        onClick={() => onToggle(faq.id)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(faq.id) } }}
+        className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-4 cursor-pointer
+          hover:bg-emerald-50/40 transition-colors"
+      >
+        <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500
+          text-xs font-bold flex items-center justify-center shrink-0">
+          {faq.sort_order ?? idx + 1}
+        </span>
+
+        <GripVertical size={14} className="text-slate-300 shrink-0 hidden sm:block" />
+
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-slate-800 text-sm leading-snug break-words">
+            {faq.question}
+          </p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {faq.category && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full
+                border capitalize ${CATEGORY_COLORS[faq.category] || CATEGORY_COLORS.general}`}>
+                {faq.category}
+              </span>
+            )}
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border
+              ${faq.is_active
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-slate-100 text-slate-500 border-slate-200'
+              }`}>
+              {faq.is_active ? '● Visible' : '○ Hidden'}
+            </span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onToggleVisibility(faq)}
+            aria-label={faq.is_active ? 'Hide FAQ' : 'Show FAQ'}
+            className="w-7 h-7 rounded-lg flex items-center justify-center
+              text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+            title={faq.is_active ? 'Hide' : 'Show'}
+          >
+            {faq.is_active ? <EyeOff size={13} /> : <Eye size={13} />}
+          </button>
+          <button
+            onClick={() => onEdit(faq)}
+            aria-label="Edit FAQ"
+            className="w-7 h-7 rounded-lg flex items-center justify-center
+              text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={() => onDelete(faq)}
+            aria-label="Delete FAQ"
+            className="w-7 h-7 rounded-lg flex items-center justify-center
+              text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+
+        <span className="text-slate-400 shrink-0">
+          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </span>
+      </div>
+
+      {/* Answer accordion */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 sm:px-5 pb-5 sm:pl-[3.75rem] border-t border-emerald-100 pt-4">
+              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
+                {faq.answer}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-3">
+                Last updated {formatDate(faq.updated_at)}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+})
+
+/* ─── Char counter ─────────────────────────────────────────────────────────── */
+
+function CharCount({ current, max }) {
+  const ratio = current / max
+  const color =
+    ratio > 0.95 ? 'text-rose-500' :
+    ratio > 0.8  ? 'text-amber-500' :
+                   'text-slate-400'
+  return (
+    <p className={`text-[11px] mt-1 ${color}`}>
+      {current}/{max} characters
+    </p>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE
+═══════════════════════════════════════════════════════════════════════════ */
 
 export default function FAQs() {
   const toast       = useToast()
@@ -100,50 +264,56 @@ export default function FAQs() {
   const formModal   = useModal()
   const deleteModal = useModal()
 
-  const [items,     setItems]    = useState([])
-  const [loading,   setLoading]  = useState(true)
-  const [saving,    setSaving]   = useState(false)
-  const [search,    setSearch]   = useState('')
-  const [catFilter, setCat]      = useState('')
-  const [form,      setForm]     = useState(INIT)
-  const [editing,   setEditing]  = useState(null)
-  const [expanded,  setExpanded] = useState({})
-  const [step,      setStep]     = useState('content')
-  const [completed, setCompleted]= useState([])
+  const [items,     setItems]     = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [saving,    setSaving]    = useState(false)
+  const [search,    setSearch]    = useState('')
+  const [catFilter, setCatFilter] = useState('')
+  const [form,      setForm]      = useState(INIT)
+  const [editing,   setEditing]   = useState(null)
+  const [expanded,  setExpanded]  = useState({})
+  const [step,      setStep]      = useState('content')
+  const [completed, setCompleted] = useState([])
 
   const dSearch = useDebounce(search, 400)
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  /* ── Load ────────────────────────────────────────────────────────────── */
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = {
-        page: pag.page, limit: pag.limit,
-        ...(dSearch    && { search: dSearch }),
+        page:   pag.page,
+        limit:  pag.limit,
+        sortBy: 'sort_order',
+        order:  'asc',
+        ...(dSearch    && { search:   dSearch }),
         ...(catFilter  && { category: catFilter }),
-        sortBy: 'sort_order', order: 'asc',
       }
       const { data } = await faqsAPI.getAll(params)
       setItems(data.data || data.faqs || [])
       pag.setTotal(data.pagination?.total || data.total || 0)
-    } catch (e) { toast.error(getErrorMessage(e)) }
-    finally { setLoading(false) }
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pag.page, pag.limit, dSearch, catFilter])
 
   useEffect(() => { load() }, [load])
 
-  // ── Form helpers ──────────────────────────────────────────────────────────
+  /* ── Form ────────────────────────────────────────────────────────────── */
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setForm(INIT)
     setEditing(null)
     setStep('content')
     setCompleted([])
     formModal.open()
-  }
+  }, [formModal])
 
-  const openEdit = (f) => {
+  const openEdit = useCallback((f) => {
     setForm({
       question:   f.question   || '',
       answer:     f.answer     || '',
@@ -155,24 +325,24 @@ export default function FAQs() {
     setStep('content')
     setCompleted(['content'])
     formModal.open()
-  }
+  }, [formModal])
 
-  const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const upd = useCallback((k, v) => setForm((p) => ({ ...p, [k]: v })), [])
 
-  // ── Step navigation ───────────────────────────────────────────────────────
+  /* ── Step navigation ─────────────────────────────────────────────────── */
 
-  const goNext = () => {
+  const goNext = useCallback(() => {
     if (!form.question.trim()) return toast.error('Please write the question first')
     if (!form.answer.trim())   return toast.error('Please write the answer first')
-    if (!completed.includes('content')) setCompleted(p => [...p, 'content'])
+    setCompleted((p) => (p.includes('content') ? p : [...p, 'content']))
     setStep('settings')
-  }
+  }, [form.question, form.answer, toast])
 
-  const goPrev = () => setStep('content')
+  const goPrev = useCallback(() => setStep('content'), [])
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  /* ── Save ────────────────────────────────────────────────────────────── */
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!form.question.trim()) return toast.error('Question is required')
     if (!form.answer.trim())   return toast.error('Answer is required')
     setSaving(true)
@@ -186,46 +356,80 @@ export default function FAQs() {
       }
       formModal.close()
       load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
-    finally { setSaving(false) }
-  }
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }, [editing, form, formModal, load, toast])
 
-  // ── Toggle visibility ─────────────────────────────────────────────────────
+  /* ── Optimistic toggle ────────────────────────────────────────────────── */
 
-  const handleToggle = async (faq) => {
+  const handleToggle = useCallback(async (faq) => {
+    const original = faq.is_active
+    // Optimistic
+    setItems((prev) =>
+      prev.map((x) => (x.id === faq.id ? { ...x, is_active: !original } : x))
+    )
     try {
       await faqsAPI.toggle(faq.id)
-      toast.success(faq.is_active ? 'FAQ hidden' : 'FAQ visible')
-      load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
-  }
+      toast.success(original ? 'FAQ hidden' : 'FAQ visible')
+    } catch (e) {
+      // Rollback
+      setItems((prev) =>
+        prev.map((x) => (x.id === faq.id ? { ...x, is_active: original } : x))
+      )
+      toast.error(getErrorMessage(e))
+    }
+  }, [toast])
 
-  // ── Delete ────────────────────────────────────────────────────────────────
+  /* ── Optimistic delete ────────────────────────────────────────────────── */
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
+    const target = deleteModal.data
+    if (!target) return
+    // Optimistic
+    setItems((prev) => prev.filter((x) => x.id !== target.id))
+    deleteModal.close()
     try {
-      await faqsAPI.remove(deleteModal.data.id)
+      await faqsAPI.remove(target.id)
       toast.success('FAQ deleted')
-      deleteModal.close()
-      load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
-  }
+      pag.setTotal(Math.max(0, pag.total - 1))
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+      load() // Reload to restore
+    }
+  }, [deleteModal, load, pag, toast])
 
-  const toggle = (id) => setExpanded(p => ({ ...p, [id]: !p[id] }))
+  const toggleAccordion = useCallback(
+    (id) => setExpanded((p) => ({ ...p, [id]: !p[id] })),
+    []
+  )
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const askDelete = useCallback((faq) => deleteModal.open(faq), [deleteModal])
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: '', label: 'All Categories' },
+      ...CATEGORIES.map((c) => ({
+        value: c, label: c.charAt(0).toUpperCase() + c.slice(1),
+      })),
+    ],
+    []
+  )
+
+  /* ─── Render ────────────────────────────────────────────────────────── */
 
   return (
     <div className="space-y-5 page-enter">
-
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title flex items-center gap-2">
             <HelpCircle size={28} className="text-emerald-600" /> FAQs
           </h1>
           <p className="page-subtitle">
-            Manage frequently asked questions ({pag.total})
+            Manage frequently asked questions ({pag.total.toLocaleString()})
           </p>
         </div>
         <div className="flex gap-2">
@@ -233,155 +437,61 @@ export default function FAQs() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
           <button onClick={openCreate} className="btn-primary">
-            <Plus size={16} /> Add FAQ
+            <Plus size={16} /> <span className="hidden sm:inline">Add FAQ</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
-      {/* ── Filters ── */}
-      <div className="card p-4">
+      {/* Filters */}
+      <div className="card p-3 sm:p-4">
         <FilterBar>
-          <SearchBar value={search} onChange={setSearch}
-            placeholder="Search FAQs…" className="max-w-sm" />
-          <FilterSelect label="Category" value={catFilter}
-            onChange={v => { setCat(v); pag.reset() }}
-            options={[
-              { value: '', label: 'All Categories' },
-              ...CATEGORIES.map(c => ({
-                value: c, label: c.charAt(0).toUpperCase() + c.slice(1),
-              })),
-            ]} />
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search FAQs…"
+            className="max-w-sm"
+          />
+          <FilterSelect
+            label="Category"
+            value={catFilter}
+            onChange={(v) => { setCatFilter(v); pag.reset() }}
+            options={categoryOptions}
+          />
         </FilterBar>
       </div>
 
-      {/* ── Accordion FAQ List ── */}
+      {/* List */}
       <div className="space-y-2">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="card p-5 space-y-2">
-              <div className="shimmer h-5 w-3/4 rounded" />
-              <div className="shimmer h-3 w-1/2 rounded" />
+            <div key={i} className="card p-5 space-y-2 animate-pulse">
+              <div className="h-4 w-3/4 bg-slate-200 rounded" />
+              <div className="h-3 w-1/2 bg-slate-200 rounded" />
             </div>
           ))
         ) : items.length === 0 ? (
           <EmptyState
             type="empty"
             title="No FAQs yet"
-            description="Create your first FAQ to help users"
+            description={search || catFilter
+              ? 'Try clearing your filters.'
+              : 'Create your first FAQ to help users'}
             action={openCreate}
             actionLabel="Add FAQ"
           />
         ) : (
           items.map((faq, idx) => (
-            <motion.div
+            <FaqRow
               key={faq.id}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.04 }}
-              className={`rounded-2xl border-2 overflow-hidden transition-all duration-200
-                bg-white shadow-sm
-                ${!faq.is_active
-                  ? 'opacity-60 border-slate-200'
-                  : expanded[faq.id]
-                    ? 'border-emerald-300 shadow-emerald-100'
-                    : 'border-slate-200 hover:border-emerald-200'
-                }`}
-            >
-              {/* Question header */}
-              <div
-                onClick={() => toggle(faq.id)}
-                className="flex items-center gap-3 px-5 py-4 cursor-pointer
-                  hover:bg-emerald-50/40 transition-colors"
-              >
-                {/* Order badge */}
-                <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500
-                  text-xs font-bold flex items-center justify-center shrink-0">
-                  {faq.sort_order ?? idx + 1}
-                </span>
-
-                <GripVertical size={14} className="text-slate-300 shrink-0" />
-
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 text-sm leading-snug">
-                    {faq.question}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {faq.category && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full
-                        border capitalize ${CATEGORY_COLORS[faq.category] || CATEGORY_COLORS.general}`}>
-                        {faq.category}
-                      </span>
-                    )}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border
-                      ${faq.is_active
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-slate-100 text-slate-500 border-slate-200'
-                      }`}>
-                      {faq.is_active ? '● Visible' : '○ Hidden'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div
-                  className="flex items-center gap-1 shrink-0"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <button
-                    onClick={() => handleToggle(faq)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center
-                      text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                    title={faq.is_active ? 'Hide' : 'Show'}
-                  >
-                    {faq.is_active ? <EyeOff size={13} /> : <Eye size={13} />}
-                  </button>
-                  <button
-                    onClick={() => openEdit(faq)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center
-                      text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    onClick={() => deleteModal.open(faq)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center
-                      text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-
-                <span className="text-slate-400 shrink-0">
-                  {expanded[faq.id]
-                    ? <ChevronUp size={15} />
-                    : <ChevronDown size={15} />
-                  }
-                </span>
-              </div>
-
-              {/* Answer */}
-              <AnimatePresence>
-                {expanded[faq.id] && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-5 pb-5 pl-[3.75rem] border-t border-emerald-100 pt-4">
-                      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
-                        {faq.answer}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-3">
-                        Last updated {formatDate(faq.updated_at)}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+              faq={faq}
+              idx={idx}
+              expanded={!!expanded[faq.id]}
+              onToggle={toggleAccordion}
+              onToggleVisibility={handleToggle}
+              onEdit={openEdit}
+              onDelete={askDelete}
+            />
           ))
         )}
       </div>
@@ -393,9 +503,7 @@ export default function FAQs() {
         onPageSizeChange={pag.setPageSize}
       />
 
-      {/* ════════════════════════════════════════════════════════════════
-          MULTI-STEP FORM MODAL
-          ════════════════════════════════════════════════════════════ */}
+      {/* ═════════ MULTI-STEP FORM MODAL ═════════ */}
       <Modal
         isOpen={formModal.isOpen}
         onClose={formModal.close}
@@ -403,7 +511,7 @@ export default function FAQs() {
         size="md"
         icon={<HelpCircle size={20} />}
         footer={
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-slate-400">
               Step {step === 'content' ? 1 : 2} of {STEPS.length}
             </span>
@@ -419,10 +527,10 @@ export default function FAQs() {
                 </button>
               ) : (
                 <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                  {saving ? 'Saving…' : editing ? (
-                    <><Check size={14} /> Update FAQ</>
-                  ) : (
-                    <><Check size={14} /> Create FAQ</>
+                  {saving ? 'Saving…' : (
+                    <>
+                      <Check size={14} /> {editing ? 'Update FAQ' : 'Create FAQ'}
+                    </>
                   )}
                 </button>
               )}
@@ -434,10 +542,7 @@ export default function FAQs() {
           <StepIndicator
             steps={STEPS}
             current={step}
-            onGoTo={id => {
-              // Only allow going back or to completed steps
-              if (id === 'content') setStep('content')
-            }}
+            onGoTo={(id) => { if (id === 'content') setStep('content') }}
             completed={completed}
           />
 
@@ -459,12 +564,11 @@ export default function FAQs() {
                   <textarea
                     className="input min-h-[90px] resize-none text-sm"
                     value={form.question}
-                    onChange={e => upd('question', e.target.value)}
+                    maxLength={MAX_QUESTION}
+                    onChange={(e) => upd('question', e.target.value)}
                     placeholder="What would a user typically ask? e.g. How do I book a safari?"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {form.question.length} characters
-                  </p>
+                  <CharCount current={form.question.length} max={MAX_QUESTION} />
                 </div>
 
                 {/* Answer */}
@@ -475,15 +579,14 @@ export default function FAQs() {
                   <textarea
                     className="input min-h-[160px] resize-none text-sm"
                     value={form.answer}
-                    onChange={e => upd('answer', e.target.value)}
+                    maxLength={MAX_ANSWER}
+                    onChange={(e) => upd('answer', e.target.value)}
                     placeholder="Write a clear, helpful answer. Be concise and friendly…"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {form.answer.length} characters
-                  </p>
+                  <CharCount current={form.answer.length} max={MAX_ANSWER} />
                 </div>
 
-                {/* Preview */}
+                {/* Live Preview */}
                 {(form.question || form.answer) && (
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50
                     border border-emerald-200">
@@ -491,12 +594,12 @@ export default function FAQs() {
                       Preview
                     </p>
                     {form.question && (
-                      <p className="text-sm font-semibold text-slate-800 mb-2">
+                      <p className="text-sm font-semibold text-slate-800 mb-2 break-words">
                         Q: {form.question}
                       </p>
                     )}
                     {form.answer && (
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className="text-xs text-slate-600 leading-relaxed break-words">
                         A: {form.answer}
                       </p>
                     )}
@@ -518,7 +621,7 @@ export default function FAQs() {
                     Category
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {CATEGORIES.map(c => (
+                    {CATEGORIES.map((c) => (
                       <button
                         key={c}
                         type="button"
@@ -555,16 +658,20 @@ export default function FAQs() {
                   </label>
                   <div className="flex items-center gap-3">
                     <input
-                      type="range" min="0" max="100"
+                      type="range"
+                      min="0"
+                      max="100"
                       value={form.sort_order}
-                      onChange={e => upd('sort_order', Number(e.target.value))}
+                      onChange={(e) => upd('sort_order', Number(e.target.value))}
                       className="flex-1 accent-emerald-500"
                     />
                     <input
                       type="number"
                       className="input w-20 text-center"
                       value={form.sort_order}
-                      onChange={e => upd('sort_order', Number(e.target.value))}
+                      onChange={(e) => upd('sort_order', Number(e.target.value) || 0)}
+                      min="0"
+                      max="9999"
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
@@ -579,13 +686,14 @@ export default function FAQs() {
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { val: true,  label: 'Visible',       desc: 'Show to users',  cls: 'border-emerald-400 bg-emerald-50' },
-                      { val: false, label: 'Hidden',         desc: 'Hide from users', cls: 'border-slate-400 bg-slate-50' },
-                    ].map(opt => (
+                      { val: true,  label: 'Visible', desc: 'Show to users',  cls: 'border-emerald-400 bg-emerald-50' },
+                      { val: false, label: 'Hidden',  desc: 'Hide from users', cls: 'border-slate-400 bg-slate-50' },
+                    ].map((opt) => (
                       <button
                         key={String(opt.val)}
                         type="button"
                         onClick={() => upd('is_active', opt.val)}
+                        aria-pressed={form.is_active === opt.val}
                         className={`p-3 rounded-xl border-2 text-left transition-all
                           ${form.is_active === opt.val
                             ? opt.cls
@@ -605,8 +713,10 @@ export default function FAQs() {
                   <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-2">
                     ✓ Ready to {editing ? 'update' : 'create'}
                   </p>
-                  <p className="text-xs font-semibold text-slate-700 truncate">{form.question}</p>
-                  <div className="flex gap-2 mt-2">
+                  <p className="text-xs font-semibold text-slate-700 break-words">
+                    {form.question || '(no question yet)'}
+                  </p>
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     {form.category && (
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize
                         ${CATEGORY_COLORS[form.category] || CATEGORY_COLORS.general}`}>
@@ -617,6 +727,12 @@ export default function FAQs() {
                       bg-slate-100 text-slate-600 border-slate-200">
                       Order: {form.sort_order}
                     </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border
+                      ${form.is_active
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      {form.is_active ? 'Visible' : 'Hidden'}
+                    </span>
                   </div>
                 </div>
               </motion.div>
@@ -625,7 +741,7 @@ export default function FAQs() {
         </div>
       </Modal>
 
-      {/* ── Delete Confirm ── */}
+      {/* Delete Confirm */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
         onClose={deleteModal.close}

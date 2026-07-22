@@ -1,21 +1,19 @@
 // admin/src/pages/Countries.jsx
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Globe2, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
-  MapPin, DollarSign, Languages, Image, Settings,
-  ChevronRight, ChevronLeft, Check, Mountain, Info,
+  MapPin, DollarSign, Image, Info, Check,
+  ChevronRight, ChevronLeft, AlertTriangle, Zap,
 } from 'lucide-react'
 import { countriesAPI }    from '@api/countries'
-import Table, { TableActions, TableAction } from '@components/common/Table'
+import Table               from '@components/common/Table'
 import Pagination          from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
 import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
 import Badge, { BooleanBadge } from '@components/common/Badge'
 import Avatar              from '@components/common/Avatar'
-import ConfirmDialog       from '@components/common/ConfirmDialog'
 import ImageUpload         from '@components/common/ImageUpload'
 import TagInput            from '@components/common/TagInput'
-import Dropdown            from '@components/common/Dropdown'
 import { useModal }        from '@hooks/useModal'
 import { useToast }        from '@hooks/useToast'
 import { usePagination }   from '@hooks/usePagination'
@@ -25,7 +23,7 @@ import { CONTINENTS }      from '@utils/constants'
 import { getErrorMessage } from '@api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+/* ─── Constants ────────────────────────────────────────────────────────────── */
 
 const INITIAL_FORM = {
   name: '', slug: '', official_name: '', capital: '', flag: '', flag_url: '',
@@ -38,12 +36,14 @@ const INITIAL_FORM = {
 }
 
 const STEPS = [
-  { id: 'identity',  label: 'Identity',  icon: Globe2,     desc: 'Name, flag & official info' },
-  { id: 'geography', label: 'Geography', icon: MapPin,      desc: 'Location & coordinates'     },
+  { id: 'identity',  label: 'Identity',  icon: Globe2,     desc: 'Name, flag & region' },
+  { id: 'geography', label: 'Geography', icon: MapPin,      desc: 'Location & coordinates' },
   { id: 'practical', label: 'Practical', icon: DollarSign,  desc: 'Currency, language & travel' },
-  { id: 'content',   label: 'Content',   icon: Info,        desc: 'Lists & descriptions'       },
-  { id: 'media',     label: 'Media',     icon: Image,       desc: 'Photos & publish flags'     },
+  { id: 'content',   label: 'Content',   icon: Info,        desc: 'Descriptions & lists' },
+  { id: 'media',     label: 'Media',     icon: Image,       desc: 'Photos & visibility' },
 ]
+
+const STEP_IDS = STEPS.map(s => s.id)
 
 const CONTINENT_COLORS = {
   'Africa':        'bg-amber-50 text-amber-700 border-amber-300',
@@ -55,7 +55,7 @@ const CONTINENT_COLORS = {
   'Antarctica':    'bg-slate-100 text-slate-600 border-slate-300',
 }
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
+/* ─── Sub-components ───────────────────────────────────────────────────────── */
 
 function StepIndicator({ steps, current, completed, onGoTo }) {
   return (
@@ -73,28 +73,37 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
               onClick={() => onGoTo(step.id)}
               className="flex flex-col items-center gap-1 flex-1 group"
             >
-              <div className={`relative w-9 h-9 rounded-xl border-2 flex items-center
+              <div className={`
+                relative w-9 h-9 rounded-xl border-2 flex items-center
                 justify-center transition-all duration-300
                 ${isDone
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200'
                   : isActive
                     ? 'bg-white border-emerald-500 text-emerald-600 shadow-sm'
                     : 'bg-white border-slate-200 text-slate-400 group-hover:border-emerald-300'
-                }`}>
-                {isDone ? <Check size={14} className="stroke-[2.5]" /> : <Icon size={13} />}
+                }
+              `}>
+                {isDone
+                  ? <Check size={14} className="stroke-[2.5]" />
+                  : <Icon size={13} />
+                }
                 {isActive && (
-                  <span className="absolute -inset-1 rounded-2xl border-2
-                    border-emerald-400/30 animate-pulse" />
+                  <span className="absolute -inset-1 rounded-2xl border-2 border-emerald-400/30 animate-pulse" />
                 )}
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wide whitespace-nowrap
-                ${isActive ? 'text-emerald-700' : isDone ? 'text-emerald-500' : 'text-slate-400'}`}>
+              <span className={`
+                text-[9px] font-bold uppercase tracking-wide whitespace-nowrap
+                ${isActive ? 'text-emerald-700' : isDone ? 'text-emerald-500' : 'text-slate-400'}
+              `}>
                 {step.label}
               </span>
             </button>
+
             {!isLast && (
-              <div className={`h-0.5 flex-1 mx-0.5 rounded-full transition-all duration-500 max-w-8
-                ${isDone ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+              <div className={`
+                h-0.5 flex-1 mx-0.5 rounded-full transition-all duration-500 max-w-8
+                ${isDone ? 'bg-emerald-400' : 'bg-slate-200'}
+              `} />
             )}
           </React.Fragment>
         )
@@ -102,8 +111,6 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
     </div>
   )
 }
-
-// ─── Field Helper ─────────────────────────────────────────────────────────────
 
 function Field({ label, required, hint, className = '', children }) {
   return (
@@ -113,28 +120,32 @@ function Field({ label, required, hint, className = '', children }) {
         {required && <span className="text-emerald-500">*</span>}
       </label>
       {children}
-      {hint && <p className="text-[11px] text-slate-400">{hint}</p>}
+      {hint && <p className="text-[11px] text-slate-400 mt-1">{hint}</p>}
     </div>
   )
 }
 
-// ─── Flag Toggle ──────────────────────────────────────────────────────────────
-
 function FlagToggle({ checked, onChange, label, desc }) {
   return (
-    <label className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer
-      transition-all duration-200
+    <label className={`
+      flex items-start gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all duration-200
       ${checked
         ? 'border-emerald-400 bg-emerald-50/70'
         : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/20'
-      }`}>
-      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center
-        shrink-0 mt-0.5 transition-all
-        ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+      }
+    `}>
+      <div className={`
+        w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all
+        ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}
+      `}>
         {checked && <Check size={11} className="text-white stroke-[3]" />}
       </div>
-      <input type="checkbox" className="sr-only"
-        checked={checked} onChange={e => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+      />
       <div>
         <p className={`text-sm font-semibold ${checked ? 'text-emerald-800' : 'text-slate-700'}`}>
           {label}
@@ -145,31 +156,235 @@ function FlagToggle({ checked, onChange, label, desc }) {
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+/* ─── Delete Dialog ─────────────────────────────────────────────────────────
+   Handles the two-stage confirmation in-line:
+     Stage 1 (normal):  "Are you sure?" → delete
+     Stage 2 (conflict): Server returned 409 HAS_DESTINATIONS →
+                          show warning, offer force-delete or cancel
+─────────────────────────────────────────────────────────────────────────── */
+
+function DeleteDialog({ isOpen, onClose, target, onDeleted }) {
+  const toast = useToast()
+
+  // 'confirm' | 'conflict' | 'deleting'
+  const [stage,     setStage]     = useState('confirm')
+  const [destCount, setDestCount] = useState(0)
+  const [errMsg,    setErrMsg]    = useState('')
+
+  // Reset every time we open for a new target
+  useEffect(() => {
+    if (isOpen) {
+      setStage('confirm')
+      setDestCount(0)
+      setErrMsg('')
+    }
+  }, [isOpen, target?.id])
+
+  if (!isOpen || !target) return null
+
+  const doDelete = async (force) => {
+    setStage('deleting')
+    try {
+      const { data } = await countriesAPI.remove(target.id, { force })
+      toast.success(data?.message || `"${target.name}" deleted`)
+      onDeleted()
+      onClose()
+    } catch (err) {
+      const status    = err?.response?.status
+      const body      = err?.response?.data || {}
+      const code      = body?.code
+      const count     = body?.destination_count ?? 0
+      const serverMsg = body?.error || getErrorMessage(err)
+
+      if (status === 409 && code === 'HAS_DESTINATIONS' && !force) {
+        // Transition to conflict stage — give user the choice
+        setDestCount(count)
+        setErrMsg(serverMsg)
+        setStage('conflict')
+      } else {
+        toast.error(serverMsg)
+        setStage(force ? 'conflict' : 'confirm')
+      }
+    }
+  }
+
+  const isDeleting = stage === 'deleting'
+
+  /* ── Confirm stage ── */
+  if (stage === 'confirm') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {/* Red accent bar */}
+          <div className="h-1 bg-gradient-to-r from-red-500 to-rose-400" />
+
+          <div className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 size={22} className="text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Delete "{target.name}"?
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  This will permanently remove the country and all associated data.
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={onClose}
+                className="btn-secondary"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doDelete(false)}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl
+                  bg-red-600 text-white text-sm font-semibold
+                  hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {isDeleting
+                  ? <><Spinner /> Deleting…</>
+                  : <><Trash2 size={15} /> Delete Country</>
+                }
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  /* ── Conflict stage ── */
+  if (stage === 'conflict' || isDeleting) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={isDeleting ? undefined : onClose} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {/* Amber accent bar */}
+          <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
+
+          <div className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={22} className="text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-800">
+                  Linked Destinations Found
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  <strong className="text-slate-700">"{target.name}"</strong> has{' '}
+                  <strong className="text-amber-700">{destCount} destination(s)</strong> attached to it.
+                </p>
+              </div>
+            </div>
+
+            {/* Warning box */}
+            <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <AlertTriangle size={13} /> Force Delete Will Also Remove
+              </p>
+              <ul className="text-sm text-amber-700 space-y-1">
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  All {destCount} destination(s) in "{target.name}"
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  All bookings linked to those destinations
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  Any other data referencing these records
+                </li>
+              </ul>
+              <p className="text-xs text-amber-600 font-semibold mt-3">
+                ⚠ This cannot be undone. Proceed only if you are certain.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-5">
+              <button
+                onClick={onClose}
+                disabled={isDeleting}
+                className="btn-secondary w-full sm:w-auto"
+              >
+                Cancel — Keep Country
+              </button>
+              <button
+                onClick={() => doDelete(true)}
+                disabled={isDeleting}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+                  bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-bold
+                  hover:from-red-700 hover:to-rose-700 disabled:opacity-50 transition-all
+                  shadow-md shadow-red-200 w-full sm:w-auto"
+              >
+                {isDeleting
+                  ? <><Spinner /> Deleting everything…</>
+                  : <><Zap size={15} /> Force Delete Everything</>
+                }
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function Spinner() {
+  return (
+    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+  )
+}
+
+/* ─── Main Component ────────────────────────────────────────────────────────── */
 
 export default function Countries() {
-  const toast       = useToast()
-  const pag         = usePagination()
-  const viewModal   = useModal()
-  const formModal   = useModal()
-  const deleteModal = useModal()
+  const toast     = useToast()
+  const pag       = usePagination()
+  const viewModal = useModal()
+  const formModal = useModal()
 
-  const [countries, setCountries]  = useState([])
-  const [loading,   setLoading]    = useState(true)
-  const [saving,    setSaving]     = useState(false)
-  const [search,    setSearch]     = useState('')
-  const [continent, setContinent]  = useState('')
-  const [featured,  setFeatured]   = useState('')
-  const [sortBy,    setSortBy]     = useState('name')
-  const [sortOrder, setSortOrder]  = useState('asc')
-  const [form,      setForm]       = useState(INITIAL_FORM)
-  const [editing,   setEditing]    = useState(null)
-  const [step,      setStep]       = useState('identity')
-  const [completed, setCompleted]  = useState([])
+  const [countries,  setCountries]  = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [saving,     setSaving]     = useState(false)
+  const [search,     setSearch]     = useState('')
+  const [continent,  setContinent]  = useState('')
+  const [featured,   setFeatured]   = useState('')
+  const [sortBy,     setSortBy]     = useState('name')
+  const [sortOrder,  setSortOrder]  = useState('asc')
+  const [form,       setForm]       = useState(INITIAL_FORM)
+  const [editing,    setEditing]    = useState(null)
+  const [step,       setStep]       = useState('identity')
+  const [completed,  setCompleted]  = useState([])
+
+  // Delete dialog
+  const [deleteTarget,    setDeleteTarget]    = useState(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const debouncedSearch = useDebounce(search, 400)
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  /* ── Load ──────────────────────────────────────────────────────────────── */
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -192,7 +407,7 @@ export default function Countries() {
 
   useEffect(() => { load() }, [load])
 
-  // ── Form helpers ──────────────────────────────────────────────────────────
+  /* ── Form helpers ──────────────────────────────────────────────────────── */
 
   const openCreate = () => {
     setForm(INITIAL_FORM)
@@ -245,10 +460,9 @@ export default function Countries() {
 
   const upd = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
-  // ── Step navigation ───────────────────────────────────────────────────────
+  /* ── Step navigation ───────────────────────────────────────────────────── */
 
-  const stepIds   = STEPS.map(s => s.id)
-  const stepIndex = stepIds.indexOf(step)
+  const stepIndex = STEP_IDS.indexOf(step)
 
   const goNext = () => {
     if (step === 'identity' && !form.name.trim())
@@ -256,22 +470,21 @@ export default function Countries() {
     if (step === 'identity' && !form.continent)
       return toast.error('Continent is required')
     if (!completed.includes(step)) setCompleted(p => [...p, step])
-    const next = stepIds[stepIndex + 1]
+    const next = STEP_IDS[stepIndex + 1]
     if (next) setStep(next)
   }
 
   const goPrev = () => {
-    const prev = stepIds[stepIndex - 1]
+    const prev = STEP_IDS[stepIndex - 1]
     if (prev) setStep(prev)
   }
 
-  const goTo = (id) => setStep(id)
-
-  // ── Save ──────────────────────────────────────────────────────────────────
+  /* ── Save ──────────────────────────────────────────────────────────────── */
 
   const handleSave = async () => {
     if (!form.name.trim())  return toast.error('Country name is required')
     if (!form.continent)    return toast.error('Continent is required')
+
     setSaving(true)
     try {
       const payload = {
@@ -280,14 +493,14 @@ export default function Countries() {
         area:       form.area       ? Number(form.area)       : null,
         latitude:   form.latitude   ? Number(form.latitude)   : null,
         longitude:  form.longitude  ? Number(form.longitude)  : null,
-        slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
+        slug:       form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
       }
       if (editing) {
         await countriesAPI.update(editing.id, payload)
-        toast.success('Country updated')
+        toast.success('Country updated successfully')
       } else {
         await countriesAPI.create(payload)
-        toast.success('Country created')
+        toast.success('Country created successfully')
       }
       formModal.close()
       load()
@@ -298,33 +511,35 @@ export default function Countries() {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
+  /* ── Delete ────────────────────────────────────────────────────────────── */
 
-  const handleDelete = async () => {
-    try {
-      await countriesAPI.remove(deleteModal.data.id)
-      toast.success('Country deleted')
-      deleteModal.close()
-      load()
-    } catch (e) { toast.error(getErrorMessage(e)) }
+  const openDelete = (row) => {
+    setDeleteTarget(row)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteDone = () => {
+    setDeleteTarget(null)
+    setDeleteDialogOpen(false)
+    load()
   }
 
   const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
 
-  // ── Table columns ─────────────────────────────────────────────────────────
+  /* ── Table columns ─────────────────────────────────────────────────────── */
 
   const columns = [
     {
       key: 'name', label: 'Country', sortable: true,
       render: (_, row) => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {row.flag
-            ? <span className="text-2xl leading-none">{row.flag}</span>
+            ? <span className="text-2xl leading-none shrink-0">{row.flag}</span>
             : <Avatar name={row.name} size="sm" rounded="lg" />
           }
-          <div>
-            <p className="font-semibold text-slate-800">{row.name}</p>
-            <p className="text-xs text-slate-400">{row.capital || '—'}</p>
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-800 truncate">{row.name}</p>
+            <p className="text-xs text-slate-400 truncate">{row.capital || '—'}</p>
           </div>
         </div>
       ),
@@ -332,15 +547,19 @@ export default function Countries() {
     {
       key: 'continent', label: 'Continent', sortable: true,
       render: v => v ? (
-        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs
-          font-semibold border ${CONTINENT_COLORS[v] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+        <span className={`
+          inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border
+          ${CONTINENT_COLORS[v] || 'bg-slate-100 text-slate-600 border-slate-200'}
+        `}>
           {v}
         </span>
       ) : '—',
     },
     {
       key: 'population', label: 'Population', sortable: true, align: 'right',
-      render: v => <span className="text-sm text-slate-600">{formatNumber(v)}</span>,
+      render: v => (
+        <span className="text-sm text-slate-600 tabular-nums">{formatNumber(v)}</span>
+      ),
     },
     {
       key: 'destination_count', label: 'Destinations', align: 'center',
@@ -355,25 +574,17 @@ export default function Countries() {
       key: 'is_featured', label: 'Featured', align: 'center',
       render: v => v
         ? <Star size={16} className="text-amber-500 fill-amber-500 mx-auto" />
-        : <span className="text-slate-300">—</span>,
+        : <span className="text-slate-300 block text-center">—</span>,
     },
     {
       key: 'is_active', label: 'Status',
-      render: v => <Badge status={v ? 'active' : 'inactive'} label={v ? 'Active' : 'Inactive'} />,
-    },
-    {
-      key: 'actions', label: '', align: 'right', width: '100px',
-      render: (_, row) => (
-        <TableActions>
-          <TableAction icon={Eye}    label="View"   onClick={() => viewModal.open(row)} />
-          <TableAction icon={Pencil} label="Edit"   onClick={() => openEdit(row)} />
-          <TableAction icon={Trash2} label="Delete" onClick={() => deleteModal.open(row)} variant="danger" />
-        </TableActions>
+      render: v => (
+        <Badge status={v ? 'active' : 'inactive'} label={v ? 'Active' : 'Inactive'} />
       ),
     },
   ]
 
-  // ── Step content ──────────────────────────────────────────────────────────
+  /* ── Step content ──────────────────────────────────────────────────────── */
 
   const renderStep = () => {
     switch (step) {
@@ -382,13 +593,14 @@ export default function Countries() {
         <motion.div key="identity" className="space-y-4"
           initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.18 }}>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Country Name" required>
               <input className="input" value={form.name}
                 onChange={e => upd('name', e.target.value)}
                 placeholder="e.g., Rwanda" />
             </Field>
-            <Field label="Slug" hint="Auto-generated from name if blank">
+            <Field label="Slug" hint="Auto-generated from name if left blank">
               <input className="input font-mono text-sm" value={form.slug}
                 onChange={e => upd('slug', e.target.value)}
                 placeholder="rwanda" />
@@ -403,7 +615,7 @@ export default function Countries() {
                 onChange={e => upd('capital', e.target.value)}
                 placeholder="Kigali" />
             </Field>
-            <Field label="Flag Emoji" hint="Paste the country flag emoji">
+            <Field label="Flag Emoji" hint="Paste the country flag emoji here">
               <div className="flex gap-2">
                 <input className="input flex-1 text-2xl" value={form.flag}
                   onChange={e => upd('flag', e.target.value)}
@@ -423,18 +635,19 @@ export default function Countries() {
             </Field>
           </div>
 
-          {/* Continent selector */}
           <Field label="Continent" required>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {CONTINENTS.map(c => (
                 <button key={c} type="button"
                   onClick={() => upd('continent', c)}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-semibold border-2
-                    transition-all text-center capitalize
+                  className={`
+                    px-3 py-2.5 rounded-xl text-xs font-semibold border-2
+                    transition-all text-center
                     ${form.continent === c
-                      ? `${CONTINENT_COLORS[c] || 'border-emerald-400 bg-emerald-50 text-emerald-700'} border-2`
+                      ? CONTINENT_COLORS[c] || 'border-emerald-400 bg-emerald-50 text-emerald-700'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300'
-                    }`}>
+                    }
+                  `}>
                   {c}
                 </button>
               ))}
@@ -447,30 +660,30 @@ export default function Countries() {
         <motion.div key="geography" className="space-y-4"
           initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.18 }}>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Region">
               <input className="input" value={form.region}
                 onChange={e => upd('region', e.target.value)}
-                placeholder="e.g., East Africa" />
+                placeholder="East Africa" />
             </Field>
             <Field label="Sub-Region">
               <input className="input" value={form.sub_region}
                 onChange={e => upd('sub_region', e.target.value)}
-                placeholder="e.g., Great Lakes" />
+                placeholder="Great Lakes" />
             </Field>
             <Field label="Population">
               <input className="input" type="number" value={form.population}
                 onChange={e => upd('population', e.target.value)}
-                placeholder="13,000,000" />
+                placeholder="13000000" />
             </Field>
             <Field label="Area (km²)">
               <input className="input" type="number" value={form.area}
                 onChange={e => upd('area', e.target.value)}
-                placeholder="26,338" />
+                placeholder="26338" />
             </Field>
           </div>
 
-          {/* Coordinates */}
           <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200">
             <p className="text-xs font-bold text-blue-700 mb-3 flex items-center gap-1.5">
               <MapPin size={13} /> GPS Coordinates
@@ -495,6 +708,7 @@ export default function Countries() {
         <motion.div key="practical" className="space-y-4"
           initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 12 }} transition={{ duration: 0.18 }}>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Currency">
               <input className="input" value={form.currency}
@@ -556,13 +770,13 @@ export default function Countries() {
               placeholder="Describe this country for travelers…" />
           </Field>
 
-          <TagInput label="Languages"          value={form.languages}
+          <TagInput label="Languages"   value={form.languages}
             onChange={v => upd('languages', v)} />
-          <TagInput label="Highlights"         value={form.highlights}
+          <TagInput label="Highlights"  value={form.highlights}
             onChange={v => upd('highlights', v)} />
-          <TagInput label="Experiences"        value={form.experiences}
+          <TagInput label="Experiences" value={form.experiences}
             onChange={v => upd('experiences', v)} />
-          <TagInput label="Travel Tips"        value={form.travel_tips}
+          <TagInput label="Travel Tips" value={form.travel_tips}
             onChange={v => upd('travel_tips', v)} />
         </motion.div>
       )
@@ -577,18 +791,16 @@ export default function Countries() {
               <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                 Country Image
               </p>
-              <div className="border-2 border-dashed border-emerald-200 rounded-2xl
-                bg-emerald-50/20 p-2">
+              <div className="border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/20 p-2">
                 <ImageUpload label="" value={form.image_url}
                   onChange={v => upd('image_url', v)} folder="countries" />
               </div>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                Cover / Banner Image
+                Cover / Banner
               </p>
-              <div className="border-2 border-dashed border-emerald-200 rounded-2xl
-                bg-emerald-50/20 p-2">
+              <div className="border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/20 p-2">
                 <ImageUpload label="" value={form.cover_image_url}
                   onChange={v => upd('cover_image_url', v)} folder="countries" />
               </div>
@@ -597,29 +809,36 @@ export default function Countries() {
 
           <div>
             <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">
-              Visibility Flags
+              Visibility
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FlagToggle checked={form.is_featured} onChange={v => upd('is_featured', v)}
-                label="Featured" desc="Show in featured destinations" />
-              <FlagToggle checked={form.is_active} onChange={v => upd('is_active', v)}
-                label="Active" desc="Visible on the public site" />
+              <FlagToggle
+                checked={form.is_featured}
+                onChange={v => upd('is_featured', v)}
+                label="Featured"
+                desc="Show in featured destinations"
+              />
+              <FlagToggle
+                checked={form.is_active}
+                onChange={v => upd('is_active', v)}
+                label="Active"
+                desc="Visible on the public site"
+              />
             </div>
           </div>
 
-          {/* Final summary */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50
-            border border-emerald-200">
+          {/* Summary */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200">
             <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-3">
               ✓ Summary
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
-                ['Name',      form.name       || '—'],
-                ['Capital',   form.capital    || '—'],
-                ['Continent', form.continent  || '—'],
-                ['Region',    form.region     || '—'],
-                ['Currency',  form.currency   || '—'],
+                ['Name',      form.name      || '—'],
+                ['Capital',   form.capital   || '—'],
+                ['Continent', form.continent || '—'],
+                ['Region',    form.region    || '—'],
+                ['Currency',  form.currency  || '—'],
                 ['Status',    form.is_active ? '🟢 Active' : '⚪ Inactive'],
               ].map(([k, v]) => (
                 <div key={k} className="flex gap-1.5">
@@ -636,16 +855,17 @@ export default function Countries() {
     }
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  /* ── Render ────────────────────────────────────────────────────────────── */
 
   return (
     <div className="space-y-5 page-enter">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title flex items-center gap-2">
-            <Globe2 size={28} className="text-emerald-600" /> Countries
+            <Globe2 size={28} className="text-emerald-600" />
+            Countries
           </h1>
           <p className="page-subtitle">Manage all countries ({pag.total} total)</p>
         </div>
@@ -659,43 +879,82 @@ export default function Countries() {
         </div>
       </div>
 
-      {/* ── Filters ── */}
+      {/* Filters */}
       <div className="card p-4">
         <FilterBar>
-          <SearchBar value={search} onChange={setSearch}
-            placeholder="Search countries…" className="max-w-sm" />
-          <FilterSelect label="Continent" value={continent}
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search countries…"
+            className="max-w-sm"
+          />
+          <FilterSelect
+            label="Continent"
+            value={continent}
             onChange={v => { setContinent(v); pag.reset() }}
             options={[
               { value: '', label: 'All Continents' },
               ...CONTINENTS.map(c => ({ value: c, label: c })),
-            ]} />
-          <FilterSelect label="Featured" value={featured}
+            ]}
+          />
+          <FilterSelect
+            label="Featured"
+            value={featured}
             onChange={v => { setFeatured(v); pag.reset() }}
             options={[
-              { value: '',      label: 'All'         },
-              { value: 'true',  label: 'Featured'    },
+              { value: '',      label: 'All' },
+              { value: 'true',  label: 'Featured' },
               { value: 'false', label: 'Not Featured' },
-            ]} />
+            ]}
+          />
         </FilterBar>
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="card">
-        <Table columns={columns} data={countries} loading={loading}
-          sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
-          onRowClick={row => viewModal.open(row)} emptyMessage="No countries found" />
+        <Table
+          columns={columns}
+          data={countries}
+          loading={loading}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={handleSort}
+          onRowClick={row => viewModal.open(row)}
+          emptyMessage="No countries found"
+          hoverActions={[
+            {
+              label: 'View',
+              icon: Eye,
+              onClick: row => viewModal.open(row),
+            },
+            {
+              label: 'Edit',
+              icon: Pencil,
+              onClick: row => openEdit(row),
+            },
+            {
+              label: 'Delete',
+              icon: Trash2,
+              variant: 'danger',
+              onClick: row => openDelete(row),
+            },
+          ]}
+        />
         <Pagination
-          page={pag.page} totalPages={pag.totalPages} total={pag.total}
-          limit={pag.limit} hasNext={pag.hasNext} hasPrev={pag.hasPrev}
-          onNext={pag.next} onPrev={pag.prev} onGoTo={pag.goTo}
+          page={pag.page}
+          totalPages={pag.totalPages}
+          total={pag.total}
+          limit={pag.limit}
+          hasNext={pag.hasNext}
+          hasPrev={pag.hasPrev}
+          onNext={pag.next}
+          onPrev={pag.prev}
+          onGoTo={pag.goTo}
           onPageSizeChange={pag.setPageSize}
         />
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════
-          VIEW MODAL
-          ════════════════════════════════════════════════════════════ */}
+      {/* ── View Modal ── */}
       <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
@@ -728,20 +987,24 @@ export default function Countries() {
                 className="w-full h-48 object-cover rounded-2xl"
               />
             )}
+
             <ModalSection title="General Information">
               <ModalGrid>
-                <ModalField label="Capital"      value={viewModal.data.capital} />
-                <ModalField label="Continent"    value={viewModal.data.continent} />
-                <ModalField label="Region"       value={viewModal.data.region} />
-                <ModalField label="Population"   value={formatNumber(viewModal.data.population)} />
+                <ModalField label="Capital"     value={viewModal.data.capital} />
+                <ModalField label="Continent"   value={viewModal.data.continent} />
+                <ModalField label="Region"      value={viewModal.data.region} />
+                <ModalField label="Population"  value={formatNumber(viewModal.data.population)} />
                 <ModalField label="Area"
-                  value={viewModal.data.area ? `${formatNumber(viewModal.data.area)} km²` : '—'} />
+                  value={viewModal.data.area ? `${formatNumber(viewModal.data.area)} km²` : '—'}
+                />
                 <ModalField label="Currency"
-                  value={`${viewModal.data.currency || ''} ${viewModal.data.currency_symbol || ''}`} />
-                <ModalField label="Timezone"      value={viewModal.data.timezone} />
-                <ModalField label="Calling Code"  value={viewModal.data.calling_code} />
+                  value={`${viewModal.data.currency || ''} ${viewModal.data.currency_symbol || ''}`.trim() || '—'}
+                />
+                <ModalField label="Timezone"     value={viewModal.data.timezone} />
+                <ModalField label="Calling Code" value={viewModal.data.calling_code} />
               </ModalGrid>
             </ModalSection>
+
             <ModalSection title="Travel Info">
               <ModalGrid>
                 <ModalField label="Best Time" value={viewModal.data.best_time_to_visit} />
@@ -751,6 +1014,7 @@ export default function Countries() {
                 value={viewModal.data.languages?.join(', ')} />
               <ModalField label="Description" value={viewModal.data.description} />
             </ModalSection>
+
             {viewModal.data.highlights?.length > 0 && (
               <ModalSection title="Highlights">
                 <div className="flex flex-wrap gap-2">
@@ -763,27 +1027,30 @@ export default function Countries() {
                 </div>
               </ModalSection>
             )}
+
             <ModalSection title="Status">
               <ModalGrid>
                 <ModalField label="Featured"
-                  value={<BooleanBadge value={viewModal.data.is_featured} />} />
+                  value={<BooleanBadge value={viewModal.data.is_featured} />}
+                />
                 <ModalField label="Active"
                   value={
-                    <BooleanBadge value={viewModal.data.is_active}
-                      trueLabel="Active" falseLabel="Inactive" />
+                    <BooleanBadge
+                      value={viewModal.data.is_active}
+                      trueLabel="Active"
+                      falseLabel="Inactive"
+                    />
                   }
                 />
                 <ModalField label="Destinations" value={viewModal.data.destination_count} />
-                <ModalField label="Views"         value={formatNumber(viewModal.data.view_count)} />
+                <ModalField label="Views"        value={formatNumber(viewModal.data.view_count)} />
               </ModalGrid>
             </ModalSection>
           </div>
         )}
       </Modal>
 
-      {/* ════════════════════════════════════════════════════════════════
-          MULTI-STEP FORM MODAL
-          ════════════════════════════════════════════════════════════ */}
+      {/* ── Form Modal ── */}
       <Modal
         isOpen={formModal.isOpen}
         onClose={formModal.close}
@@ -808,11 +1075,7 @@ export default function Countries() {
               ) : (
                 <button onClick={handleSave} className="btn-primary" disabled={saving}>
                   {saving ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/40 border-t-white
-                        rounded-full animate-spin" />
-                      Saving…
-                    </>
+                    <><Spinner /> Saving…</>
                   ) : editing ? (
                     <><Check size={15} /> Update Country</>
                   ) : (
@@ -829,7 +1092,7 @@ export default function Countries() {
             steps={STEPS}
             current={step}
             completed={completed}
-            onGoTo={goTo}
+            onGoTo={id => setStep(id)}
           />
           <div className="min-h-[340px]">
             <AnimatePresence mode="wait">
@@ -839,15 +1102,20 @@ export default function Countries() {
         </div>
       </Modal>
 
-      {/* ── Delete confirm ── */}
-      <ConfirmDialog
-        isOpen={deleteModal.isOpen}
-        onClose={deleteModal.close}
-        onConfirm={handleDelete}
-        type="delete"
-        title={`Delete ${deleteModal.data?.name}?`}
-        description="This will permanently remove the country and all associated data."
-      />
+      {/* ── Delete Dialog (replaces ConfirmDialog) ── */}
+      <AnimatePresence>
+        {deleteDialogOpen && (
+          <DeleteDialog
+            isOpen={deleteDialogOpen}
+            target={deleteTarget}
+            onClose={() => {
+              setDeleteDialogOpen(false)
+              setDeleteTarget(null)
+            }}
+            onDeleted={handleDeleteDone}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
