@@ -17,10 +17,12 @@ import React, { useState, useCallback, useMemo } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
+  Send, Smartphone,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useNotifications } from "@context/NotificationContext";
+import { usePush } from "@context/PushNotificationContext";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
@@ -188,6 +190,16 @@ export default function Notifications() {
     clearAll,
   } = useNotifications();
 
+  const {
+    supported,
+    permission,
+    subscribed,
+    loading: pushLoading,
+    subscribeUser,
+    unsubscribeUser,
+    requestPermission,
+  } = usePush()
+
   const [tab, setTab]       = useState("all");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState(null);
@@ -296,6 +308,9 @@ export default function Notifications() {
           )}
         </div>
       </div>
+
+      {/* ── Push Notifications ── */}
+      <PushNotificationBar />
 
       {/* Search */}
       <div className="mb-4 relative">
@@ -416,4 +431,117 @@ export default function Notifications() {
       />
     </div>
   );
+}
+
+/* ── Push Notification Bar ─────────────────────────────────────────── */
+
+function PushNotificationBar () {
+  const { supported, permission, subscribed, loading, subscribeUser, unsubscribeUser, requestPermission } = usePush()
+  const [showDetails, setShowDetails] = useState(false)
+  const [testSending, setTestSending] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  const handleTest = async () => {
+    setTestSending(true)
+    setTestResult(null)
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
+      const token = localStorage.getItem('altuvera_admin_token') || sessionStorage.getItem('altuvera_admin_token') || ''
+      const res = await fetch(`${apiBase}/push/test`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+      const data = await res.json()
+      setTestResult(data.message || data.error)
+    } catch {
+      setTestResult('Request failed')
+    } finally {
+      setTestSending(false)
+    }
+  }
+
+  if (!supported) return null
+
+  return (
+    <div className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Smartphone className="text-purple-600" size={18} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-800 truncate">Desktop Push Notifications</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {subscribed
+                ? 'You will receive alerts even when the panel is closed.'
+                : 'Enable push to receive alerts even when offline.'
+              }
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {subscribed ? (
+            <button
+              onClick={unsubscribeUser}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              Disable
+            </button>
+          ) : (
+            <button
+              onClick={
+                permission === 'granted'
+                  ? subscribeUser
+                  : requestPermission
+              }
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Working…' : permission === 'granted' ? 'Enable' : 'Allow'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowDetails((v) => !v)}
+            className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            {showDetails ? 'Hide' : 'Details'}
+          </button>
+        </div>
+      </div>
+
+      {showDetails && (
+        <div className="mt-3 pt-3 border-t border-purple-100 space-y-2">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-slate-500">Permission:</span>
+              <span className="ml-1 font-semibold text-slate-800">{permission}</span>
+            </div>
+            <div>
+              <span className="text-slate-500">Status:</span>
+              <span className={`ml-1 font-bold ${subscribed ? 'text-purple-700' : 'text-slate-600'}`}>
+                {subscribed ? 'Subscribed' : 'Not subscribed'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTest}
+            disabled={!subscribed || testSending}
+            className="btn-secondary btn-sm disabled:opacity-50"
+          >
+            <Send size={14} className={testSending ? 'animate-spin' : ''} />
+            Send Test Notification
+          </button>
+
+          {testResult && (
+            <p className="text-xs text-slate-600 mt-1">{testResult}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }

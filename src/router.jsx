@@ -36,6 +36,7 @@ const PagesPage     = lazy(() => import('@pages/Pages'))
 const Broadcast     = lazy(() => import('@pages/Broadcast'))
 const MessagesPage  = lazy(() => import('@pages/Messages'))
 const LikesPage     = lazy(() => import('@pages/Likes'))
+const Maintenance   = lazy(() => import('@pages/Maintenance'))
 
 /**
  * AdminLayout — lazy, handles both named + default export shapes.
@@ -266,6 +267,10 @@ const router = createBrowserRouter(
                 {
                     path:    'likes',
                     element: <Page title="Likes"><LikesPage /></Page>,
+                },
+                {
+                    path:    'maintenance',
+                    element: <Page title="Maintenance"><Maintenance /></Page>,
                 },
                 {
                     path:    'pages',

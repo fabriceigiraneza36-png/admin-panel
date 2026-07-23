@@ -3,6 +3,7 @@ import AppRouter from './router'
 import { AuthProvider } from '@context/AuthContext'
 import { SocketProvider } from '@context/SocketContext'
 import { NotificationProvider } from '@context/NotificationContext'
+import { PushProvider } from '@context/PushNotificationContext'
 
 /* ── Error boundary for catching render errors ── */
 class AppErrorBoundary extends React.Component {
@@ -76,7 +77,9 @@ export default function App() {
             <AuthProvider>
                 <SocketProvider>
                     <NotificationProvider>
-                        <AppRouter />
+                        <PushProvider>
+                            <AppRouter />
+                        </PushProvider>
                     </NotificationProvider>
                 </SocketProvider>
             </AuthProvider>

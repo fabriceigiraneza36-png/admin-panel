@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 
 import { subscribersAPI }  from '@api/subscribers'
+import { maintenanceAPI }  from '@api/maintenance'
 import Table, { TableActions, TableAction } from '@components/common/Table'
 import Pagination          from '@components/common/Pagination'
 import SearchBar           from '@components/common/SearchBar'
@@ -148,6 +149,8 @@ export default function Subscribers() {
   const [sending, setSending] = useState(false)
   const [search,  setSearch]  = useState('')
   const [nlForm,  setNlForm]  = useState(INIT_NL)
+  const [clearing, setClearing] = useState(false)
+  const [clearConfirm, setClearConfirm] = useState({ open: false })
 
   const dSearch = useDebounce(search, 400)
 
@@ -225,6 +228,24 @@ export default function Subscribers() {
       setSending(false)
     }
   }, [canSendNewsletter, nlForm, stats.active, newsletterModal, toast])
+
+  /* ── Clear all ───────────────────────────────────────────────────────────── */
+
+  const handleClearAll = useCallback(async () => {
+    setClearing(true)
+    try {
+      const { data } = await maintenanceAPI.purgeCategory('subscribers', 'DELETE_ALL')
+      toast.success(data.message || 'All subscribers cleared')
+      setItems([])
+      setSearch('')
+      pag.setTotal(0)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setClearing(false)
+      setClearConfirm({ open: false })
+    }
+  }, [pag, toast])
 
   /* ── Export CSV ─────────────────────────────────────────────────────────── */
 
@@ -317,6 +338,14 @@ export default function Subscribers() {
           >
             <Download size={14} />
             <span className="hidden sm:inline">Export CSV</span>
+          </button>
+          <button
+            onClick={() => setClearConfirm({ open: true })}
+            disabled={loading || pag.total === 0}
+            className="btn-danger btn-sm"
+          >
+            <Trash2 size={14} />
+            <span className="hidden sm:inline">Clear All</span>
           </button>
           <button
             onClick={() => newsletterModal.open()}
@@ -486,6 +515,17 @@ export default function Subscribers() {
             ? `This will unsubscribe ${deleteModal.data.email}. They can resubscribe later.`
             : 'This will unsubscribe the user.'
         }
+      />
+
+      <ConfirmDialog
+        isOpen={clearConfirm.open}
+        onClose={() => setClearConfirm({ open: false })}
+        onConfirm={handleClearAll}
+        type="delete"
+        title="Clear all subscribers?"
+        description="This will permanently delete every newsletter subscriber. This cannot be undone."
+        confirmLabel="Clear All"
+        loading={clearing}
       />
     </div>
   )

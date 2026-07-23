@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { MessageSquare, Eye, Trash2, RefreshCw, Star as StarIcon, Mail, Reply, Archive, AlertTriangle } from 'lucide-react'
 import { contactAPI }        from '@api/contact'
+import { maintenanceAPI }    from '@api/maintenance'
 import Table, { TableActions, TableAction } from '@components/common/Table'
 import Pagination            from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
@@ -22,6 +23,8 @@ export default function Contact() {
   const [search, setSearch] = useState(''), [statusFilt, setStatusFilt] = useState(''), [priorityFilt, setPriorityFilt] = useState('')
   const [sortBy, setSortBy] = useState('created_at'), [sortOrder, setSortOrder] = useState('desc')
   const [replyText, setReplyText] = useState('')
+  const [clearing, setClearing] = useState(false)
+  const [clearConfirm, setClearConfirm] = useState({ open: false })
   const dSearch = useDebounce(search, 400)
 
   const load = useCallback(async () => {
@@ -47,6 +50,21 @@ export default function Contact() {
   const handleDelete = async () => {
     try { await contactAPI.remove(deleteModal.data.id); toast.success('Deleted'); deleteModal.close(); load() }
     catch (e) { toast.error(getErrorMessage(e)) }
+  }
+
+  const handleClearAll = async () => {
+    setClearing(true)
+    try {
+      const { data } = await maintenanceAPI.purgeCategory('contact', 'DELETE_ALL')
+      toast.success(data.message || 'All contact messages cleared')
+      setItems([])
+      pag.setTotal(0)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setClearing(false)
+      setClearConfirm({ open: false })
+    }
   }
 
   const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
@@ -76,7 +94,9 @@ export default function Contact() {
   return (
     <div className="space-y-5 page-enter">
       <div className="page-header"><div><h1 className="page-title flex items-center gap-2"><MessageSquare size={28} className="text-primary-600" /> Contact Messages</h1><p className="page-subtitle">{pag.total} messages</p></div>
-        <button onClick={load} disabled={loading} className="btn-secondary btn-sm"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button></div>
+        <button onClick={load} disabled={loading} className="btn-secondary btn-sm"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
+        <button onClick={() => setClearConfirm({ open: true })} disabled={loading || pag.total === 0} className="btn-danger btn-sm">Clear All</button>
+      </div>
 
       <div className="card p-4"><FilterBar>
         <SearchBar value={search} onChange={setSearch} placeholder="Search messages…" className="max-w-sm" />
@@ -110,6 +130,8 @@ export default function Contact() {
       </Modal>
 
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} type="delete" title="Delete message?" description="This cannot be undone." />
+
+      <ConfirmDialog isOpen={clearConfirm.open} onClose={() => setClearConfirm({ open: false })} onConfirm={handleClearAll} type="delete" title="Clear all contact messages?" description="This will permanently delete every contact submission. This cannot be undone." confirmLabel="Clear All" loading={clearing} />
     </div>
   )
 }

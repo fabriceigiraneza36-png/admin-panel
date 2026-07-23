@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { commentsAPI, getErrorMessage } from "@api/comments";
+import { maintenanceAPI } from "@api/maintenance";
 import ConfirmDialog from "@components/common/ConfirmDialog";
 import { useToast }  from "@hooks/useToast";
 import { useDebounce } from "@hooks/useDebounce";
@@ -205,6 +206,8 @@ export default function Comments() {
   const search = useDebounce(searchInput, 400);
 
   const [confirm, setConfirm] = useState({ open: false, id: null });
+  const [clearing, setClearing] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState({ open: false });
 
   /* ── Fetch ─────────────────────────────────────────────────────────────── */
 
@@ -277,6 +280,24 @@ export default function Comments() {
     }
   }, [confirm.id, success, error]);
 
+  /* ── Clear all ──────────────────────────────────────────────────────────── */
+
+  const handleClearAll = useCallback(async () => {
+    setClearing(true);
+    try {
+      const { data } = await maintenanceAPI.purgeCategory('comments', 'DELETE_ALL');
+      success(data.message || 'All comments cleared');
+      setComments([]);
+      setTotal(0);
+      setPages(1);
+    } catch (err) {
+      error(getErrorMessage(err));
+    } finally {
+      setClearing(false);
+      setClearConfirm({ open: false });
+    }
+  }, [success, error]);
+
   /* ── Derived stats ─────────────────────────────────────────────────────── */
 
   const stats = useMemo(() => {
@@ -305,15 +326,23 @@ export default function Comments() {
             </p>
           </div>
         </div>
-        <button
-          onClick={fetchComments}
-          className="btn-secondary flex items-center gap-2"
-          disabled={loading}
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
+          <button
+            onClick={fetchComments}
+            className="btn-secondary flex items-center gap-2"
+            disabled={loading}
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            onClick={() => setClearConfirm({ open: true })}
+            disabled={loading || total === 0}
+            className="btn-danger flex items-center gap-2 text-xs"
+          >
+            <Trash2 size={14} />
+            <span className="hidden sm:inline">Clear All</span>
+          </button>
+        </div>
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-5">
@@ -422,6 +451,17 @@ export default function Comments() {
         title="Delete comment?"
         description="This permanently removes the comment. This action cannot be undone."
         loading={busyId === confirm.id}
+      />
+
+      <ConfirmDialog
+        isOpen={clearConfirm.open}
+        onClose={() => setClearConfirm({ open: false })}
+        onConfirm={handleClearAll}
+        type="delete"
+        title="Clear all comments?"
+        description="This will permanently delete ALL destination and country comments. This cannot be undone."
+        confirmLabel="Clear All"
+        loading={clearing}
       />
     </div>
   );

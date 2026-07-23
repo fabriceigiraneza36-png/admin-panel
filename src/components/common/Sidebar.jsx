@@ -20,7 +20,7 @@ import {
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
   Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone,
-  Heart, Sparkles, ChevronRight, Search,
+  Heart, Sparkles, ChevronRight, Search, Database,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -42,6 +42,7 @@ const NOTIF_TYPES = {
   review_posted:     { icon: '⭐', color: '#d97706', bg: '#fffbeb', label: 'Review' },
   checklist_request: { icon: '📝', color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
   system:            { icon: '🔧', color: '#64748b', bg: '#f8fafc', label: 'System' },
+  push_enabled:      { icon: '🔔', color: '#7c3aed', bg: '#faf5ff', label: 'Push' },
 }
 
 const getToken = () =>
@@ -565,7 +566,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart,
+  Package, Megaphone, Bell, Heart, Database,
 }
 
 const NAV_GROUPS = [
@@ -610,6 +611,7 @@ const NAV_GROUPS = [
     label: 'System',
     items: [
       { path: '/notifications', label: 'Notifications', icon: 'Bell', badge: 'notif' },
+      { path: '/maintenance', label: 'Maintenance', icon: 'Database' },
       { path: '/broadcast', label: 'Broadcast', icon: 'Megaphone' },
       { path: '/settings', label: 'Settings', icon: 'Settings' },
     ],
