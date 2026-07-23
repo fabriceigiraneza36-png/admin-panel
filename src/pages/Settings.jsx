@@ -199,7 +199,13 @@ export default function SettingsPage() {
       try {
         const { data } = await settingsAPI.getAll()
         const s = {}
-        ;(data.data || data.settings || []).forEach((r) => { s[r.key] = r.value })
+        const normalizeSettings = (payload) => {
+          const raw = payload?.data || payload?.settings || {}
+          if (Array.isArray(raw)) return raw
+          return Object.entries(raw).map(([key, value]) => ({ key, value }))
+        }
+        const rows = normalizeSettings(data)
+        rows.forEach((r) => { s[r.key] = r.value })
         setSettings(s)
         setOriginalSettings(s)
       } catch (e) {

@@ -7,6 +7,7 @@ import {
   Bell, Shield, Ban, DollarSign, CheckCircle2,
   XCircle, ArrowLeft, MapPin, Phone, Mail,
   Users, Bed, ClipboardList, AlertTriangle,
+  CheckSquare, Square, MessageSquare, Send,
 } from 'lucide-react'
 import { bookingsAPI }      from '@api/bookings'
 import { notificationsAPI } from '@api/notifications'
@@ -16,6 +17,7 @@ import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar
 import Badge                from '@components/common/Badge'
 import Avatar               from '@components/common/Avatar'
 import ConfirmDialog        from '@components/common/ConfirmDialog'
+import BulkActionsToolbar   from '@components/common/BulkActionsToolbar'
 import { useToast }         from '@hooks/useToast'
 import { usePagination }    from '@hooks/usePagination'
 import { useDebounce }      from '@hooks/useDebounce'
@@ -353,6 +355,10 @@ export default function Bookings() {
   const [sortOrder,   setSortOrder]   = useState('desc')
   const [requestFilter, setRequestFilter] = useState('')
 
+  // ── Selection / bulk actions ─────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const MAX_SELECT = 50
+
   // ── Delete confirm ────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState(null)
 
@@ -370,6 +376,16 @@ export default function Bookings() {
   // ── Cancellation review ───────────────────────────────────────────────────
   const [review,      setReview]      = useState({ decision: null, response: '', refund_amount: '' })
   const [reviewing,   setReviewing]   = useState(false)
+
+  // ── Quick message modal ───────────────────────────────────────────────────
+  const [msgBooking,  setMsgBooking]  = useState(null)
+  const [msgConvo,    setMsgConvo]    = useState(null)
+  const [msgMessages, setMsgMessages] = useState([])
+  const [msgLoading,  setMsgLoading]  = useState(false)
+  const [msgSending,  setMsgSending]  = useState(false)
+  const [msgDraft,    setMsgDraft]     = useState('')
+  const [msgError,    setMsgError]     = useState(null)
+  const msgScrollRef = useRef(null)
 
   const dSearch = useDebounce(search, 400)
 
@@ -448,6 +464,160 @@ export default function Bookings() {
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
+  // ── Selection helpers ────────────────────────────────────────────────────
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else if (next.size < MAX_SELECT) next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (prev.size === items.length && items.length < MAX_SELECT) return new Set()
+      const pageIds = items.slice(0, MAX_SELECT).map(i => i.id)
+      return new Set(pageIds)
+    })
+  }
+
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const isAllSelected = items.length > 0 && selectedIds.size === items.length && items.length <= MAX_SELECT
+  const isIndeterminate = selectedIds.size > 0 && !isAllSelected
+
+  const bulkSetStatus = async (newStatus) => {
+    if (!selectedIds.size) return
+    const ids = Array.from(selectedIds)
+    setSaving(true)
+    try {
+      await bookingsAPI.bulkStatus({ booking_ids: ids, status: newStatus })
+      toast.success(`Updated ${ids.length} booking${ids.length > 1 ? 's' : ''} to ${newStatus}`)
+      clearSelection()
+      load()
+      if (selected?.id && selectedIds.has(selected.id)) {
+        setSelected(s => ({ ...s, status: newStatus }))
+      }
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size) return
+    const ids = Array.from(selectedIds)
+    setDeleteTarget({ id: ids[0], bulk: ids })
+  }
+
+  // ── Quick message helpers ────────────────────────────────────────────────
+
+  const openMsgModal = async (booking) => {
+    setMsgBooking(booking)
+    setMsgConvo(null)
+    setMsgMessages([])
+    setMsgDraft('')
+    setMsgError(null)
+    setMsgLoading(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/messages/conversations/by-booking/${booking.id}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY) || ''}` },
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setMsgConvo(data.data)
+        setMsgMessages(data.data?.messages || [])
+      } else {
+        const data = await res.json().catch(() => ({}))
+        if (res.status === 404) {
+          const createRes = await fetch(`${API_BASE}/messages/admin/conversations`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY) || ''}`,
+            },
+            body: JSON.stringify({
+              bookingId: booking.id,
+              bookingNumber: booking.booking_number,
+              subject: `Booking ${booking.booking_number || booking.id}`,
+              firstMessage: '',
+            }),
+          })
+          const created = await createRes.json()
+          if (created.success) {
+            setMsgConvo(created.data)
+            setMsgMessages([])
+          } else {
+            setMsgError(created.message || 'Failed to open conversation')
+          }
+        } else {
+          setMsgError(data.message || 'Failed to load conversation')
+        }
+      }
+    } catch (e) {
+      setMsgError('Network error')
+    } finally {
+      setMsgLoading(false)
+      setTimeout(() => msgScrollRef.current?.scrollTo({ top: msgScrollRef.current.scrollHeight, behavior: 'smooth' }), 50)
+    }
+  }
+
+  const closeMsgModal = () => {
+    setMsgBooking(null)
+    setMsgConvo(null)
+    setMsgMessages([])
+    setMsgDraft('')
+    setMsgError(null)
+    setMsgSending(false)
+  }
+
+  const sendQuickMessage = async () => {
+    const text = msgDraft.trim()
+    if (!text || !msgConvo?.id || msgSending) return
+    setMsgSending(true)
+    setMsgError(null)
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      conversationId: msgConvo.id,
+      senderType: 'admin',
+      senderName: 'You',
+      body: text,
+      isRead: false,
+      reactions: {},
+      replyToId: null,
+      createdAt: new Date().toISOString(),
+    }
+    setMsgMessages(prev => [...prev, optimistic])
+    setMsgDraft('')
+    setTimeout(() => msgScrollRef.current?.scrollTo({ top: msgScrollRef.current.scrollHeight, behavior: 'smooth' }), 50)
+    try {
+      const res = await fetch(`${API_BASE}/messages/conversations/${msgConvo.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY) || ''}`,
+        },
+        body: JSON.stringify({ body: text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Failed to send')
+      setMsgMessages(prev => prev.map(m => m.id === optimistic.id ? { ...data.data, senderType: 'admin', senderName: 'You' } : m))
+      setMsgConvo(prev => prev ? { ...prev, last_message: text, last_message_at: new Date().toISOString() } : prev)
+    } catch (e) {
+      setMsgMessages(prev => prev.filter(m => m.id !== optimistic.id))
+      setMsgError(e.message)
+      setMsgDraft(text)
+    } finally {
+      setMsgSending(false)
+    }
+  }
+
   // ── Edit / save ────────────────────────────────────────────────────────────
 
   const handleUpdate = async () => {
@@ -484,8 +654,16 @@ export default function Bookings() {
 
   const handleDelete = async () => {
     try {
-      await bookingsAPI.remove(deleteTarget.id)
-      toast.success('Booking deleted')
+      if (deleteTarget.bulk && deleteTarget.bulk.length > 1) {
+        for (const id of deleteTarget.bulk) {
+          await bookingsAPI.remove(id)
+        }
+        toast.success(`${deleteTarget.bulk.length} bookings deleted`)
+        clearSelection()
+      } else {
+        await bookingsAPI.remove(deleteTarget.id)
+        toast.success('Booking deleted')
+      }
       setDeleteTarget(null)
       if (view !== VIEWS.LIST) goList()
       load()
@@ -648,6 +826,30 @@ export default function Bookings() {
 
   const columns = [
     {
+      key: '_select',
+      label: '',
+      width: '44px',
+      align: 'center',
+      render: (_, r) => {
+        const checked = selectedIds.has(r.id)
+        const disabled = !checked && selectedIds.size >= MAX_SELECT
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleSelect(r.id) }}
+            disabled={disabled}
+            className={`inline-flex items-center justify-center
+              w-5 h-5 rounded-md border-2 transition-all
+              ${checked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white hover:border-emerald-400'}
+              ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+            title={disabled ? `Max ${MAX_SELECT} selections` : (checked ? 'Deselect' : 'Select')}
+          >
+            {checked && <Check size={12} strokeWidth={3} />}
+          </button>
+        )
+      },
+    },
+    {
       key: 'booking_number', label: 'Booking #', sortable: true,
       render: v => (
         <span className="font-mono font-bold text-emerald-700 text-sm">
@@ -717,9 +919,11 @@ export default function Bookings() {
       render: v => <span className="text-sm text-slate-500">{formatTimeAgo(v)}</span>,
     },
     {
-      key: 'actions', label: '', align: 'right', width: '140px',
+      key: 'actions', label: '', align: 'right', width: '160px',
       render: (_, r) => (
         <TableActions>
+          <TableAction icon={MessageSquare} label="Message"
+            onClick={(e) => { e.stopPropagation(); openMsgModal(r) }} />
           <TableAction icon={Eye}    label="View"    onClick={() => goView(r)} />
           {r.status === 'pending' && (
             <TableAction icon={CheckCircle} label="Confirm"
@@ -1105,6 +1309,18 @@ export default function Bookings() {
 
           {/* Table */}
           <div className="card">
+            {!!selectedIds.size && (
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/80">
+                <BulkActionsToolbar
+                  selectedCount={selectedIds.size}
+                  maxSelect={MAX_SELECT}
+                  onClear={clearSelection}
+                  onBulkStatus={bulkSetStatus}
+                  onBulkDelete={bulkDelete}
+                  disabled={saving}
+                />
+              </div>
+            )}
             <Table columns={columns} data={items} loading={loading}
               sortBy={sortBy} sortOrder={sortOrder}
               onSort={(k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }}
@@ -1151,6 +1367,10 @@ export default function Bookings() {
                   <CheckCircle size={14} /> Confirm
                 </button>
               )}
+              <button onClick={() => openMsgModal(selected)}
+                className="btn-secondary btn-sm">
+                <MessageSquare size={14} /> Message
+              </button>
               <button onClick={() => goEdit(selected)} className="btn-secondary btn-sm">
                 <Pencil size={14} /> Edit
               </button>
@@ -1545,9 +1765,122 @@ export default function Bookings() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         type="delete"
-        title="Delete this booking?"
-        description={`Booking ${formatBookingNumber(deleteTarget?.booking_number)} will be permanently deleted. The customer will be notified.`}
+        title={deleteTarget?.bulk ? 'Delete selected bookings?' : 'Delete this booking?'}
+        description={
+          deleteTarget?.bulk
+            ? `${deleteTarget.bulk.length} bookings will be permanently deleted. This cannot be undone.`
+            : `Booking ${formatBookingNumber(deleteTarget?.booking_number)} will be permanently deleted. The customer will be notified.`
+        }
+        confirmLabel={deleteTarget?.bulk ? `Delete ${deleteTarget.bulk.length}` : 'Delete'}
       />
+
+      {/* ── Quick Message Modal ── */}
+      {msgBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={closeMsgModal} />
+          <div className="relative z-10 w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl
+                          shadow-2xl flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm">
+                  Message {msgBooking.full_name}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Booking {msgBooking.booking_number || `#${msgBooking.id}`} · {msgBooking.email}
+                </p>
+              </div>
+              <button onClick={closeMsgModal}
+                className="w-8 h-8 rounded-lg flex items-center justify-center
+                           hover:bg-slate-100 text-slate-400 transition">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Messages area */}
+            <div ref={msgScrollRef}
+              className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px] max-h-[50vh]">
+              {msgLoading ? (
+                <div className="text-center text-slate-400 text-sm py-10">
+                  Loading conversation...
+                </div>
+              ) : msgError ? (
+                <div className="text-center text-rose-500 text-sm py-6 bg-rose-50 rounded-xl">
+                  {msgError}
+                </div>
+              ) : msgMessages.length === 0 ? (
+                <div className="text-center text-slate-400 text-sm py-10">
+                  No messages yet. Start the conversation below.
+                </div>
+              ) : (
+                msgMessages.map(m => {
+                  const mine = m.sender_type === 'admin'
+                  return (
+                    <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed
+                        ${mine
+                          ? 'bg-emerald-600 text-white rounded-br-md'
+                          : 'bg-slate-100 text-slate-800 rounded-bl-md'}`}>
+                        {!mine && (
+                          <p className="text-[10px] font-bold text-emerald-600 mb-0.5">
+                            {m.sender_name || 'Customer'}
+                          </p>
+                        )}
+                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                        <p className={`text-[10px] mt-1 ${mine ? 'text-white/60' : 'text-slate-400'}`}>
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Composer */}
+            <div className="border-t border-slate-100 px-4 py-3 bg-white">
+              {msgConvo?.status === 'closed' && (
+                <div className="mb-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg
+                                text-[11px] text-slate-500 text-center">
+                  This conversation is closed. Sending a message will reopen it.
+                </div>
+              )}
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={msgDraft}
+                  onChange={e => setMsgDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      sendQuickMessage()
+                    }
+                  }}
+                  rows={1}
+                  placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+                  className="flex-1 resize-none text-sm px-3.5 py-2.5 rounded-xl border
+                             border-slate-200 bg-slate-50 outline-none max-h-32
+                             focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20
+                             focus:bg-white transition placeholder:text-slate-400"
+                />
+                <button
+                  onClick={sendQuickMessage}
+                  disabled={!msgDraft.trim() || msgSending}
+                  className="h-10 px-4 rounded-xl bg-emerald-600 text-white font-bold text-sm
+                             flex items-center gap-1.5 flex-shrink-0
+                             hover:bg-emerald-700 transition shadow-sm shadow-emerald-200
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Send size={15} />
+                  <span className="hidden sm:inline">
+                    {msgSending ? 'Sending…' : 'Send'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
