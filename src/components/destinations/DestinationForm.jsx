@@ -154,7 +154,7 @@ const DEFAULTS = {
   duration_days: '', duration_nights: '',
   min_group_size: 1, max_group_size: '', min_age: '', fitness_level: '',
   entrance_fee: '', operating_hours: '',
-  highlights: [], activities: [], wildlife: [],
+  highlights: [], activities: [], wildlife: [], gallery: [],
   is_featured: false, is_popular: false, is_new: false,
   is_eco_friendly: false, is_family_friendly: false, is_sold_out: false,
   meta_title: '', meta_description: '',
@@ -174,6 +174,10 @@ export default function DestinationForm({ destination, onSuccess, onClose }) {
   const fileRef = useRef(null)
 
   const isEdit = !!destination
+
+  const [gallery, setGallery] = useState([])
+  const [galleryUrls, setGalleryUrls] = useState([''])
+  const [galleryLoading, setGalleryLoading] = useState(false)
 
   // Load countries
   useEffect(() => {
@@ -235,10 +239,42 @@ export default function DestinationForm({ destination, onSuccess, onClose }) {
         meta_description:         destination.metaDescription || '',
       })
       if (destination.imageUrl) setImagePreview(destination.imageUrl)
+      if (destination.gallery?.length) {
+        setGallery(destination.gallery.map(g => ({ url: g.url || g.imageUrl, caption: g.caption || '' })))
+      }
     }
   }, [destination])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const addGalleryUrl = () => {
+    const url = galleryUrls[0]?.trim()
+    if (!url) return
+    setGallery(prev => [...prev, { url, caption: '' }])
+    setGalleryUrls([''])
+  }
+
+  const removeGalleryItem = (idx) => setGallery(prev => prev.filter((_, i) => i !== idx))
+
+  const updateGalleryCaption = (idx, caption) => {
+    setGallery(prev => prev.map((g, i) => i === idx ? { ...g, caption } : g))
+  }
+
+  const uploadGallery = async (destId) => {
+    const items = gallery.filter(g => g?.url)
+    if (!items.length) return
+    setGalleryLoading(true)
+    try {
+      const fd = new FormData()
+      items.forEach(g => fd.append('image_urls', g.url))
+      if (items[0]?.caption) fd.append('caption', items[0].caption)
+      await apiFetch(`/destinations/${destId}/images`, { method: 'POST', body: fd })
+    } catch (e) {
+      console.error('Gallery upload error:', e)
+    } finally {
+      setGalleryLoading(false)
+    }
+  }
 
   const handleFile = (e) => {
     const file = e.target.files[0]
@@ -260,27 +296,34 @@ export default function DestinationForm({ destination, onSuccess, onClose }) {
       let body
       let headers = {}
 
+      const { gallery: _g, ...rest } = form
+
       if (imageFile) {
         body = new FormData()
         body.append('image', imageFile)
-        Object.entries(form).forEach(([k, v]) => {
+        Object.entries(rest).forEach(([k, v]) => {
           if (Array.isArray(v)) {
             v.forEach(item => body.append(k, item))
           } else if (v !== '' && v !== null && v !== undefined) {
             body.append(k, v)
           }
         })
-        // Don't set Content-Type — browser sets it with boundary
       } else {
         headers['Content-Type'] = 'application/json'
-        body = JSON.stringify(form)
+        body = JSON.stringify(rest)
       }
 
       const method = isEdit ? 'PUT' : 'POST'
       const path   = isEdit ? `/destinations/${destination.id}` : '/destinations'
 
-      await apiFetch(path, { method, headers, body })
+      const res = await apiFetch(path, { method, headers, body })
+      const destId = res.data?.data?.id || destination?.id
       setSuccess(true)
+
+      if (destId) {
+        uploadGallery(destId)
+      }
+
       setTimeout(() => onSuccess?.(), 1200)
     } catch (e) {
       setError(e.message)
@@ -493,50 +536,110 @@ export default function DestinationForm({ destination, onSuccess, onClose }) {
 
     media: (
       <div className="space-y-4">
-        <SectionCard title="Primary Image" icon={Image}>
-          <div
-            onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all"
-          >
-            {imagePreview ? (
-              <div className="relative">
-                <img src={imagePreview} alt="Preview" className="w-full max-h-48 object-cover rounded-lg mx-auto" />
-                <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                  <p className="text-white text-sm font-medium">Click to change</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SectionCard title="Main Image" icon={Image}>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all"
+            >
+              {imagePreview ? (
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="w-full max-h-44 object-cover rounded-lg mx-auto" />
+                  <div className="absolute inset-0 bg-black/30 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <p className="text-white text-sm font-medium">Click to change</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <Upload size={32} className="mx-auto mb-2 text-gray-400" />
-                <p className="text-sm text-gray-600 font-medium">Click to upload image</p>
-                <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP up to 10MB</p>
-              </div>
-            )}
+              ) : (
+                <div>
+                  <Upload size={28} className="mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-600 font-medium">Click to upload image</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP up to 10MB</p>
+                </div>
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+            <div>
+              <Label>Or paste Image URL</Label>
+              <Input
+                value={form.image_url}
+                onChange={e => {
+                  set('image_url', e.target.value)
+                  if (e.target.value) setImagePreview(e.target.value)
+                }}
+                placeholder="https://..."
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Cover / Banner" icon={Image}>
+            <div>
+              <Label>Cover Image URL</Label>
+              <Input
+                value={form.hero_image}
+                onChange={e => set('hero_image', e.target.value)}
+                placeholder="https://..."
+              />
+              {form.hero_image && (
+                <div className="mt-3 rounded-xl overflow-hidden border border-gray-200">
+                  <img src={form.hero_image} alt="Cover preview" className="w-full h-36 object-cover"
+                    onError={e => { e.target.style.display = 'none' }} />
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        <SectionCard title="Gallery" icon={List} collapsible defaultOpen>
+          <p className="text-xs text-gray-500 mb-3">Add images to the destination gallery. These images will be uploaded after the destination is saved.</p>
+          {gallery.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+              {gallery.map((img, i) => (
+                <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 aspect-[4/3]">
+                  <img src={img.url} alt={img.caption || `Photo ${i+1}`} className="w-full h-full object-cover"
+                    onError={e => { e.target.src = 'https://placehold.co/200x150?text=?' }} />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1">
+                    <button type="button" onClick={() => updateGalleryCaption(i, prompt('Caption:', img.caption) || img.caption)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50">
+                      ✏️ Caption
+                    </button>
+                    <button type="button" onClick={() => removeGalleryItem(i)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600">
+                      <Trash2 size={10} /> Remove
+                    </button>
+                  </div>
+                  {img.caption && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                      <p className="text-[10px] text-white truncate">{img.caption}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>Add image by URL</Label>
+            <div className="flex gap-2">
+              <Input
+                value={galleryUrls[0] || ''}
+                onChange={e => setGalleryUrls([e.target.value])}
+                placeholder="https://example.com/photo.jpg"
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addGalleryUrl())}
+              />
+              <button type="button" onClick={addGalleryUrl}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium whitespace-nowrap">
+                <Plus size={16} /> Add
+              </button>
+            </div>
           </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          <div>
-            <Label>Or paste Image URL</Label>
-            <Input
-              value={form.image_url}
-              onChange={e => {
-                set('image_url', e.target.value)
-                if (e.target.value) setImagePreview(e.target.value)
-              }}
-              placeholder="https://..."
-            />
-          </div>
+          {galleryLoading && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 size={14} className="animate-spin" /> Uploading gallery...
+            </div>
+          )}
         </SectionCard>
 
-        <SectionCard title="Additional Media URLs" icon={Globe} collapsible defaultOpen={false}>
+        <SectionCard title="Video & Tour" icon={Globe} collapsible defaultOpen={false}>
           <div className="space-y-3">
-            <div>
-              <Label>Hero Image URL</Label>
-              <Input value={form.hero_image} onChange={e => set('hero_image', e.target.value)} placeholder="https://..." />
-            </div>
-            <div>
-              <Label>Thumbnail URL</Label>
-              <Input value={form.thumbnail_url} onChange={e => set('thumbnail_url', e.target.value)} placeholder="https://..." />
-            </div>
             <div>
               <Label>Video URL</Label>
               <Input value={form.video_url} onChange={e => set('video_url', e.target.value)} placeholder="https://youtube.com/..." />

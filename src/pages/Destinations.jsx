@@ -36,8 +36,8 @@ const INIT_FORM = {
   short_description: '', category: '', difficulty: '', destination_type: '',
   region: '', nearest_city: '', nearest_airport: '', best_time_to_visit: '',
   highlights: [], activities: [], wildlife: [],
-  image_url: '', cover_image_url: '', thumbnail_url: '',
-  gallery: [], // [{ url, caption, source:'upload'|'url' }]
+  image_url: '', hero_image: '', thumbnail_url: '',
+  gallery: [], // [{ url, caption }]
   duration_days: '', min_group_size: 1, max_group_size: '', min_age: '',
   fitness_level: '', latitude: '', longitude: '', altitude_meters: '',
   status: 'draft', is_featured: false, is_popular: false,
@@ -565,19 +565,19 @@ export default function Destinations() {
 
   const getAllFormImages = useCallback(() => {
     const imgs = []
-    if (form.cover_image_url) imgs.push({ url: form.cover_image_url, caption: 'Cover / Banner' })
-    if (form.image_url)       imgs.push({ url: form.image_url,       caption: 'Main Image'     })
-    if (form.thumbnail_url)   imgs.push({ url: form.thumbnail_url,   caption: 'Thumbnail'      })
+    if (form.hero_image)   imgs.push({ url: form.hero_image,   caption: 'Cover / Banner' })
+    if (form.image_url)    imgs.push({ url: form.image_url,    caption: 'Main Image'     })
+    if (form.thumbnail_url) imgs.push({ url: form.thumbnail_url, caption: 'Thumbnail'     })
     ;(form.gallery || []).forEach(g => imgs.push(g))
     return imgs
-  }, [form.cover_image_url, form.image_url, form.thumbnail_url, form.gallery])
+  }, [form.hero_image, form.image_url, form.thumbnail_url, form.gallery])
 
   const getViewImages = (d) => {
     if (!d) return []
     const imgs = []
-    if (d.cover_image_url) imgs.push({ url: d.cover_image_url, caption: 'Cover / Banner' })
-    if (d.image_url)       imgs.push({ url: d.image_url,       caption: 'Main Image'     })
-    if (d.thumbnail_url)   imgs.push({ url: d.thumbnail_url,   caption: 'Thumbnail'      })
+    if (d.heroImage || d.coverImageUrl) imgs.push({ url: d.heroImage || d.coverImageUrl, caption: 'Cover / Banner' })
+    if (d.imageUrl)       imgs.push({ url: d.imageUrl,       caption: 'Main Image'     })
+    if (d.thumbnailUrl)   imgs.push({ url: d.thumbnailUrl,   caption: 'Thumbnail'      })
     ;(d.gallery || []).forEach(g => imgs.push(g))
     return imgs
   }
@@ -594,6 +594,7 @@ export default function Destinations() {
     try {
       const params = {
         page: pag.page, limit: pag.limit, sortBy, order: sortOrder,
+        includeUnpublished: true,
         ...(dSearch   && { search: dSearch }),
         ...(category  && { category }),
         ...(status    && { status }),
@@ -648,6 +649,7 @@ export default function Destinations() {
     const f = { ...INIT_FORM }
     Object.keys(f).forEach(k => { if (d[k] !== undefined && d[k] !== null) f[k] = d[k] })
     f.country_id = String(d.country_id || '')
+    f.hero_image = d.heroImage || d.coverImageUrl || ''
     f.gallery    = d.gallery || []
     setForm(f); setEditing(d)
     setCurrentStep('basic')
@@ -664,8 +666,9 @@ export default function Destinations() {
     if (!form.country_id)  return toast.error('Country is required')
     setSaving(true)
     try {
+      const { gallery, ...rest } = form
       const payload = {
-        ...form,
+        ...rest,
         country_id:      Number(form.country_id),
         duration_days:   form.duration_days   ? Number(form.duration_days)   : null,
         max_group_size:  form.max_group_size  ? Number(form.max_group_size)  : null,
@@ -675,14 +678,31 @@ export default function Destinations() {
         longitude:       form.longitude       ? Number(form.longitude)       : null,
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
       }
+
+      let savedDest
       if (editing) {
-        await destinationsAPI.update(editing.id, payload)
+        const res = await destinationsAPI.update(editing.id, payload)
+        savedDest = res.data?.data || res.data
         toast.success('Destination updated')
       } else {
-        await destinationsAPI.create(payload)
+        const res = await destinationsAPI.create(payload)
+        savedDest = res.data?.data || res.data
         toast.success('Destination created')
       }
-      formModal.close(); load()
+
+      const destId = savedDest?.id || editing?.id
+      const galleryItems = (gallery || []).filter(g => g?.url)
+      if (destId && galleryItems.length > 0) {
+        const fd = new FormData()
+        galleryItems.forEach(g => fd.append('image_urls', g.url))
+        if (galleryItems[0]?.caption) fd.append('caption', galleryItems[0].caption)
+        await destinationsAPI.addImages(destId, fd)
+        toast.success('Gallery images saved')
+      }
+
+      setForm(INIT_FORM)
+      formModal.close()
+      load()
     } catch (e) {
       toast.error(getErrorMessage(e))
     } finally {
@@ -975,8 +995,8 @@ export default function Destinations() {
               />
               <ImageManagerPanel
                 label="Cover / Banner"
-                value={form.cover_image_url}
-                onChange={v => upd('cover_image_url', v)}
+                value={form.hero_image}
+                onChange={v => upd('hero_image', v)}
                 folder="destinations"
                 allImages={allImgs}
                 onLightbox={openLightbox}
