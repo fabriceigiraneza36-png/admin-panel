@@ -1,15 +1,16 @@
 ﻿// admin/src/pages/Destinations.jsx
-import React, { useEffect, useState, useCallback} from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Plus, Eye, Pencil, Trash2, MapPin, RefreshCw,
   Star, Globe2, Image, ListOrdered, Check,
-  ChevronRight, ChevronLeft, AlertTriangle,
+  ChevronRight, ChevronLeft, AlertTriangle, Navigation,
   Settings, Link, Upload, X, ZoomIn, ExternalLink,
   ImagePlus, Maximize2, ChevronDown, ChevronUp,
-  Camera, Shield, Tag, Mountain,
+  Camera, Shield, BookOpen, Tag, Mountain,
 } from 'lucide-react'
 import { destinationsAPI }  from '@api/destinations'
 import { countriesAPI }     from '@api/countries'
+import Table, { TableActions, TableAction } from '@components/common/Table'
 import Pagination           from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
 import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
