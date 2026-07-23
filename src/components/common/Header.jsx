@@ -185,8 +185,8 @@ export default function Header({ onMenuClick, isMobileOpen }) {
   const { success: toastSuccess } = useToast()
 
    /* Socket connection status */
-   const { isConnected } = useSocket()
-   const connected = isConnected
+   const { isOnline, connected, apiReachable } = useSocket()
+   const online = isOnline
 
   const notifUnread = useSelector(selectUnreadCount)
 
@@ -268,12 +268,18 @@ export default function Header({ onMenuClick, isMobileOpen }) {
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1
                        rounded-full text-xs font-semibold"
             style={{
-              background: connected ? '#f0fdf4' : '#fef2f2',
-              color:      connected ? '#065f46' : '#dc2626',
+              background: online ? '#f0fdf4' : '#fef2f2',
+              color:      online ? '#065f46' : '#dc2626',
             }}
-            title={connected ? 'Real-time connected' : 'Disconnected from server'}
+            title={
+              connected
+                ? 'Real-time connected'
+                : apiReachable
+                ? 'Backend reachable (real-time disconnected)'
+                : 'Disconnected from server'
+            }
           >
-            {connected
+            {online
               ? <><Wifi    size={11} /> Live</>
               : <><WifiOff size={11} /> Offline</>
             }

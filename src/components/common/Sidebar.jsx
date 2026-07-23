@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
+import { useSocket } from '@context/SocketContext'
 import Header from './Header'
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -52,10 +53,10 @@ const getToken = () =>
   ''
 
 function useAdminNotifications() {
+  const { isOnline } = useSocket()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [connected, setConnected] = useState(false)
   const pollRef = useRef(null)
   const mountedRef = useRef(true)
 
@@ -86,10 +87,8 @@ function useAdminNotifications() {
       const list = json.data || json.notifications || []
       setNotifications(list)
       setUnreadCount(list.filter(n => !n.is_read && !n.read_at).length)
-      setConnected(true)
     } catch {
       if (!mountedRef.current) return
-      setConnected(false)
       if (notifications.length === 0) injectMock()
     } finally {
       if (mountedRef.current) setLoading(false)
@@ -141,7 +140,7 @@ function useAdminNotifications() {
   }, [fetchNotifications])
 
   return {
-    notifications, unreadCount, loading, connected,
+    notifications, unreadCount, loading, connected: isOnline,
     NOTIF_TYPES, markAsRead, markAllAsRead, deleteNotification,
     refresh: fetchNotifications,
   }

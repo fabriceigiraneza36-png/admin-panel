@@ -33,8 +33,43 @@ const getStoredToken = () => {
 
 export function SocketProvider({ children }) {
   const socketRef   = useRef(null);
-  const [connected, setConnected]   = useState(false);
-  const [socketId,  setSocketId]    = useState(null);
+  const [connected, setConnected]       = useState(false);
+  const [socketId,  setSocketId]        = useState(null);
+  const [apiReachable, setApiReachable] = useState(false);
+  const healthTimerRef = useRef(null);
+
+  const checkApiHealth = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5_000);
+      const res = await fetch('/api/health', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const ok = res.ok;
+      setApiReachable(ok);
+      return ok;
+    } catch {
+      setApiReachable(false);
+      return false;
+    }
+  }, []);
+
+  const startHealthCheck = useCallback(() => {
+    checkApiHealth();
+    healthTimerRef.current = setInterval(() => {
+      checkApiHealth();
+    }, 30_000);
+  }, [checkApiHealth]);
+
+  const stopHealthCheck = useCallback(() => {
+    if (healthTimerRef.current) {
+      clearInterval(healthTimerRef.current);
+      healthTimerRef.current = null;
+    }
+  }, []);
 
   const connect = useCallback((token) => {
     if (socketRef.current?.connected) return socketRef.current;
@@ -45,10 +80,10 @@ export function SocketProvider({ children }) {
       auth:                  authToken ? { token: authToken } : {},
       transports:            ["websocket", "polling"],
       reconnection:          true,
-      reconnectionAttempts:  8,
-      reconnectionDelay:     1_000,
-      reconnectionDelayMax:  30_000,
-      timeout:               20_000,
+      reconnectionAttempts:  10,
+      reconnectionDelay:     500,
+      reconnectionDelayMax:  15_000,
+      timeout:               15_000,
       forceNew:              false,
     });
 
@@ -110,13 +145,21 @@ export function SocketProvider({ children }) {
   // Auto-connect on mount, disconnect on unmount
   useEffect(() => {
     connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+    startHealthCheck();
+    return () => {
+      disconnect();
+      stopHealthCheck();
+    };
+  }, [connect, disconnect, startHealthCheck, stopHealthCheck]);
+
+  const isOnline = connected || apiReachable;
 
   const value = {
     socket:    socketRef.current,
     connected,
     socketId,
+    apiReachable,
+    isOnline,
     connect,
     disconnect,
     getSocket,
