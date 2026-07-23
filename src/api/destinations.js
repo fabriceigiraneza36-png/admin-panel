@@ -141,7 +141,7 @@ export const linkTip = (id, data) =>
 export const unlinkTip = (id, tipId) =>
   client.delete(`${BASE}/${id}/tips/${tipId}`).then((r) => r.data);
 
-export default {
+export const destinationsAPI = {
   getAll, getOne, getFeatured, getPopular, getStats, getCategories,
   getDifficulties, getByCountry, search,
   create, update, updateJson, remove, restore, bulkUpdate,

@@ -548,7 +548,8 @@ function NewChatModal({ onClose, onCreated }) {
   const [subject,      setSubject]      = useState('')
   const [firstMsg,     setFirstMsg]     = useState('')
   const [creating,     setCreating]     = useState(false)
-  const [error,        setError]        = useState('')
+   const [error,        setError]        = useState('')
+  const [subjectFocused, setSubjectFocused] = useState(false)
   const searchRef = useRef(null)
   const taRef     = useRef(null)
 
