@@ -3,7 +3,7 @@
 // ROUTER v2.2 — per-route browser tab titles
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { lazy, Suspense, Component, useEffect } from 'react'
+import React, { Suspense, Component, useEffect } from 'react'
 import {
     createBrowserRouter,
     RouterProvider,
@@ -11,6 +11,7 @@ import {
 } from 'react-router-dom'
 import ProtectedRoute from '@components/common/ProtectedRoute'
 import Loader         from '@components/common/Loader'
+import AdminLayout    from '@components/common/Sidebar'
 
 // ── Lazy pages ────────────────────────────────────────────────────────────────
 
@@ -39,13 +40,9 @@ const LikesPage     = lazy(() => import('@pages/Likes'))
 const Maintenance   = lazy(() => import('@pages/Maintenance'))
 
 /**
- * AdminLayout — lazy, handles both named + default export shapes.
+ * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
+ * This avoids Vercel CDN edge-cache 404s on the old dynamic Sidebar chunk.
  */
-const AdminLayout = lazy(() =>
-    import('@components/common/Sidebar').then((mod) => ({
-        default: mod.AdminLayout ?? mod.default,
-    })),
-)
 
 // ── App name ──────────────────────────────────────────────────────────────────
 
@@ -174,9 +171,7 @@ const router = createBrowserRouter(
             element: (
                 <ProtectedRoute>
                     <RouteErrorBoundary>
-                        <Suspense fallback={<Loader fullScreen />}>
-                            <AdminLayout />
-                        </Suspense>
+                        <AdminLayout />
                     </RouteErrorBoundary>
                 </ProtectedRoute>
             ),
