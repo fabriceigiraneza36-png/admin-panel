@@ -122,10 +122,9 @@ const INITIAL_FORM = {
 }
 
 const STEPS = [
-  { id: 'identity',  label: 'Identity',  icon: MapPin,    desc: 'Name, category & location'  },
+  { id: 'identity',  label: 'Identity',  icon: MapPin,    desc: 'Name, category & type'  },
   { id: 'details',   label: 'Details',   icon: Info,      desc: 'Descriptions & practical'    },
-  { id: 'logistics', label: 'Logistics', icon: Compass,   desc: 'Duration, pricing & groups'  },
-  { id: 'content',   label: 'Content',   icon: BookOpen,  desc: 'Lists, FAQs & itinerary'     },
+  { id: 'content',   label: 'Content',   icon: BookOpen,  desc: 'Highlights, tags & FAQs'     },
   { id: 'media',     label: 'Media',     icon: Camera,    desc: 'All images & videos'         },
   { id: 'settings',  label: 'Settings',  icon: Shield,    desc: 'SEO, flags & visibility'     },
 ]
@@ -1090,51 +1089,6 @@ export default function Destinations() {
                 onChange={e=>upd('region',e.target.value)} placeholder="Northern Province"/>
             </Field>
           </div>
-
-          {/* Location details */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/60 to-cyan-50/40 border-2 border-blue-100 space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider"><Navigation size={11} className="text-blue-500"/>Location Details</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field label="Nearest City" icon={MapPin}>
-                <input className={inputClass} value={form.nearest_city}
-                  onChange={e=>upd('nearest_city',e.target.value)} placeholder="Musanze"/>
-              </Field>
-              <Field label="Nearest Airport" icon={Plane}>
-                <input className={inputClass} value={form.nearest_airport}
-                  onChange={e=>upd('nearest_airport',e.target.value)} placeholder="Kigali Intl"/>
-              </Field>
-              <Field label="Distance from Airport (km)" icon={Ruler}>
-                <input className={inputClass} type="number" value={form.distance_from_airport_km}
-                  onChange={e=>upd('distance_from_airport_km',e.target.value)} placeholder="110"/>
-              </Field>
-            </div>
-            <Field label="Address / Access Point" icon={MapPin}>
-              <input className={inputClass} value={form.address}
-                onChange={e=>upd('address',e.target.value)} placeholder="Kinigi trailhead, Volcanoes NP"/>
-            </Field>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Latitude" icon={Navigation}>
-                <input className={`${inputClass} font-mono text-xs`} type="number" step="any"
-                  value={form.latitude} onChange={e=>upd('latitude',e.target.value)} placeholder="-1.5067"/>
-              </Field>
-              <Field label="Longitude" icon={Navigation}>
-                <input className={`${inputClass} font-mono text-xs`} type="number" step="any"
-                  value={form.longitude} onChange={e=>upd('longitude',e.target.value)} placeholder="29.4431"/>
-              </Field>
-              <Field label="Altitude (m)" icon={Mountain}>
-                <input className={inputClass} type="number"
-                  value={form.altitude_meters} onChange={e=>upd('altitude_meters',e.target.value)} placeholder="4507"/>
-              </Field>
-            </div>
-            {form.latitude && form.longitude && (
-              <motion.div initial={{opacity:0,y:5}} animate={{opacity:1,y:0}}
-                className="p-2.5 rounded-xl bg-blue-100/60 border border-blue-200">
-                <p className="text-xs text-blue-600 font-medium text-center">
-                  📍 {Number(form.latitude).toFixed(4)}°, {Number(form.longitude).toFixed(4)}°
-                </p>
-              </motion.div>
-            )}
-          </div>
         </motion.div>
       )
 
@@ -1181,92 +1135,10 @@ export default function Destinations() {
                 placeholder="Altitude sickness risks, emergency info…"/>
             </Field>
             <Field label="Best Time to Visit" icon={Calendar}>
-              <textarea className={`${textareaClass} min-h-[90px]`} value={form.getting_there}
+              <textarea className={`${textareaClass} min-h-[90px]`} value={form.best_time_to_visit}
                 onChange={e=>upd('best_time_to_visit',e.target.value)}
                 placeholder="June–September for dry season…"/>
             </Field>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Entrance Fee" icon={DollarSign}>
-              <input className={inputClass} value={form.entrance_fee}
-                onChange={e=>upd('entrance_fee',e.target.value)} placeholder="$400 climbing permit"/>
-            </Field>
-            <Field label="Operating Hours" icon={Clock}>
-              <input className={inputClass} value={form.operating_hours}
-                onChange={e=>upd('operating_hours',e.target.value)} placeholder="Trek starts 07:00 from Kinigi"/>
-            </Field>
-          </div>
-        </motion.div>
-      )
-
-      /* ─── LOGISTICS ─────────────────────────────────────────────── */
-      case 'logistics': return (
-        <motion.div key="logistics" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-100">
-            <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center"><Compass size={18} className="text-teal-600"/></div>
-            <div><h3 className="text-sm font-bold text-teal-800">Logistics & Pricing</h3><p className="text-xs text-teal-600">Duration, groups and costs</p></div>
-          </div>
-
-          {/* Duration */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-100 space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 uppercase tracking-wider"><Clock size={11} className="text-emerald-500"/>Duration</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field label="Duration Label" hint="e.g., 2 Days 1 Night">
-                <input className={inputClass} value={form.duration}
-                  onChange={e=>upd('duration',e.target.value)} placeholder="1 Night"/>
-              </Field>
-              <Field label="Days" icon={Calendar}>
-                <input className={inputClass} type="number" value={form.duration_days}
-                  onChange={e=>upd('duration_days',e.target.value)} placeholder="2"/>
-              </Field>
-              <Field label="Nights" icon={Tent}>
-                <input className={inputClass} type="number" value={form.duration_nights}
-                  onChange={e=>upd('duration_nights',e.target.value)} placeholder="1"/>
-              </Field>
-            </div>
-          </div>
-
-          {/* Pricing */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-100 space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider"><DollarSign size={11} className="text-blue-500"/>Pricing</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Price From" icon={DollarSign}>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">{form.price_currency||'$'}</span>
-                  <input className={`${inputClass} pl-10`} type="number" value={form.price_from}
-                    onChange={e=>upd('price_from',e.target.value)} placeholder="0"/>
-                </div>
-              </Field>
-              <Field label="Currency" icon={DollarSign}>
-                <select className={selectClass} value={form.price_currency} onChange={e=>upd('price_currency',e.target.value)}>
-                  {['USD','EUR','GBP','RWF','KES','TZS','UGX'].map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
-              </Field>
-            </div>
-          </div>
-
-          {/* Group size */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-50 to-violet-50 border-2 border-purple-100 space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-purple-700 uppercase tracking-wider"><Users size={11} className="text-purple-500"/>Group & Age</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Min Group Size" icon={Users}>
-                <input className={inputClass} type="number" value={form.min_group_size}
-                  onChange={e=>upd('min_group_size',e.target.value)} placeholder="1"/>
-              </Field>
-              <Field label="Max Group Size" icon={Users}>
-                <input className={inputClass} type="number" value={form.max_group_size}
-                  onChange={e=>upd('max_group_size',e.target.value)} placeholder="8"/>
-              </Field>
-              <Field label="Min Age" icon={Users}>
-                <input className={inputClass} type="number" value={form.min_age}
-                  onChange={e=>upd('min_age',e.target.value)} placeholder="16"/>
-              </Field>
-              <Field label="Fitness Level" icon={Activity}>
-                <input className={inputClass} value={form.fitness_level}
-                  onChange={e=>upd('fitness_level',e.target.value)} placeholder="High"/>
-              </Field>
-            </div>
           </div>
         </motion.div>
       )
@@ -1276,7 +1148,7 @@ export default function Destinations() {
         <motion.div key="content" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><BookOpen size={18} className="text-emerald-600"/></div>
-            <div><h3 className="text-sm font-bold text-emerald-800">Content & Lists</h3><p className="text-xs text-emerald-600">Highlights, wildlife, FAQs & itinerary</p></div>
+            <div><h3 className="text-sm font-bold text-emerald-800">Content & Lists</h3><p className="text-xs text-emerald-600">Highlights, tags & FAQs</p></div>
           </div>
 
           {/* Tag arrays */}
@@ -1311,11 +1183,6 @@ export default function Destinations() {
               </label>
               <TagInput value={form.tags} onChange={v=>upd('tags',v)} placeholder="Add tag…"/>
             </div>
-          </div>
-
-          {/* Itinerary */}
-          <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
-            <ItineraryEditor items={form.itinerary} onChange={v=>upd('itinerary',v)}/>
           </div>
 
           {/* FAQs */}
@@ -1439,16 +1306,14 @@ export default function Destinations() {
               <Check size={14} className="text-emerald-200"/>
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-100">Ready to Save — Summary</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 ['Name',       form.name          || '—'],
                 ['Country',    countries.find(c=>String(c.id)===String(form.country_id))?.name || '—'],
                 ['Category',   form.category      || '—'],
                 ['Difficulty', form.difficulty    || '—'],
-                ['Duration',   form.duration      || '—'],
                 ['Status',     form.is_active     ? '✓ Active' : '○ Draft'],
                 ['Gallery',    `${(form.gallery||[]).length} photo(s)`],
-                ['Itinerary',  `${(form.itinerary||[]).length} day(s)`],
                 ['Featured',   form.is_featured   ? '⭐ Yes' : 'No'],
               ].map(([k,v])=>(
                 <div key={k} className="bg-white/10 rounded-xl p-2.5">

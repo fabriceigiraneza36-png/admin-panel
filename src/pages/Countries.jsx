@@ -48,6 +48,19 @@ const STEPS = [
   { id: 'media',     label: 'Media',      icon: Image,        desc: 'Photos & visibility',           color: 'green'   },
 ]
 
+const parsePopulation = (val) => {
+  if (!val) return null
+  const s = String(val).toLowerCase().trim()
+  const m = s.match(/^([\d,\.]+)\s*(million|billion|m|b)?$/)
+  if (!m) return null
+  const num = parseFloat(m[1].replace(/,/g, ''))
+  if (!Number.isFinite(num)) return null
+  const suffix = m[2] || ''
+  if (suffix.startsWith('m')) return Math.round(num * 1_000_000)
+  if (suffix.startsWith('b')) return Math.round(num * 1_000_000_000)
+  return Math.round(num)
+}
+
 const STEP_IDS = STEPS.map(s => s.id)
 
 const CONTINENT_COLORS = {
@@ -905,7 +918,7 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        population: form.population ? Number(form.population) : null,
+        population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
         latitude:   form.latitude   ? Number(form.latitude)   : null,
         longitude:  form.longitude  ? Number(form.longitude)  : null,
@@ -1092,8 +1105,8 @@ export default function Countries() {
             <Field label="Population" icon={Users}>
               <div className="relative">
                 <Users size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-                <input className={`${inputClass} pl-9`} type="number" value={form.population}
-                  onChange={e => upd('population', e.target.value)} placeholder="13,000,000" />
+                <input className={`${inputClass} pl-9`} type="text" value={form.population}
+                  onChange={e => upd('population', e.target.value)} placeholder="13 million" />
               </div>
             </Field>
             <Field label="Area (km²)" icon={Ruler}>
