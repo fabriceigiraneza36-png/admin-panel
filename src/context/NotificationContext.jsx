@@ -8,6 +8,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+import { useSocket } from "@context/SocketContext";
 
 const NotificationContext = createContext(null);
 
@@ -68,19 +69,9 @@ export function NotificationProvider({ children }) {
   let socketOn  = null;
   let socketOff = null;
   try {
-    // Dynamic import so panel works even without SocketContext
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const socketCtx = useContext(
-      // Lazy-require to avoid hard import crash
-      (() => {
-        try { return require("./SocketContext").SocketContext; }
-        catch { return React.createContext(null); }
-      })(),
-    );
-    if (socketCtx) {
-      socketOn  = socketCtx.on;
-      socketOff = socketCtx.off;
-    }
+    const ctx = useSocket();
+    socketOn  = ctx.on;
+    socketOff = ctx.off;
   } catch { /* SocketContext not available */ }
 
   /* ══════════════════════════════════════════════════════════
