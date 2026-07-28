@@ -11,7 +11,7 @@ import {
 } from 'react-router-dom'
 import ProtectedRoute from '@components/common/ProtectedRoute'
 import Loader         from '@components/common/Loader'
-import AdminLayout    from '@components/common/Sidebar'
+import { AdminLayout } from '@components/common/Sidebar'
 
 // ── Lazy pages ────────────────────────────────────────────────────────────────
 
