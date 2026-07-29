@@ -3,7 +3,7 @@
 // ROUTER v2.2 — per-route browser tab titles
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { Suspense, Component, useEffect } from 'react'
+import React, { Component, useEffect } from 'react'
 import {
     createBrowserRouter,
     RouterProvider,
@@ -13,31 +13,31 @@ import ProtectedRoute from '@components/common/ProtectedRoute'
 import Loader         from '@components/common/Loader'
 import { AdminLayout } from '@components/common/Sidebar'
 
-// ── Lazy pages ────────────────────────────────────────────────────────────────
+// ── Page imports — all eager to avoid Vercel chunk 404s ──────────────────────
 
-const Login         = lazy(() => import('@pages/Login'))
-const Dashboard     = lazy(() => import('@pages/Dashboard'))
-const Notifications = lazy(() => import('@pages/Notifications'))
-const Countries     = lazy(() => import('@pages/Countries'))
-const Destinations  = lazy(() => import('@pages/Destinations'))
-const Comments      = lazy(() => import('@pages/Comments'))
-const Bookings      = lazy(() => import('@pages/Bookings'))
-const Packages      = lazy(() => import('@pages/Packages'))
-const Users         = lazy(() => import('@pages/Users'))
-const Posts         = lazy(() => import('@pages/Posts'))
-const FAQs          = lazy(() => import('@pages/FAQs'))
-const Tips          = lazy(() => import('@pages/Tips'))
-const Team          = lazy(() => import('@pages/Team'))
-const Testimonials  = lazy(() => import('@pages/Testimonials'))
-const Gallery       = lazy(() => import('@pages/Gallery'))
-const Contact       = lazy(() => import('@pages/Contact'))
-const Subscribers   = lazy(() => import('@pages/Subscribers'))
-const Settings      = lazy(() => import('@pages/Settings'))
-const PagesPage     = lazy(() => import('@pages/Pages'))
-const Broadcast     = lazy(() => import('@pages/Broadcast'))
-const MessagesPage  = lazy(() => import('@pages/Messages'))
-const LikesPage     = lazy(() => import('@pages/Likes'))
-const Maintenance   = lazy(() => import('@pages/Maintenance'))
+import Login         from '@pages/Login'
+import Dashboard     from '@pages/Dashboard'
+import Notifications from '@pages/Notifications'
+import Countries     from '@pages/Countries'
+import Destinations  from '@pages/Destinations'
+import Comments      from '@pages/Comments'
+import Bookings      from '@pages/Bookings'
+import Packages      from '@pages/Packages'
+import Users         from '@pages/Users'
+import Posts         from '@pages/Posts'
+import FAQs          from '@pages/FAQs'
+import Tips          from '@pages/Tips'
+import Team          from '@pages/Team'
+import Testimonials  from '@pages/Testimonials'
+import Gallery       from '@pages/Gallery'
+import Contact       from '@pages/Contact'
+import Subscribers   from '@pages/Subscribers'
+import Settings      from '@pages/Settings'
+import PagesPage     from '@pages/Pages'
+import Broadcast     from '@pages/Broadcast'
+import MessagesPage  from '@pages/Messages'
+import LikesPage     from '@pages/Likes'
+import Maintenance   from '@pages/Maintenance'
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
