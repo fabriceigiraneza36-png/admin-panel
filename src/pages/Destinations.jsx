@@ -52,10 +52,6 @@ const INITIAL_FORM = {
   difficulty:         '',
   status:             'published',
   region:             '',
-  nearest_city:       '',
-  nearest_airport:    '',
-  distance_from_airport_km: '',
-  address:            '',
 
   // Descriptions
   description:        '',
@@ -64,24 +60,7 @@ const INITIAL_FORM = {
   getting_there:      '',
   what_to_expect:     '',
   safety_info:        '',
-  entrance_fee:       '',
-  operating_hours:    '',
-
-  // Coordinates
-  latitude:           '',
-  longitude:          '',
-  altitude_meters:    '',
-
-  // Pricing / duration
-  price_from:         '',
-  price_currency:     'USD',
-  duration:           '',
-  duration_days:      '',
-  duration_nights:    '',
-  min_group_size:     '',
-  max_group_size:     '',
-  min_age:            '',
-  fitness_level:      '',
+  best_time_to_visit: '',
 
   // Country
   country_id:         '',
@@ -99,26 +78,14 @@ const INITIAL_FORM = {
   wildlife:           [],
   local_tips:         [],
   tags:               [],
-
-  // Gallery (array of { url, caption, is_primary, sort_order })
+  faqs:               [],
   gallery:            [],
 
-  // Structured
-  itinerary:          [],  // [{ day, title, description }]
-  faqs:               [],  // [{ question, answer }]
-
-  // SEO
+  // SEO / flags
   meta_title:         '',
   meta_description:   '',
-
-  // Flags
-  is_active:          true,
   is_featured:        false,
-  is_popular:         false,
-  is_new:             false,
-  is_eco_friendly:    false,
-  is_family_friendly: false,
-  is_sold_out:        false,
+  is_active:          true,
 }
 
 const STEPS = [
@@ -802,10 +769,6 @@ export default function Destinations() {
     difficulty:         dest.difficulty         || '',
     status:             dest.status             || 'published',
     region:             dest.region             || '',
-    nearest_city:       dest.nearestCity        || dest.nearest_city || '',
-    nearest_airport:    dest.nearestAirport     || dest.nearest_airport || '',
-    distance_from_airport_km: dest.distanceFromAirportKm ?? dest.distance_from_airport_km ?? '',
-    address:            dest.address            || '',
 
     description:        dest.description        || '',
     short_description:  dest.shortDescription   || dest.short_description || '',
@@ -813,22 +776,7 @@ export default function Destinations() {
     getting_there:      dest.gettingThere       || dest.getting_there || '',
     what_to_expect:     dest.whatToExpect       || dest.what_to_expect || '',
     safety_info:        dest.safetyInfo         || dest.safety_info || '',
-    entrance_fee:       dest.entranceFee        || dest.entrance_fee || '',
-    operating_hours:    dest.operatingHours     || dest.operating_hours || '',
-
-    latitude:           dest.latitude           ?? dest.mapPosition?.lat ?? '',
-    longitude:          dest.longitude          ?? dest.mapPosition?.lng ?? '',
-    altitude_meters:    dest.altitudeMeters     ?? dest.altitude_meters ?? '',
-
-    price_from:         dest.priceFrom          ?? dest.price_from ?? '',
-    price_currency:     dest.priceCurrency      || dest.price_currency || 'USD',
-    duration:           dest.duration           || '',
-    duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
-    duration_nights:    dest.durationNights     ?? dest.duration_nights ?? '',
-    min_group_size:     dest.minGroupSize       ?? dest.min_group_size ?? '',
-    max_group_size:     dest.maxGroupSize       ?? dest.max_group_size ?? '',
-    min_age:            dest.minAge             ?? dest.min_age ?? '',
-    fitness_level:      dest.fitnessLevel       || dest.fitness_level || '',
+    best_time_to_visit: dest.bestTimeToVisit    || dest.best_time_to_visit || '',
 
     country_id:         dest.countryId          ?? dest.country_id ?? dest.country?.id ?? '',
 
@@ -869,7 +817,7 @@ export default function Destinations() {
   const openEdit = (dest) => {
     setForm(buildForm(dest)); setEditing(dest)
     setStep('identity')
-    setCompleted(['identity','details','logistics','content','media'])
+    setCompleted(['identity','details','content','media'])
     setErrors({})
     formModal.open()
   }
@@ -914,18 +862,7 @@ export default function Destinations() {
       const payload = {
         ...form,
         slug:         form.slug || toSlug(form.name),
-        latitude:     form.latitude     ? Number(form.latitude)     : null,
-        longitude:    form.longitude    ? Number(form.longitude)    : null,
-        altitude_meters: form.altitude_meters ? Number(form.altitude_meters) : null,
-        price_from:   form.price_from   ? Number(form.price_from)   : null,
-        duration_days:  form.duration_days  ? Number(form.duration_days)  : null,
-        duration_nights: form.duration_nights ? Number(form.duration_nights) : null,
-        min_group_size: form.min_group_size ? Number(form.min_group_size) : null,
-        max_group_size: form.max_group_size ? Number(form.max_group_size) : null,
-        min_age:      form.min_age      ? Number(form.min_age)      : null,
-        distance_from_airport_km: form.distance_from_airport_km
-          ? Number(form.distance_from_airport_km) : null,
-        country_id:   form.country_id   ? Number(form.country_id)   : null,
+        country_id:   form.country_id ? Number(form.country_id) : null,
       }
 
       if (editing) {
@@ -1471,13 +1408,7 @@ export default function Destinations() {
                   <ModalField label="Category"    value={d.category||d.classification}/>
                   <ModalField label="Difficulty"  value={d.difficulty}/>
                   <ModalField label="Region"      value={d.region}/>
-                  <ModalField label="Duration"    value={d.duration}/>
-                  <ModalField label="Price From"  value={d.priceFrom||d.price_from ? `${d.priceCurrency||d.price_currency||'$'} ${d.priceFrom||d.price_from}` : '—'}/>
                   <ModalField label="Rating"      value={d.rating ? `${d.rating} ⭐ (${d.reviewCount||d.review_count||0} reviews)` : '—'}/>
-                  <ModalField label="Altitude"    value={d.altitudeMeters||d.altitude_meters ? `${d.altitudeMeters||d.altitude_meters}m` : '—'}/>
-                  <ModalField label="Coordinates" value={d.latitude ? `${d.latitude}°, ${d.longitude}°` : '—'}/>
-                  <ModalField label="Entrance Fee" value={d.entranceFee||d.entrance_fee}/>
-                  <ModalField label="Hours"       value={d.operatingHours||d.operating_hours}/>
                   <ModalField label="Status"      value={<Badge status={(d.isActive||d.is_active)?'active':'inactive'} label={(d.isActive||d.is_active)?'Active':'Inactive'}/>}/>
                 </ModalGrid>
               </ModalSection>
