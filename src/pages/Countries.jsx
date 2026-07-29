@@ -36,7 +36,8 @@ const INITIAL_FORM = {
   health_info: '', currency: '', currency_symbol: '', timezone: '',
   calling_code: '', languages: [], official_languages: [], highlights: [],
   experiences: [], travel_tips: [], image_url: '', cover_image_url: '',
-  gallery: [], // array of { url, caption, source:'upload'|'url' }
+  gallery: [], // array of { url, caption, source:'upload'|'url' },
+  hero_image: '',
   latitude: '', longitude: '', is_featured: false, is_active: true,
 }
 
@@ -861,6 +862,7 @@ export default function Countries() {
     experiences: c.experiences || [], travel_tips: c.travel_tips || [],
     image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     gallery: c.gallery || [],
+  hero_image: '',,
     latitude: c.latitude || '', longitude: c.longitude || '',
     is_featured: !!c.is_featured, is_active: c.is_active !== false,
   })
@@ -1316,6 +1318,7 @@ export default function Countries() {
           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white space-y-4">
             <GalleryManager
               gallery={form.gallery || []}
+  hero_image: '',,
               onChange={v => upd('gallery', v)}
               onLightbox={openLightbox}
             />
@@ -1372,6 +1375,7 @@ export default function Countries() {
     const imgs = []
     if (c.cover_image_url) imgs.push({ url: c.cover_image_url, caption: 'Cover / Banner' })
     if (c.image_url)       imgs.push({ url: c.image_url,       caption: 'Country Photo'  })
+    if (c.hero_image)      imgs.push({ url: c.hero_image,      caption: 'Hero Image'      })
     if (c.flag_url)        imgs.push({ url: c.flag_url,        caption: 'Flag Image'      })
     ;(c.gallery || []).forEach(g => imgs.push(g))
     return imgs
@@ -1635,3 +1639,4 @@ export default function Countries() {
     </div>
   )
 }
+
