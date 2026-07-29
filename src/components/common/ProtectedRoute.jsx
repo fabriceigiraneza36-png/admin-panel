@@ -7,13 +7,18 @@ export default function ProtectedRoute({ children, requiredRole }) {
   const { isLoggedIn, initialized, admin } = useAuth()
   const location = useLocation()
 
+  /* ── DEBUG ── */
+  console.log('[Route] ProtectedRoute | initialized=', initialized, 'isLoggedIn=', isLoggedIn, 'path=', location.pathname)
+
   /* ── Wait for auth to initialize before making routing decisions ── */
   if (!initialized) {
+    console.log('[Route] ProtectedRoute → waiting for init')
     return <Loader fullScreen />
   }
 
   /* ── Not logged in → redirect to login ── */
   if (!isLoggedIn) {
+    console.log('[Route] ProtectedRoute → redirect to login')
     return (
       <Navigate
         to="/login"

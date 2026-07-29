@@ -27,9 +27,12 @@ export function AuthProvider({ children }) {
     fetchAttempted.current = true
 
     const token = getToken()
+    console.log('[Auth] init token=', !!token, 'storage=', (typeof localStorage !== 'undefined') ? 'ok' : 'none')
     if (token) {
+      console.log('[Auth] dispatching fetchMeThunk')
       dispatch(fetchMeThunk())
     } else {
+      console.log('[Auth] no token → setInitialized')
       dispatch(setInitialized())
     }
   }, [dispatch])
