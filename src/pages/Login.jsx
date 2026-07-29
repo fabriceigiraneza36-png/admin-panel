@@ -318,16 +318,32 @@ export default function Login() {
         setShowDrop(false)
         if (!canSubmit) return
 
-        const result = await login({
-            email: email.trim().toLowerCase(),
-            password,
-        })
+        let timedOut = false
+        const timer = setTimeout(() => {
+            timedOut = true
+            toastError('Request timed out. Check your connection and try again.')
+        }, 25_000)
 
-        if (!result?.error) {
-            toastSuccess('Welcome back! 🌍')
-            navigate(from, { replace: true })
+        try {
+            const result = await login({
+                email: email.trim().toLowerCase(),
+                password,
+            })
+
+            if (!timedOut && !result?.error) {
+                toastSuccess('Welcome back! 🌍')
+                navigate(from, { replace: true })
+            } else if (!timedOut && result?.error) {
+                toastError(typeof result.error === 'string' ? result.error : 'Login failed')
+            }
+        } catch (err) {
+            if (!timedOut) {
+                toastError(err.message || 'Login failed')
+            }
+        } finally {
+            clearTimeout(timer)
         }
-    }, [canSubmit, login, email, password, navigate, from, toastSuccess])
+    }, [canSubmit, login, email, password, navigate, from, toastSuccess, toastError])
 
     /* ── Select admin from dropdown ── */
     const selectAdmin = useCallback((admin) => {

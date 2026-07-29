@@ -35,6 +35,13 @@ export function AuthProvider({ children }) {
       console.log('[Auth] no token → setInitialized')
       dispatch(setInitialized())
     }
+
+    /* ═─ SAFETY: if backend is unreachable, don't hang forever ═─ */
+    const timer = setTimeout(() => {
+      console.warn('[Auth] init timeout — forcing initialized=true')
+      dispatch(setInitialized())
+    }, 6_000)
+    return () => clearTimeout(timer)
   }, [dispatch])
 
   const login = useCallback(
