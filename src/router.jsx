@@ -3,7 +3,7 @@
 // ROUTER v2.2 — per-route browser tab titles
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { Component, useEffect } from 'react'
+import React, { Component, useEffect, Suspense } from 'react'
 import {
     createBrowserRouter,
     RouterProvider,

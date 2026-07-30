@@ -860,11 +860,11 @@ export default function Countries() {
     calling_code: c.calling_code || '', languages: c.languages || [],
     official_languages: c.official_languages || [], highlights: c.highlights || [],
     experiences: c.experiences || [], travel_tips: c.travel_tips || [],
-    image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
-    gallery: c.gallery || [],
-  hero_image: '',,
-    latitude: c.latitude || '', longitude: c.longitude || '',
-    is_featured: !!c.is_featured, is_active: c.is_active !== false,
+image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
+     gallery: c.gallery || [],
+   hero_image: c.hero_image || '',
+     latitude: c.latitude || '', longitude: c.longitude || '',
+     is_featured: !!c.is_featured, is_active: c.is_active !== false,
   })
 
   const openCreate = () => {
@@ -1314,15 +1314,14 @@ export default function Countries() {
             />
           </div>
 
-          {/* Gallery */}
-          <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white space-y-4">
-            <GalleryManager
-              gallery={form.gallery || []}
-  hero_image: '',,
-              onChange={v => upd('gallery', v)}
-              onLightbox={openLightbox}
-            />
-          </div>
+{/* Gallery */}
+           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white space-y-4">
+             <GalleryManager
+               gallery={form.gallery || []}
+               onChange={v => upd('gallery', v)}
+               onLightbox={openLightbox}
+             />
+           </div>
 
           {/* Visibility */}
           <div className="space-y-2">
