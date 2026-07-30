@@ -259,7 +259,7 @@ export default function Login() {
     const navigate = useNavigate()
     const location = useLocation()
     const { login, loading, error, isLoggedIn, dismissError } = useAuth()
-    const { success: toastSuccess } = useToast()
+    const { success: toastSuccess, error: toastError } = useToast()
 
     const liveStats = useLiveStats()
 
