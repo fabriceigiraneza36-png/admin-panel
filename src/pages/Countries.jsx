@@ -187,7 +187,7 @@ function Lightbox({ images, startIndex = 0, onClose }) {
           src={current?.url}
           alt={current?.caption || 'Country image'}
           className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
-          onError={e => { e.target.src = 'https://placehold.co/800x500?text=Image+not+found' }}
+          onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#e5e7eb"/><text x="400" y="250" text-anchor="middle" fill="#9ca3af" font-size="16" font-family="sans-serif">No Image</text></svg>') }}
         />
         {idx < images.length - 1 && (
           <button onClick={() => setIdx(i => i + 1)}
@@ -204,7 +204,7 @@ function Lightbox({ images, startIndex = 0, onClose }) {
             <button key={i} onClick={() => setIdx(i)}
               className={`shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${i === idx ? 'border-emerald-400 scale-105' : 'border-white/10 hover:border-white/40'}`}>
               <img src={img.url} alt="" className="w-full h-full object-cover"
-                onError={e => { e.target.src = 'https://placehold.co/64x48?text=?' }} />
+                onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48"><rect width="64" height="48" fill="#e5e7eb"/><text x="32" y="24" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
             </button>
           ))}
         </div>
@@ -420,7 +420,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
             <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 aspect-[4/3]">
               <img src={img.url} alt={img.caption || `Photo ${i+1}`}
                 className="w-full h-full object-cover"
-                onError={e => { e.target.src = 'https://placehold.co/200x150?text=?' }}
+                onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#e5e7eb"/><text x="100" y="75" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="sans-serif">?</text></svg>') }}
               />
               {/* Source badge */}
               <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${img.source === 'upload' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>
@@ -1277,7 +1277,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                 {allImgs.map((img, i) => (
                   <button key={i} type="button" onClick={() => openLightbox(allImgs, i)}
                     className="shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all group relative">
-                    <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" onError={e => { e.target.src = 'https://placehold.co/80x56?text=?' }} />
+                    <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="56"><rect width="80" height="56" fill="#e5e7eb"/><text x="40" y="28" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                       <ZoomIn size={12} className="text-white" />
                     </div>
@@ -1473,7 +1473,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                     <img
                       src={viewImgs[0].url} alt={viewModal.data.name}
                       className="w-full h-52 object-cover"
-                      onError={e => { e.target.src = 'https://placehold.co/800x400?text=No+Image' }}
+                      onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#e5e7eb"/><text x="400" y="200" text-anchor="middle" fill="#9ca3af" font-size="16" font-family="sans-serif">No Image</text></svg>') }}
                     />
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
                       <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-gray-800 text-sm font-bold shadow-lg">
@@ -1492,7 +1492,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                         <button key={i} type="button" onClick={() => openLightbox(viewImgs, i)}
                           className="shrink-0 relative group w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all">
                           <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover"
-                            onError={e => { e.target.src = 'https://placehold.co/80x56?text=?' }} />
+                            onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="56"><rect width="80" height="56" fill="#e5e7eb"/><text x="40" y="28" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                             <ZoomIn size={12} className="text-white" />
                           </div>
