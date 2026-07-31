@@ -1129,7 +1129,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
               <Field label="Latitude" icon={MapPin}>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-gray-400">LAT</span>
-                  <input className={`${inputClass} pl-10`} type="number" step="any" value={form.latitude}
+                  <input className={`${inputClass} pl-10`} type="number" step="any" min="-90" max="90" value={form.latitude}
                     onChange={e => upd('latitude', e.target.value)} placeholder="-1.9403" />
                 </div>
               </Field>
