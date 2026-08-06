@@ -17,6 +17,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const isProd = mode === "production";
 
+  // Validate required environment variables
+  const requiredEnvVars = ["VITE_API_URL", "VITE_SOCKET_URL"];
+  for (const varName of requiredEnvVars) {
+    if (!env[varName]) {
+      console.error(`��❌ Missing required environment variable: ${varName}`);
+      process.exit(1);
+    }
+  }
+
   return {
     plugins: [react()],
 
@@ -57,10 +66,10 @@ export default defineConfig(({ mode }) => {
         /**
          * REST API proxy
          * Request:  /api/messages/users
-         * Forwards: https://backend-jd8f.onrender.com/api/messages/users
+         * Forwards: VITE_API_URL + "/api/messages/users"
          */
         "/api": {
-          target:       "https://backend-jd8f.onrender.com",
+          target:       env.VITE_API_URL.replace(/\/api$/, ""),
           changeOrigin: true,
           secure:       true,
         },
@@ -69,7 +78,7 @@ export default defineConfig(({ mode }) => {
          * Socket.IO proxy — WS upgrade + polling
          */
         "/socket.io": {
-          target:       "https://backend-jd8f.onrender.com",
+          target:       env.VITE_SOCKET_URL,
           changeOrigin: true,
           ws:           true,
           secure:       true,
@@ -88,13 +97,13 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir:        "dist",
       assetsDir:     "assets",
-      sourcemap:     false,           // Set to 'hidden' if you need Sentry maps
+      sourcemap:     isProd ? "hidden" : false, // Hidden sourcemaps for production debugging
       minify:        "terser",
       cssMinify:     true,
       cssCodeSplit:  true,
       target:        "es2020",
-      chunkSizeWarningLimit: 1000,
-      reportCompressedSize:  false,   // Speeds up build on Vercel
+      chunkSizeWarningLimit: 500, // More conservative limit to catch large bundles earlier
+      reportCompressedSize:  false, // Speeds up build on Vercel
 
       terserOptions: {
         compress: {
