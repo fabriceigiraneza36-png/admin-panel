@@ -33,18 +33,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const DIFFICULTIES = ['easy', 'moderate', 'challenging', 'strenuous', 'expert']
 const STATUSES     = ['draft', 'published', 'archived']
-const CATEGORIES   = [
-  'Mountain Climbing', 'Safari', 'Beach', 'Cultural', 'Adventure',
-  'Wildlife', 'Trekking', 'Water Sports', 'City Tour', 'Historical',
-  'Eco Tourism', 'Photography', 'Gorilla Trekking', 'Bird Watching',
-  'Cycling', 'Camping', 'Diving', 'Surfing', 'Fishing', 'Other',
-]
+const CATEGORIES   = [];
 
 const INITIAL_FORM = {
   // Identity
   name:               '',
   slug:               '',
-  tagline:            '',
   category:           '',
   destination_type:   '',
   classification:     '',
@@ -53,15 +47,6 @@ const INITIAL_FORM = {
   status:             'published',
   region:             '',
 
-  // Descriptions
-  description:        '',
-  short_description:  '',
-  overview:           '',
-  getting_there:      '',
-  what_to_expect:     '',
-  safety_info:        '',
-  best_time_to_visit: '',
-
   // Country
   country_id:         '',
 
@@ -69,15 +54,9 @@ const INITIAL_FORM = {
   image_url:          '',
   hero_image:         '',
   cover_image_url:    '',
-  video_url:          '',
-  virtual_tour_url:   '',
 
   // Arrays / lists
-  highlights:         [],
   activities:         [],
-  wildlife:           [],
-  local_tips:         [],
-  tags:               [],
   faqs:               [],
   gallery:            [],
 
@@ -1000,11 +979,8 @@ export default function Destinations() {
             </Field>
 
             <Field label="Category" required icon={Tag}>
-              <select className={`${selectClass} ${errors.category?'border-red-400':''}`}
-                value={form.category} onChange={e=>upd('category',e.target.value)}>
-                <option value="">Select category…</option>
-                {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
-              </select>
+              <input className={`${inputClass} ${errors.category?'border-red-400':''}`}
+                value={form.category} onChange={e=>upd('category',e.target.value)} placeholder="Enter category (e.g., Safari, Beach, Cultural)"/>
               {errors.category&&<p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>{errors.category}</p>}
             </Field>
 
@@ -1029,56 +1005,20 @@ export default function Destinations() {
         </motion.div>
       )
 
-      /* ─── DETAILS ───────────────────────────────────────────────── */
-      case 'details': return (
-        <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-teal-50 border border-green-100">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Info size={18} className="text-green-600"/></div>
-            <div><h3 className="text-sm font-bold text-green-800">Descriptions & Practical Info</h3><p className="text-xs text-green-600">Rich content for travelers</p></div>
-          </div>
-
-          <Field label="Short Description" hint="Shown in cards and search" icon={FileText}>
-            <textarea className={`${textareaClass} min-h-[80px]`} value={form.short_description}
-              onChange={e=>upd('short_description',e.target.value)}
-              placeholder="Brief compelling summary…"/>
-          </Field>
-
-          <Field label="Full Description" icon={BookOpen}>
-            <textarea className={`${textareaClass} min-h-[120px]`} value={form.description}
-              onChange={e=>upd('description',e.target.value)}
-              placeholder="Detailed description for the destination page…"/>
-          </Field>
-
-          <Field label="Overview" hint="Secondary long-form description" icon={BookOpen}>
-            <textarea className={`${textareaClass} min-h-[100px]`} value={form.overview}
-              onChange={e=>upd('overview',e.target.value)}
-              placeholder="Overview shown on detail page…"/>
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Getting There" icon={Plane}>
-              <textarea className={`${textareaClass} min-h-[90px]`} value={form.getting_there}
-                onChange={e=>upd('getting_there',e.target.value)}
-                placeholder="How to reach this destination…"/>
-            </Field>
-            <Field label="What to Expect" icon={Compass}>
-              <textarea className={`${textareaClass} min-h-[90px]`} value={form.what_to_expect}
-                onChange={e=>upd('what_to_expect',e.target.value)}
-                placeholder="What visitors should know before arriving…"/>
-            </Field>
-            <Field label="Safety Information" icon={Shield}>
-              <textarea className={`${textareaClass} min-h-[90px]`} value={form.safety_info}
-                onChange={e=>upd('safety_info',e.target.value)}
-                placeholder="Altitude sickness risks, emergency info…"/>
-            </Field>
-            <Field label="Best Time to Visit" icon={Calendar}>
-              <textarea className={`${textareaClass} min-h-[90px]`} value={form.best_time_to_visit}
-                onChange={e=>upd('best_time_to_visit',e.target.value)}
-                placeholder="June–September for dry season…"/>
-            </Field>
-          </div>
-        </motion.div>
-      )
+       /* ─── DETAILS ───────────────────────────────────────────────── */
+       case 'details': return (
+         <motion.div key="details" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
+           <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-teal-50 border border-green-100">
+             <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Info size={18} className="text-green-600"/></div>
+             <div><h3 className="text-sm font-bold text-green-800">Descriptions & Practical Info</h3><p className="text-xs text-green-600">Rich content for travelers</p></div>
+           </div>
+           
+           <p className="text-center text-gray-500 py-8">
+             Description fields have been removed as per requirements. 
+             Only essential information is collected.
+           </p>
+         </motion.div>
+       )
 
       /* ─── CONTENT ───────────────────────────────────────────────── */
       case 'content': return (
@@ -1088,44 +1028,15 @@ export default function Destinations() {
             <div><h3 className="text-sm font-bold text-emerald-800">Content & Lists</h3><p className="text-xs text-emerald-600">Highlights, tags & FAQs</p></div>
           </div>
 
-          {/* Tag arrays */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Star size={11} className="text-emerald-500"/> Highlights
-              </label>
-              <TagInput value={form.highlights} onChange={v=>upd('highlights',v)} placeholder="Add highlight…"/>
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Bike size={11} className="text-emerald-500"/> Activities
-              </label>
-              <TagInput value={form.activities} onChange={v=>upd('activities',v)} placeholder="Add activity…"/>
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <TreePine size={11} className="text-emerald-500"/> Wildlife
-              </label>
-              <TagInput value={form.wildlife} onChange={v=>upd('wildlife',v)} placeholder="Add wildlife…"/>
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Coffee size={11} className="text-emerald-500"/> Local Tips
-              </label>
-              <TagInput value={form.local_tips} onChange={v=>upd('local_tips',v)} placeholder="Add tip…"/>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Tag size={11} className="text-emerald-500"/> Tags
-              </label>
-              <TagInput value={form.tags} onChange={v=>upd('tags',v)} placeholder="Add tag…"/>
-            </div>
-          </div>
+           <p className="text-center text-gray-500 py-8">
+             Tag arrays (Highlights, Activities, Wildlife, Local Tips, Tags) have been removed as per requirements. 
+             Only FAQs remain in this section.
+           </p>
 
-          {/* FAQs */}
-          <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
-            <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
-          </div>
+           {/* FAQs */}
+           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
+             <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
+           </div>
         </motion.div>
       )
 
@@ -1137,67 +1048,53 @@ export default function Destinations() {
             <div><h3 className="text-sm font-bold text-green-800">Media</h3><p className="text-xs text-green-600">All images and video for this destination</p></div>
           </div>
 
-          {/* All-images strip */}
-          {allImgs.length>0&&(
-            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><EyeIcon size={11}/>All Images ({allImgs.length})</p>
-                <button type="button" onClick={()=>openLightbox(allImgs,0)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
-                  <Maximize2 size={11}/>View all
-                </button>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200">
-                {allImgs.map((img,i)=>(
-                  <button key={i} type="button" onClick={()=>openLightbox(allImgs,i)}
-                    className="shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all group relative">
-                    <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
-                      onError={e=>{e.target.src='https://placehold.co/80x56?text=?'}}/>
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                      <ZoomIn size={12} className="text-white"/>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+           {/* All-images strip */}
+           {allImgs.length>0&&(
+             <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
+               <div className="flex items-center justify-between">
+                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><EyeIcon size={11}/>All Images ({allImgs.length})</p>
+                 <button type="button" onClick={()=>openLightbox(allImgs,0)}
+                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
+                   <Maximize2 size={11}/>View all
+                 </button>
+               </div>
+               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200">
+                 {allImgs.map((img,i)=>(
+                   <button key={i} type="button" onClick={()=>openLightbox(allImgs,i)}
+                     className="shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all group relative">
+                     <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
+                       onError={e=>{e.target.src='https://placehold.co/80x56?text=?'}}/>
+                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                       <ZoomIn size={12} className="text-white"/>
+                     </div>
+                   </button>
+                 ))}
+               </div>
+             </div>
+           )}
 
-          {/* Primary images */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <ImageManagerPanel label="Main Image" value={form.image_url}
-              onChange={v=>upd('image_url',v)} folder="destinations"
-              allImages={allImgs} onLightbox={openLightbox}/>
-            <ImageManagerPanel label="Hero Image" value={form.hero_image}
-              onChange={v=>upd('hero_image',v)} folder="destinations"
-              allImages={allImgs} onLightbox={openLightbox}/>
-            <ImageManagerPanel label="Cover / Banner" value={form.cover_image_url}
-              onChange={v=>upd('cover_image_url',v)} folder="destinations"
-              allImages={allImgs} onLightbox={openLightbox}/>
-          </div>
+           {/* Primary images */}
+           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+             <ImageManagerPanel label="Main Image" value={form.image_url}
+               onChange={v=>upd('image_url',v)} folder="destinations"
+               allImages={allImgs} onLightbox={openLightbox}/>
+             <ImageManagerPanel label="Hero Image" value={form.hero_image}
+               onChange={v=>upd('hero_image',v)} folder="destinations"
+               allImages={allImgs} onLightbox={openLightbox}/>
+             <ImageManagerPanel label="Cover / Banner" value={form.cover_image_url}
+               onChange={v=>upd('cover_image_url',v)} folder="destinations"
+               allImages={allImgs} onLightbox={openLightbox}/>
+           </div>
 
-          {/* Video & virtual tour */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border-2 border-gray-100 space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider"><Video size={11} className="text-gray-500"/>Video & Virtual Tour</p>
-            <Field label="Video URL" icon={Video}>
-              <div className="relative">
-                <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
-                <input className={`${inputClass} pl-8`} type="url" value={form.video_url}
-                  onChange={e=>upd('video_url',e.target.value)} placeholder="https://youtube.com/watch?v=…"/>
-              </div>
-            </Field>
-            <Field label="Virtual Tour URL" icon={Globe}>
-              <div className="relative">
-                <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
-                <input className={`${inputClass} pl-8`} type="url" value={form.virtual_tour_url}
-                  onChange={e=>upd('virtual_tour_url',e.target.value)} placeholder="https://…"/>
-              </div>
-            </Field>
-          </div>
+           <p className="text-center text-gray-500 py-8">
+             Video & Virtual Tour fields have been removed as per requirements.
+             Only image galleries remain in this section.
+           </p>
 
-          {/* Gallery */}
-          <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
-            <GalleryManager gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
-          </div>
+           {/* Gallery */}
+           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
+             <GalleryManager gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
+           </div>
         </motion.div>
       )
 

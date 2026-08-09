@@ -7,6 +7,7 @@ import {
   PlusIcon,
   TrashIcon,
   LinkIcon,
+  HiCheckIcon,
 } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
@@ -429,30 +430,80 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                   <Input label="Region / Province" field="region" placeholder="e.g. Northern Province" />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Select
-                    label="Category"
-                    field="category"
-                    options={CATEGORIES.map((c) => ({ value: c, label: c }))}
-                  />
-                  <Select
-                    label="Difficulty"
-                    field="difficulty"
-                    options={DIFFICULTIES.map((d) => ({
-                      value: d,
-                      label: d.charAt(0).toUpperCase() + d.slice(1),
-                    }))}
-                  />
-                  <Select
-                    label="Status"
-                    field="status"
-                    options={[
-                      { value: "draft", label: "Draft" },
-                      { value: "published", label: "Published" },
-                      { value: "archived", label: "Archived" },
-                    ]}
-                  />
-                </div>
+                 <div className="space-y-4">
+                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Category
+                   </div>
+                   <div className="space-y-2">
+                     {/* Predefined options */}
+                     <div className="flex flex-wrap gap-2 mb-3">
+                       {CATEGORIES.map((category) => (
+                         <button key={category} type="button"
+                           onClick={() => { set("category", category); }}
+                           className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2
+                             transition-all duration-200
+                             ${form.category === category
+                               ? "border-emerald-400 bg-emerald-50/80 shadow-sm"
+                               : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"}`}>
+                           <span className="text-sm font-semibold text-gray-800">{category}</span>
+                           {form.category === category && (
+                             <HiCheckIcon className="w-4 h-4 text-emerald-600" />
+                           )}
+                         </button>
+                       ))}
+                     </div>
+                     {/* Custom input */}
+                     <Input
+                       id="category"
+                       label="Or enter custom category"
+                       field="category"
+                       type="text"
+                       placeholder="e.g., Safari, Cultural, Adventure, Custom Category..."
+                       value={form.category}
+                       onChange={(e) => set("category", e.target.value)}
+                     />
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Difficulty
+                     </label>
+                     <select
+                       value={form.difficulty}
+                       onChange={(e) => set("difficulty", e.target.value)}
+                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     >
+                       {DIFFICULTIES.map((d) => (
+                         <option key={d} value={d}>
+                           {d.charAt(0).toUpperCase() + d.slice(1)}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Status
+                     </label>
+                     <select
+                       value={form.status}
+                       onChange={(e) => set("status", e.target.value)}
+                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     >
+                       {[
+                         { value: "draft", label: "Draft" },
+                         { value: "published", label: "Published" },
+                         { value: "archived", label: "Archived" },
+                       ].map((option) => (
+                         <option key={option.value} value={option.value}>
+                           {option.label}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+                 <Input label="Destination Type" field="destination_type" placeholder="e.g. volcano, beach..." />
                 <Input label="Destination Type" field="destination_type" placeholder="e.g. volcano, beach..." />
               </div>
             )}

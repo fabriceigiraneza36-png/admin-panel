@@ -91,22 +91,28 @@ const INFO_REQUEST_THEMES = [
 // ══════════════════════════════════════════════════════════════════════════════
 
 const INIT_PACKAGE = {
-  title: '', slug: '', short_description: '', description: '', content: '',
-  category: '', destination: '', country: '',
-  price: '', price_label: 'per person', currency: 'USD',
-  pricing_tiers: [], discount_percent: 0, is_price_visible: true,
-  duration_days: '', duration_nights: '',
-  max_travelers: '', min_travelers: 1, group_size_label: '',
-  images: [], cover_image_url: '', thumbnail_url: '', video_url: '',
-  gallery: [], features: [], inclusions: [], exclusions: [],
-  highlights: [], itinerary: [], faqs: [], tags: [],
-  available_months: [], departure_dates: [], availability_note: '',
-  is_published: false, is_featured: false, is_sold_out: false,
-  badge_label: '', badge_color: '#047857',
-  meta_title: '', meta_description: '',
-  card_theme: 'default', accent_color: '#047857',
-  card_bg_image: '', sort_order: 0,
-}
+   // Primary fields for image-based package creation
+   title: '', 
+   cover_image_url: '', 
+   thumbnail_url: '',
+   
+   // Secondary fields (optional for basic image-based packages)
+   slug: '', short_description: '', description: '', content: '',
+   category: '', destination: '', country: '',
+   price: '', price_label: 'per person', currency: 'USD',
+   pricing_tiers: [], discount_percent: 0, is_price_visible: true,
+   duration_days: '', duration_nights: '',
+   max_travelers: '', min_travelers: 1, group_size_label: '',
+   images: [], video_url: '',
+   gallery: [], features: [], inclusions: [], exclusions: [],
+   highlights: [], itinerary: [], faqs: [], tags: [],
+   available_months: [], departure_dates: [], availability_note: '',
+   is_published: false, is_featured: false, is_sold_out: false,
+   badge_label: '', badge_color: '#047857',
+   meta_title: '', meta_description: '',
+   card_theme: 'default', accent_color: '#047857',
+   card_bg_image: '', sort_order: 0,
+ }
 
 const INIT_INFO_REQUEST = {
   title: '', description: '', fields: [],
@@ -755,60 +761,88 @@ export default function Packages() {
   const upd = useCallback((k, v) =>
     setForm(p => ({ ...p, [k]: v })), [])
 
-  const openCreate = useCallback(() => {
-    setForm(INIT_PACKAGE)
-    setEditing(null)
-    setOpenSecs({ basic: true, pricing: true, duration: false,
-      media: false, pkgdetails: false, design: false, seo: false })
-    formModal.open()
-  }, [formModal])
+   const openCreate = useCallback(() => {
+     // Initialize with focus on image-based creation
+     setForm({
+       ...INIT_PACKAGE,
+       title: '',
+       cover_image_url: '',
+       thumbnail_url: '',
+     })
+     setEditing(null)
+     // Open media section by default to emphasize image upload
+     setOpenSecs({ 
+       media: true, 
+       basic: false, 
+       pricing: false, 
+       duration: false,
+       pkgdetails: false, 
+       design: false, 
+       seo: false 
+     })
+     formModal.open()
+   }, [formModal])
 
-  const openEdit = useCallback((p) => {
-    const f = { ...INIT_PACKAGE }
-    Object.keys(f).forEach(k => {
-      if (p[k] !== undefined && p[k] !== null) f[k] = p[k]
-    })
-    const jsonKeys = [
-      'pricing_tiers', 'images', 'gallery', 'features', 'inclusions',
-      'exclusions', 'highlights', 'itinerary', 'faqs',
-      'available_months', 'departure_dates',
-    ]
-    jsonKeys.forEach(k => { f[k] = parseJson(f[k]) })
-    setForm(f)
-    setEditing(p)
-    setOpenSecs({ basic: true, pricing: true, duration: false,
-      media: false, pkgdetails: false, design: false, seo: false })
-    formModal.open()
-  }, [formModal])
+   const openEdit = useCallback((p) => {
+     const f = { ...INIT_PACKAGE }
+     Object.keys(f).forEach(k => {
+       if (p[k] !== undefined && p[k] !== null) f[k] = p[k]
+     })
+     const jsonKeys = [
+       'pricing_tiers', 'images', 'gallery', 'features', 'inclusions',
+       'exclusions', 'highlights', 'itinerary', 'faqs',
+       'available_months', 'departure_dates',
+     ]
+     jsonKeys.forEach(k => { f[k] = parseJson(f[k]) })
+     setForm(f)
+     setEditing(p)
+     // Emphasize media section when editing to maintain focus on images
+     setOpenSecs({ 
+       media: true, 
+       basic: !!p.title || !!p.short_description, 
+       pricing: !!p.price || !!p.pricing_tiers.length, 
+       duration: !!p.duration_days || !!p.duration_nights,
+       pkgdetails: !!p.features.length || !!p.inclusions.length || !!p.exclusions.length,
+       design: !!p.card_theme || !!p.accent_color || !!p.badge_label,
+       seo: !!p.meta_title || !!p.meta_description || !!p.is_published || !!p.is_featured 
+     })
+     formModal.open()
+   }, [formModal])
 
   // ── Save ───────────────────────────────────────────────────────────────────
 
-  const handleSave = async () => {
-    if (!form.title?.trim()) { toast.error('Title is required'); return }
-    setSaving(true)
-    try {
-      const payload = {
-        ...form,
-        slug:  form.slug || form.title.toLowerCase()
-          .replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-        price: parseFloat(form.price) || 0,
-      }
-      if (editing) {
-        await packagesAPI.update(editing.id, payload)
-        toast.success('Package updated successfully')
-      } else {
-        await packagesAPI.create(payload)
-        toast.success('Package created successfully')
-      }
-      formModal.close()
-      load()
-      loadStats()
-    } catch (e) {
-      toast.error(getErrorMessage(e))
-    } finally {
-      setSaving(false)
-    }
-  }
+   const handleSave = async () => {
+     // Simplified validation - only require title and at least one image
+     if (!form.title?.trim()) { toast.error('Title is required'); return }
+     if (!form.cover_image_url && !form.thumbnail_url) { 
+       toast.error('Please upload at least one image (cover or thumbnail) to represent your package'); 
+       return 
+     }
+     
+     setSaving(true)
+     try {
+       const payload = {
+         ...form,
+         slug:  form.slug || form.title.toLowerCase()
+           .replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
+         price: parseFloat(form.price) || 0,
+       }
+       if (editing) {
+         await packagesAPI.update(editing.id, payload)
+         toast.success('Package updated successfully')
+       } else {
+         await packagesAPI.create(payload)
+         toast.success('Package created successfully')
+       }
+       formModal.close()
+       load()
+       loadStats()
+     } catch (e) {
+       toast.error(getErrorMessage(e))
+     } finally {
+       setSaving(false)
+     }
+   }
 
   // ── Publish toggle ─────────────────────────────────────────────────────────
 
@@ -1544,177 +1578,93 @@ export default function Packages() {
           </div>
         }
       >
-        <div className="space-y-3">
+         <div className="space-y-3">
 
-          {/* Basic Info */}
-          <Section id="basic" title="Basic Information"
-            icon={Package} open={openSecs.basic} onToggle={toggleSec}>
-            <ModalGrid>
-              <div className="input-group sm:col-span-2">
-                <label className="input-label">Title *</label>
-                <input className="input" value={form.title}
-                  onChange={e => upd('title', e.target.value)}
-                  placeholder="e.g. 7-Day Serengeti Safari" />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Slug</label>
-                <input className="input" value={form.slug}
-                  onChange={e => upd('slug', e.target.value)}
-                  placeholder="auto-generated from title" />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Category</label>
-                <select className="input" value={form.category}
-                  onChange={e => upd('category', e.target.value)}>
-                  <option value="">Select category</option>
-                  {CATEGORIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Destination</label>
-                <input className="input" value={form.destination}
-                  onChange={e => upd('destination', e.target.value)}
-                  placeholder="e.g. Serengeti National Park" />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Country</label>
-                <input className="input" value={form.country}
-                  onChange={e => upd('country', e.target.value)}
-                  placeholder="e.g. Tanzania" />
-              </div>
-            </ModalGrid>
-            <div className="input-group">
-              <label className="input-label">Short Description</label>
-              <textarea className="input min-h-[70px] resize-none"
-                value={form.short_description}
-                onChange={e => upd('short_description', e.target.value)}
-                placeholder="One-line summary shown on package cards…" />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Full Description</label>
-              <textarea className="input min-h-[120px] resize-none"
-                value={form.description}
-                onChange={e => upd('description', e.target.value)}
-                placeholder="Detailed description (HTML supported)…" />
-            </div>
-          </Section>
+           {/* Media - PRIMARY FOCUS FOR IMAGE-BASED PACKAGE CREATION */}
+           <Section id="media" title="Package Image"
+             icon={Image} open={openSecs.media} onToggle={toggleSec}>
+             <div className="text-center mb-4">
+               <p className="text-sm text-slate-500">
+                 Upload a representative image for your package. This will be the primary 
+                 visual displayed to users.
+               </p>
+             </div>
+             <ModalGrid>
+               <ImageUpload
+                 label="Cover Image (Recommended)"
+                 value={form.cover_image_url}
+                 onChange={v => upd('cover_image_url', v)}
+                 folder="packages"
+               />
+               <ImageUpload
+                 label="Thumbnail Image"
+                 value={form.thumbnail_url}
+                 onChange={v => upd('thumbnail_url', v)}
+                 folder="packages"
+               />
+             </ModalGrid>
+             <div className="input-group">
+               <label className="input-label">Video URL (Optional)</label>
+               <input className="input" value={form.video_url}
+                 onChange={e => upd('video_url', e.target.value)}
+                 placeholder="YouTube or Vimeo URL" />
+             </div>
+           </Section>
 
-          {/* Pricing */}
-          <Section id="pricing" title="Pricing & Currency"
-            icon={DollarSign} open={openSecs.pricing} onToggle={toggleSec}>
-            <ModalGrid>
-              <div className="input-group">
-                <label className="input-label">Base Price *</label>
-                <input className="input" type="number" min="0"
-                  value={form.price}
-                  onChange={e => upd('price', e.target.value)}
-                  placeholder="0" />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Currency</label>
-                <select className="input" value={form.currency}
-                  onChange={e => upd('currency', e.target.value)}>
-                  {CURRENCIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Price Label</label>
-                <input className="input" value={form.price_label}
-                  onChange={e => upd('price_label', e.target.value)}
-                  placeholder="per person" />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Discount %</label>
-                <input className="input" type="number" min="0" max="100"
-                  value={form.discount_percent}
-                  onChange={e => upd('discount_percent', e.target.value)} />
-              </div>
-            </ModalGrid>
-            <PricingTierEditor
-              value={form.pricing_tiers}
-              onChange={v => upd('pricing_tiers', v)}
-              currency={form.currency}
-            />
-            <label className="flex items-center gap-2.5 cursor-pointer
-              text-sm text-slate-700">
-              <input type="checkbox" checked={form.is_price_visible}
-                onChange={e => upd('is_price_visible', e.target.checked)}
-                className="w-4 h-4 rounded text-primary-600" />
-              Show price publicly on the package card
-            </label>
-          </Section>
-
-          {/* Duration & Capacity */}
-          <Section id="duration" title="Duration & Capacity"
-            icon={Calendar} open={openSecs.duration} onToggle={toggleSec}>
-            <ModalGrid>
-              <div className="input-group">
-                <label className="input-label">Days</label>
-                <input className="input" type="number" min="1"
-                  value={form.duration_days}
-                  onChange={e => upd('duration_days', e.target.value)} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Nights</label>
-                <input className="input" type="number" min="0"
-                  value={form.duration_nights}
-                  onChange={e => upd('duration_nights', e.target.value)} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Min Travelers</label>
-                <input className="input" type="number" min="1"
-                  value={form.min_travelers}
-                  onChange={e => upd('min_travelers', e.target.value)} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Max Travelers</label>
-                <input className="input" type="number" min="1"
-                  value={form.max_travelers}
-                  onChange={e => upd('max_travelers', e.target.value)} />
-              </div>
-              <div className="input-group sm:col-span-2">
-                <label className="input-label">Group Size Label</label>
-                <input className="input" value={form.group_size_label}
-                  onChange={e => upd('group_size_label', e.target.value)}
-                  placeholder="e.g. Small group (max 12 people)" />
-              </div>
-            </ModalGrid>
-            <div className="input-group">
-              <label className="input-label">Availability Note</label>
-              <input className="input" value={form.availability_note}
-                onChange={e => upd('availability_note', e.target.value)}
-                placeholder="e.g. Best Jan–Mar and Oct–Nov" />
-            </div>
-          </Section>
-
-          {/* Media */}
-          <Section id="media" title="Media"
-            icon={Image} open={openSecs.media} onToggle={toggleSec}>
-            <ModalGrid>
-              <ImageUpload
-                label="Thumbnail"
-                value={form.thumbnail_url}
-                onChange={v => upd('thumbnail_url', v)}
-                folder="packages"
-              />
-              <ImageUpload
-                label="Cover Image"
-                value={form.cover_image_url}
-                onChange={v => upd('cover_image_url', v)}
-                folder="packages"
-              />
-            </ModalGrid>
-            <div className="input-group">
-              <label className="input-label">Video URL</label>
-              <input className="input" value={form.video_url}
-                onChange={e => upd('video_url', e.target.value)}
-                placeholder="YouTube or Vimeo URL" />
-            </div>
-          </Section>
+           {/* Basic Info */}
+           <Section id="basic" title="Basic Information"
+             icon={Package} open={openSecs.basic} onToggle={toggleSec}>
+             <ModalGrid>
+               <div className="input-group sm:col-span-2">
+                 <label className="input-label">Title *</label>
+                 <input className="input" value={form.title}
+                   onChange={e => upd('title', e.target.value)}
+                   placeholder="e.g. 7-Day Serengeti Safari" />
+               </div>
+               <div className="input-group">
+                 <label className="input-label">Slug</label>
+                 <input className="input" value={form.slug}
+                   onChange={e => upd('slug', e.target.value)}
+                   placeholder="auto-generated from title" />
+               </div>
+               <div className="input-group">
+                 <label className="input-label">Category</label>
+                 <select className="input" value={form.category}
+                   onChange={e => upd('category', e.target.value)}>
+                   <option value="">Select category</option>
+                   {CATEGORIES.map(c => (
+                     <option key={c} value={c}>{c}</option>
+                   ))}
+                 </select>
+               </div>
+               <div className="input-group">
+                 <label className="input-label">Destination</label>
+                 <input className="input" value={form.destination}
+                   onChange={e => upd('destination', e.target.value)}
+                   placeholder="e.g. Serengeti National Park" />
+               </div>
+               <div className="input-group">
+                 <label className="input-label">Country</label>
+                 <input className="input" value={form.country}
+                   onChange={e => upd('country', e.target.value)}
+                   placeholder="e.g. Tanzania" />
+               </div>
+             </ModalGrid>
+             <div className="input-group">
+               <label className="input-label">Short Description</label>
+               <textarea className="input min-h-[70px] resize-none"
+                 value={form.short_description}
+                 onChange={e => upd('short_description', e.target.value)}
+                 placeholder="One-line summary shown on package cards…" />
+             </div>
+             <div className="input-group">
+               <label className="input-label">Full Description</label>
+               <textarea className="input min-h-[120px] resize-none"
+                 value={form.description}
+                 onChange={e => upd('description', e.target.value)}
+                 placeholder="Detailed description (HTML supported)…" />
+             </div>
+           </Section>
 
           {/* Package Details */}
           <Section id="pkgdetails" title="Package Details"
