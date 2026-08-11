@@ -28,18 +28,17 @@ const TABS = [
 ];
 
 const emptyForm = {
-  // Basic
-  name: "",
-  tagline: "",
-  short_description: "",
-  description: "",
-  overview: "",
-  country_id: "",
-  region: "",
-  category: "Safari",
-  difficulty: "moderate",
-  destination_type: "",
-  status: "draft",
+   // Basic
+   name: "",
+   tagline: "",
+   short_description: "",
+   description: "",
+   overview: "",
+   country_id: "",
+   category: "Safari",
+   difficulty: "moderate",
+   destination_type: "",
+   status: "draft",
 
   // Media
   image_url: "",
@@ -50,20 +49,18 @@ const emptyForm = {
   video_url: "",
   virtual_tour_url: "",
 
-  // Details
-  duration_days: "",
-  duration_nights: "",
-  min_group_size: 1,
-  max_group_size: "",
-  min_age: "",
-  fitness_level: "",
-  entrance_fee: "",
-  operating_hours: "",
-  best_time_to_visit: "",
-  getting_there: "",
-  what_to_expect: "",
-  local_tips: "",
-  safety_info: "",
+   // Details
+   duration_days: "",
+   duration_nights: "",
+   min_group_size: 1,
+   max_group_size: "",
+   min_age: "",
+   fitness_level: "",
+   entrance_fee: "",
+   operating_hours: "",
+   best_time_to_visit: "",
+   getting_there: "",
+   what_to_expect: "",
 
   // Location
   latitude: "",
@@ -233,16 +230,15 @@ export default function DestinationForm({
     if (mode === "edit" && destination) {
       setForm({
         name: destination.name || "",
-        tagline: destination.tagline || "",
-        short_description: destination.shortDescription || "",
-        description: destination.description || "",
-        overview: destination.overview || "",
-        country_id: destination.countryId || destination.country?.id || "",
-        region: destination.region || "",
-        category: destination.category || "Safari",
-        difficulty: destination.difficulty || "moderate",
-        destination_type: destination.destinationType || "",
-        status: destination.status || "draft",
+         tagline: destination.tagline || "",
+         short_description: destination.shortDescription || "",
+         description: destination.description || "",
+         overview: destination.overview || "",
+         country_id: destination.countryId || destination.country?.id || "",
+         category: destination.category || "Safari",
+         difficulty: destination.difficulty || "moderate",
+         destination_type: destination.destinationType || "",
+         status: destination.status || "draft",
 
         image_url: destination.imageUrl || "",
         image_urls: destination.images || [],
@@ -252,19 +248,17 @@ export default function DestinationForm({
         video_url: destination.videoUrl || "",
         virtual_tour_url: destination.virtualTourUrl || "",
 
-        duration_days: destination.durationDays ?? "",
-        duration_nights: destination.durationNights ?? "",
-        min_group_size: destination.minGroupSize || 1,
-        max_group_size: destination.maxGroupSize ?? "",
-        min_age: destination.minAge ?? "",
-        fitness_level: destination.fitnessLevel || "",
-        entrance_fee: destination.entranceFee || "",
-        operating_hours: destination.operatingHours || "",
-        best_time_to_visit: destination.bestTimeToVisit || "",
-        getting_there: destination.gettingThere || "",
-        what_to_expect: destination.whatToExpect || "",
-        local_tips: destination.localTips || "",
-        safety_info: destination.safetyInfo || "",
+         duration_days: destination.durationDays ?? "",
+         duration_nights: destination.durationNights ?? "",
+         min_group_size: destination.minGroupSize || 1,
+         max_group_size: destination.maxGroupSize ?? "",
+         min_age: destination.minAge ?? "",
+         fitness_level: destination.fitnessLevel || "",
+         entrance_fee: destination.entranceFee || "",
+         operating_hours: destination.operatingHours || "",
+         best_time_to_visit: destination.bestTimeToVisit || "",
+         getting_there: destination.gettingThere || "",
+         what_to_expect: destination.whatToExpect || "",
 
         latitude: destination.latitude ?? "",
         longitude: destination.longitude ?? "",
@@ -349,18 +343,18 @@ export default function DestinationForm({
       const fd = new FormData();
 
       const scalarFields = [
-        "name", "tagline", "short_description", "description", "overview",
-        "country_id", "region", "category", "difficulty", "destination_type",
-        "status", "image_url", "hero_image", "thumbnail_url", "cover_image_url",
-        "video_url", "virtual_tour_url", "duration_days", "duration_nights",
-        "min_group_size", "max_group_size", "min_age", "fitness_level",
-        "entrance_fee", "operating_hours", "best_time_to_visit", "getting_there",
-        "what_to_expect", "local_tips", "safety_info", "latitude", "longitude",
-        "altitude_meters", "nearest_city", "nearest_airport",
-        "distance_from_airport_km", "address", "is_featured", "is_popular",
-        "is_new", "is_eco_friendly", "is_family_friendly", "is_sold_out",
-        "meta_title", "meta_description",
-      ];
+         "name", "tagline", "short_description", "description", "overview",
+         "country_id", "category", "difficulty", "destination_type",
+         "status", "image_url", "hero_image", "thumbnail_url", "cover_image_url",
+         "video_url", "virtual_tour_url", "duration_days", "duration_nights",
+         "min_group_size", "max_group_size", "min_age", "fitness_level",
+         "entrance_fee", "operating_hours", "best_time_to_visit", "getting_there",
+         "what_to_expect", "latitude", "longitude",
+         "altitude_meters", "nearest_city", "nearest_airport",
+         "distance_from_airport_km", "address", "is_featured", "is_popular",
+         "is_new", "is_eco_friendly", "is_family_friendly", "is_sold_out",
+         "meta_title", "meta_description",
+       ];
 
       scalarFields.forEach((key) => {
         if (form[key] !== "" && form[key] !== null && form[key] !== undefined) {
@@ -441,32 +435,25 @@ export default function DestinationForm({
                 <Textarea label="Full Description" field="description" rows={5} form={form} onChange={set} />
                 <Textarea label="Overview (truncated version)" field="overview" rows={3} form={form} onChange={set} />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Country *
-                    </label>
-                    <select
-                      value={form.country_id}
-                      onChange={(e) => set("country_id", e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select country...</option>
-                      {countries.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.flag} {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <Input
-                    label="Region / Province"
-                    field="region"
-                    placeholder="e.g. Northern Province"
-                    form={form}
-                    onChange={set}
-                  />
-                </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                       Country *
+                     </label>
+                     <select
+                       value={form.country_id}
+                       onChange={(e) => set("country_id", e.target.value)}
+                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     >
+                       <option value="">Select country...</option>
+                       {countries.map((c) => (
+                         <option key={c.id} value={c.id}>
+                           {c.flag} {c.name}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
 
                 {/* ✅ Fixed: label closed with </label> not </div> */}
                 <div className="space-y-4">
@@ -808,11 +795,9 @@ export default function DestinationForm({
                   <Input label="Entrance Fee" field="entrance_fee" placeholder="e.g. $400 climbing permit" form={form} onChange={set} />
                   <Input label="Operating Hours" field="operating_hours" placeholder="e.g. Trek starts 07:00" form={form} onChange={set} />
                 </div>
-                <Input label="Best Time to Visit" field="best_time_to_visit" placeholder="e.g. June–September" form={form} onChange={set} />
-                <Textarea label="Getting There" field="getting_there" rows={2} form={form} onChange={set} />
-                <Textarea label="What to Expect" field="what_to_expect" rows={3} form={form} onChange={set} />
-                <Textarea label="Local Tips" field="local_tips" rows={3} form={form} onChange={set} />
-                <Textarea label="Safety Information" field="safety_info" rows={3} form={form} onChange={set} />
+                 <Input label="Best Time to Visit" field="best_time_to_visit" placeholder="e.g. June–September" form={form} onChange={set} />
+                 <Textarea label="Getting There" field="getting_there" rows={2} form={form} onChange={set} />
+                 <Textarea label="What to Expect" field="what_to_expect" rows={3} form={form} onChange={set} />
               </div>
             )}
 
