@@ -14,10 +14,8 @@ import {
   ClockIcon,
   GlobeAltIcon,
   ShieldCheckIcon,
-  LightBulbIcon,
   ChatBubbleLeftRightIcon,
   TagIcon,
-  DocumentTextIcon,
   PlusIcon,
   TrashIcon,
   CheckIcon,
@@ -34,7 +32,12 @@ const DETAIL_TABS = [
   { id: "practical", label: "Practical Info", icon: ShieldCheckIcon },
 ];
 
-export default function DestinationDetail({ destination: dest, onClose, onEdit, onRefresh }) {
+export default function DestinationDetail({
+  destination: dest,
+  onClose,
+  onEdit,
+  onRefresh,
+}) {
   const { toast } = useToast();
   const [tab, setTab] = useState("overview");
 
@@ -86,10 +89,26 @@ export default function DestinationDetail({ destination: dest, onClose, onEdit, 
         {/* Quick stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 border-b divide-x">
           {[
-            { icon: StarSolid, val: dest.rating ? `${dest.rating.toFixed(1)} (${dest.reviewCount})` : "No reviews", label: "Rating" },
+            {
+              icon: StarSolid,
+              val: dest.rating
+                ? `${dest.rating.toFixed(1)} (${dest.reviewCount})`
+                : "No reviews",
+              label: "Rating",
+            },
             { icon: ClockIcon, val: dest.duration || "—", label: "Duration" },
-            { icon: UserGroupIcon, val: dest.minGroupSize ? `${dest.minGroupSize}–${dest.maxGroupSize || "∞"}` : "—", label: "Group Size" },
-            { icon: GlobeAltIcon, val: dest.difficulty || "—", label: "Difficulty" },
+            {
+              icon: UserGroupIcon,
+              val: dest.minGroupSize
+                ? `${dest.minGroupSize}–${dest.maxGroupSize || "∞"}`
+                : "—",
+              label: "Group Size",
+            },
+            {
+              icon: GlobeAltIcon,
+              val: dest.difficulty || "—",
+              label: "Difficulty",
+            },
           ].map((s) => (
             <div key={s.label} className="p-4 flex items-center gap-3">
               <s.icon className="w-5 h-5 text-blue-500 flex-shrink-0" />
@@ -130,19 +149,33 @@ export default function DestinationDetail({ destination: dest, onClose, onEdit, 
             />
           )}
           {tab === "itinerary" && (
-            <ItineraryTab destinationId={dest.id} initialData={dest.itinerary || []} onRefresh={onRefresh} />
+            <ItineraryTab
+              destinationId={dest.id}
+              initialData={dest.itinerary || []}
+              onRefresh={onRefresh}
+            />
           )}
           {tab === "faqs" && (
-            <FaqTab destinationId={dest.id} initialData={dest.faqs || []} onRefresh={onRefresh} />
+            <FaqTab
+              destinationId={dest.id}
+              initialData={dest.faqs || []}
+              onRefresh={onRefresh}
+            />
           )}
-          {tab === "reviews" && (
-            <ReviewManager destinationId={dest.id} />
-          )}
+          {tab === "reviews" && <ReviewManager destinationId={dest.id} />}
           {tab === "tags" && (
-            <TagTab destinationId={dest.id} initialData={dest.tags || []} onRefresh={onRefresh} />
+            <TagTab
+              destinationId={dest.id}
+              initialData={dest.tags || []}
+              onRefresh={onRefresh}
+            />
           )}
           {tab === "practical" && (
-            <PracticalTab destinationId={dest.id} initialData={dest.practicalInfo} onRefresh={onRefresh} />
+            <PracticalTab
+              destinationId={dest.id}
+              initialData={dest.practicalInfo}
+              onRefresh={onRefresh}
+            />
           )}
         </div>
       </div>
@@ -157,15 +190,46 @@ function OverviewTab({ dest }) {
       {/* Badges */}
       <div className="flex flex-wrap gap-2">
         {[
-          { show: dest.isFeatured, label: "⭐ Featured", cls: "bg-yellow-100 text-yellow-800" },
-          { show: dest.isPopular, label: "🔥 Popular", cls: "bg-orange-100 text-orange-800" },
-          { show: dest.isNew, label: "🆕 New", cls: "bg-green-100 text-green-800" },
-          { show: dest.isEcoFriendly, label: "🌿 Eco-Friendly", cls: "bg-green-100 text-green-700" },
-          { show: dest.isFamilyFriendly, label: "👨‍👩‍👧 Family Friendly", cls: "bg-blue-100 text-blue-800" },
-          { show: dest.isSoldOut, label: "❌ Sold Out", cls: "bg-red-100 text-red-800" },
-        ].filter((b) => b.show).map((b) => (
-          <span key={b.label} className={`text-xs px-3 py-1 rounded-full font-medium ${b.cls}`}>{b.label}</span>
-        ))}
+          {
+            show: dest.isFeatured,
+            label: "⭐ Featured",
+            cls: "bg-yellow-100 text-yellow-800",
+          },
+          {
+            show: dest.isPopular,
+            label: "🔥 Popular",
+            cls: "bg-orange-100 text-orange-800",
+          },
+          {
+            show: dest.isNew,
+            label: "🆕 New",
+            cls: "bg-green-100 text-green-800",
+          },
+          {
+            show: dest.isEcoFriendly,
+            label: "🌿 Eco-Friendly",
+            cls: "bg-green-100 text-green-700",
+          },
+          {
+            show: dest.isFamilyFriendly,
+            label: "👨‍👩‍👧 Family Friendly",
+            cls: "bg-blue-100 text-blue-800",
+          },
+          {
+            show: dest.isSoldOut,
+            label: "❌ Sold Out",
+            cls: "bg-red-100 text-red-800",
+          },
+        ]
+          .filter((b) => b.show)
+          .map((b) => (
+            <span
+              key={b.label}
+              className={`text-xs px-3 py-1 rounded-full font-medium ${b.cls}`}
+            >
+              {b.label}
+            </span>
+          ))}
         <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 text-gray-700">
           {dest.status?.toUpperCase()}
         </span>
@@ -175,7 +239,9 @@ function OverviewTab({ dest }) {
       {dest.description && (
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
-          <p className="text-sm text-gray-600 leading-relaxed">{dest.description}</p>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {dest.description}
+          </p>
         </div>
       )}
 
@@ -185,19 +251,27 @@ function OverviewTab({ dest }) {
           { label: "Highlights", data: dest.highlights, icon: "⭐" },
           { label: "Activities", data: dest.activities, icon: "🏃" },
           { label: "Wildlife", data: dest.wildlife, icon: "🦁" },
-        ].map(({ label, data, icon }) => data?.length > 0 && (
-          <div key={label} className="bg-gray-50 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">{icon} {label}</h4>
-            <ul className="space-y-1">
-              {data.map((item, i) => (
-                <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
-                  <CheckIcon className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        ].map(
+          ({ label, data, icon }) =>
+            data?.length > 0 && (
+              <div key={label} className="bg-gray-50 rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  {icon} {label}
+                </h4>
+                <ul className="space-y-1">
+                  {data.map((item, i) => (
+                    <li
+                      key={i}
+                      className="text-xs text-gray-600 flex items-start gap-1.5"
+                    >
+                      <CheckIcon className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+        )}
       </div>
 
       {/* Info grid */}
@@ -262,7 +336,11 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
   const { toast } = useToast();
   const [days, setDays] = useState(initialData || []);
   const [editingDay, setEditingDay] = useState(null);
-  const [newDay, setNewDay] = useState({ title: "", description: "", day_number: "" });
+  const [newDay, setNewDay] = useState({
+    title: "",
+    description: "",
+    day_number: "",
+  });
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -281,8 +359,11 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
       setAdding(false);
       toast("Day added", "success");
       await refresh();
-    } catch { toast("Failed to add day", "error"); }
-    finally { setSaving(false); }
+    } catch {
+      toast("Failed to add day", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateDay = async (day) => {
@@ -296,8 +377,11 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
       setEditingDay(null);
       toast("Day updated", "success");
       await refresh();
-    } catch { toast("Failed to update", "error"); }
-    finally { setSaving(false); }
+    } catch {
+      toast("Failed to update", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeDay = async (dayId) => {
@@ -305,13 +389,17 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
       await api.removeItineraryDay(destinationId, dayId);
       toast("Day removed", "success");
       await refresh();
-    } catch { toast("Failed to remove", "error"); }
+    } catch {
+      toast("Failed to remove", "error");
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Itinerary ({days.length} days)</h3>
+        <h3 className="font-semibold text-gray-900">
+          Itinerary ({days.length} days)
+        </h3>
         <button
           onClick={() => setAdding(true)}
           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1 hover:bg-blue-700"
@@ -327,29 +415,42 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
               type="number"
               placeholder="Day #"
               value={newDay.day_number}
-              onChange={(e) => setNewDay((d) => ({ ...d, day_number: e.target.value }))}
+              onChange={(e) =>
+                setNewDay((d) => ({ ...d, day_number: e.target.value }))
+              }
               className="border rounded-lg px-3 py-2 text-sm"
             />
             <input
               type="text"
               placeholder="Title *"
               value={newDay.title}
-              onChange={(e) => setNewDay((d) => ({ ...d, title: e.target.value }))}
+              onChange={(e) =>
+                setNewDay((d) => ({ ...d, title: e.target.value }))
+              }
               className="border rounded-lg px-3 py-2 text-sm"
             />
           </div>
           <textarea
             placeholder="Description..."
             value={newDay.description}
-            onChange={(e) => setNewDay((d) => ({ ...d, description: e.target.value }))}
+            onChange={(e) =>
+              setNewDay((d) => ({ ...d, description: e.target.value }))
+            }
             rows={2}
             className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
           />
           <div className="flex gap-2">
-            <button onClick={addDay} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+            <button
+              onClick={addDay}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+            >
               {saving ? "Saving..." : "Add"}
             </button>
-            <button onClick={() => setAdding(false)} className="px-4 py-2 border rounded-lg text-sm">
+            <button
+              onClick={() => setAdding(false)}
+              className="px-4 py-2 border rounded-lg text-sm"
+            >
               Cancel
             </button>
           </div>
@@ -357,7 +458,9 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
       )}
 
       {days.length === 0 ? (
-        <p className="text-center text-gray-400 text-sm py-8">No itinerary days yet</p>
+        <p className="text-center text-gray-400 text-sm py-8">
+          No itinerary days yet
+        </p>
       ) : (
         <div className="space-y-3">
           {days.map((day) => (
@@ -368,27 +471,46 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
                     <input
                       type="number"
                       value={editingDay.dayNumber}
-                      onChange={(e) => setEditingDay((d) => ({ ...d, dayNumber: e.target.value }))}
+                      onChange={(e) =>
+                        setEditingDay((d) => ({
+                          ...d,
+                          dayNumber: e.target.value,
+                        }))
+                      }
                       className="border rounded-lg px-3 py-2 text-sm"
                     />
                     <input
                       type="text"
                       value={editingDay.title}
-                      onChange={(e) => setEditingDay((d) => ({ ...d, title: e.target.value }))}
+                      onChange={(e) =>
+                        setEditingDay((d) => ({ ...d, title: e.target.value }))
+                      }
                       className="border rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
                   <textarea
                     value={editingDay.description || ""}
-                    onChange={(e) => setEditingDay((d) => ({ ...d, description: e.target.value }))}
+                    onChange={(e) =>
+                      setEditingDay((d) => ({
+                        ...d,
+                        description: e.target.value,
+                      }))
+                    }
                     rows={2}
                     className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => updateDay(editingDay)} disabled={saving} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm">
+                    <button
+                      onClick={() => updateDay(editingDay)}
+                      disabled={saving}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm"
+                    >
                       Save
                     </button>
-                    <button onClick={() => setEditingDay(null)} className="px-3 py-1.5 border rounded-lg text-sm">
+                    <button
+                      onClick={() => setEditingDay(null)}
+                      className="px-3 py-1.5 border rounded-lg text-sm"
+                    >
                       Cancel
                     </button>
                   </div>
@@ -401,14 +523,22 @@ function ItineraryTab({ destinationId, initialData, onRefresh }) {
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{day.title}</p>
                     {day.description && (
-                      <p className="text-sm text-gray-500 mt-1">{day.description}</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {day.description}
+                      </p>
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditingDay(day)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded">
+                    <button
+                      onClick={() => setEditingDay(day)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
+                    >
                       <PencilIcon className="w-4 h-4" />
                     </button>
-                    <button onClick={() => removeDay(day.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                    <button
+                      onClick={() => removeDay(day.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
+                    >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -427,7 +557,11 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
   const { toast } = useToast();
   const [faqs, setFaqs] = useState(initialData || []);
   const [editingFaq, setEditingFaq] = useState(null);
-  const [newFaq, setNewFaq] = useState({ question: "", answer: "", category: "" });
+  const [newFaq, setNewFaq] = useState({
+    question: "",
+    answer: "",
+    category: "",
+  });
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -448,8 +582,11 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
       setAdding(false);
       toast("FAQ added", "success");
       await refresh();
-    } catch { toast("Failed to add FAQ", "error"); }
-    finally { setSaving(false); }
+    } catch {
+      toast("Failed to add FAQ", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateFaq = async (faq) => {
@@ -463,8 +600,11 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
       setEditingFaq(null);
       toast("FAQ updated", "success");
       await refresh();
-    } catch { toast("Failed to update FAQ", "error"); }
-    finally { setSaving(false); }
+    } catch {
+      toast("Failed to update FAQ", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeFaq = async (faqId) => {
@@ -472,7 +612,9 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
       await api.removeFaq(destinationId, faqId);
       toast("FAQ removed", "success");
       await refresh();
-    } catch { toast("Failed to remove FAQ", "error"); }
+    } catch {
+      toast("Failed to remove FAQ", "error");
+    }
   };
 
   return (
@@ -493,28 +635,41 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
             type="text"
             placeholder="Category (optional)"
             value={newFaq.category}
-            onChange={(e) => setNewFaq((f) => ({ ...f, category: e.target.value }))}
+            onChange={(e) =>
+              setNewFaq((f) => ({ ...f, category: e.target.value }))
+            }
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
           <input
             type="text"
             placeholder="Question *"
             value={newFaq.question}
-            onChange={(e) => setNewFaq((f) => ({ ...f, question: e.target.value }))}
+            onChange={(e) =>
+              setNewFaq((f) => ({ ...f, question: e.target.value }))
+            }
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
           <textarea
             placeholder="Answer *"
             value={newFaq.answer}
-            onChange={(e) => setNewFaq((f) => ({ ...f, answer: e.target.value }))}
+            onChange={(e) =>
+              setNewFaq((f) => ({ ...f, answer: e.target.value }))
+            }
             rows={3}
             className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
           />
           <div className="flex gap-2">
-            <button onClick={addFaq} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+            <button
+              onClick={addFaq}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+            >
               {saving ? "Saving..." : "Add FAQ"}
             </button>
-            <button onClick={() => setAdding(false)} className="px-4 py-2 border rounded-lg text-sm">
+            <button
+              onClick={() => setAdding(false)}
+              className="px-4 py-2 border rounded-lg text-sm"
+            >
               Cancel
             </button>
           </div>
@@ -532,27 +687,40 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
                   <input
                     type="text"
                     value={editingFaq.category || ""}
-                    onChange={(e) => setEditingFaq((f) => ({ ...f, category: e.target.value }))}
+                    onChange={(e) =>
+                      setEditingFaq((f) => ({ ...f, category: e.target.value }))
+                    }
                     placeholder="Category"
                     className="w-full border rounded-lg px-3 py-2 text-sm"
                   />
                   <input
                     type="text"
                     value={editingFaq.question}
-                    onChange={(e) => setEditingFaq((f) => ({ ...f, question: e.target.value }))}
+                    onChange={(e) =>
+                      setEditingFaq((f) => ({ ...f, question: e.target.value }))
+                    }
                     className="w-full border rounded-lg px-3 py-2 text-sm font-medium"
                   />
                   <textarea
                     value={editingFaq.answer}
-                    onChange={(e) => setEditingFaq((f) => ({ ...f, answer: e.target.value }))}
+                    onChange={(e) =>
+                      setEditingFaq((f) => ({ ...f, answer: e.target.value }))
+                    }
                     rows={3}
                     className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => updateFaq(editingFaq)} disabled={saving} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm">
+                    <button
+                      onClick={() => updateFaq(editingFaq)}
+                      disabled={saving}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm"
+                    >
                       Save
                     </button>
-                    <button onClick={() => setEditingFaq(null)} className="px-3 py-1.5 border rounded-lg text-sm">
+                    <button
+                      onClick={() => setEditingFaq(null)}
+                      className="px-3 py-1.5 border rounded-lg text-sm"
+                    >
                       Cancel
                     </button>
                   </div>
@@ -565,14 +733,22 @@ function FaqTab({ destinationId, initialData, onRefresh }) {
                         {faq.category}
                       </span>
                     )}
-                    <p className="font-medium text-gray-900 text-sm">{faq.question}</p>
+                    <p className="font-medium text-gray-900 text-sm">
+                      {faq.question}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">{faq.answer}</p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => setEditingFaq(faq)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded">
+                    <button
+                      onClick={() => setEditingFaq(faq)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
+                    >
                       <PencilIcon className="w-4 h-4" />
                     </button>
-                    <button onClick={() => removeFaq(faq.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                    <button
+                      onClick={() => removeFaq(faq.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
+                    >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -609,7 +785,9 @@ function TagTab({ destinationId, initialData, onRefresh }) {
       await refresh();
     } catch (err) {
       toast(err?.response?.data?.error || "Failed to add tag", "error");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeTag = async (tagId) => {
@@ -617,7 +795,9 @@ function TagTab({ destinationId, initialData, onRefresh }) {
       await api.removeDestinationTag(destinationId, tagId);
       toast("Tag removed", "success");
       await refresh();
-    } catch { toast("Failed to remove tag", "error"); }
+    } catch {
+      toast("Failed to remove tag", "error");
+    }
   };
 
   return (
@@ -629,14 +809,18 @@ function TagTab({ destinationId, initialData, onRefresh }) {
           placeholder="Tag name..."
           value={newTag.tag_name}
           onChange={(e) => setNewTag((t) => ({ ...t, tag_name: e.target.value }))}
-          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+          onKeyDown={(e) =>
+            e.key === "Enter" && (e.preventDefault(), addTag())
+          }
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <input
           type="text"
           placeholder="Category (optional)"
           value={newTag.tag_category}
-          onChange={(e) => setNewTag((t) => ({ ...t, tag_category: e.target.value }))}
+          onChange={(e) =>
+            setNewTag((t) => ({ ...t, tag_category: e.target.value }))
+          }
           className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
@@ -657,7 +841,9 @@ function TagTab({ destinationId, initialData, onRefresh }) {
               key={tag.id}
               className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-sm px-3 py-1.5 rounded-full"
             >
-              {tag.category && <span className="text-gray-400 text-xs">[{tag.category}]</span>}
+              {tag.category && (
+                <span className="text-gray-400 text-xs">[{tag.category}]</span>
+              )}
               {tag.name}
               <button
                 onClick={() => removeTag(tag.id)}
@@ -674,6 +860,39 @@ function TagTab({ destinationId, initialData, onRefresh }) {
 }
 
 /* ── Practical Info Tab ─────────────────────────────────────── */
+
+// ✅ Field component moved OUTSIDE PracticalTab to prevent recreation on every render
+function Field({ label, path, type = "text", placeholder, form, onChange }) {
+  const value = path.split(".").reduce((o, k) => o?.[k], form);
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">
+        {label}
+      </label>
+      {type === "textarea" ? (
+        <textarea
+          value={value || ""}
+          onChange={(e) => onChange(path, e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+          className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value || ""}
+          onChange={(e) =>
+            onChange(path, type === "checkbox" ? e.target.checked : e.target.value)
+          }
+          placeholder={placeholder}
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      )}
+    </div>
+  );
+}
+
 function PracticalTab({ destinationId, initialData, onRefresh }) {
   const { toast } = useToast();
   const [form, setForm] = useState(initialData || {});
@@ -696,7 +915,6 @@ function PracticalTab({ destinationId, initialData, onRefresh }) {
   const save = async () => {
     setSaving(true);
     try {
-      // Flatten nested form to flat API shape
       const payload = {
         nearest_airport: form.gettingThere?.nearestAirport || "",
         distance_from_airport: form.gettingThere?.distanceFromAirport || "",
@@ -729,32 +947,12 @@ function PracticalTab({ destinationId, initialData, onRefresh }) {
       await api.upsertPracticalInfo(destinationId, payload);
       toast("Practical info saved", "success");
       onRefresh?.();
-    } catch { toast("Save failed", "error"); }
-    finally { setSaving(false); }
+    } catch {
+      toast("Save failed", "error");
+    } finally {
+      setSaving(false);
+    }
   };
-
-  const Field = ({ label, path, type = "text", placeholder }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      {type === "textarea" ? (
-        <textarea
-          value={(path.split(".").reduce((o, k) => o?.[k], form)) || ""}
-          onChange={(e) => set(path, e.target.value)}
-          placeholder={placeholder}
-          rows={2}
-          className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      ) : (
-        <input
-          type={type}
-          value={(path.split(".").reduce((o, k) => o?.[k], form)) || ""}
-          onChange={(e) => set(path, type === "checkbox" ? e.target.checked : e.target.value)}
-          placeholder={placeholder}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -763,48 +961,51 @@ function PracticalTab({ destinationId, initialData, onRefresh }) {
           🚗 Getting There
         </h4>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Nearest Airport" path="gettingThere.nearestAirport" />
-          <Field label="Distance from Airport" path="gettingThere.distanceFromAirport" />
-          <Field label="Drive Time from Capital" path="gettingThere.driveTimeFromCapital" />
-          <Field label="Road Conditions" path="gettingThere.roadConditions" />
+          <Field label="Nearest Airport" path="gettingThere.nearestAirport" form={form} onChange={set} />
+          <Field label="Distance from Airport" path="gettingThere.distanceFromAirport" form={form} onChange={set} />
+          <Field label="Drive Time from Capital" path="gettingThere.driveTimeFromCapital" form={form} onChange={set} />
+          <Field label="Road Conditions" path="gettingThere.roadConditions" form={form} onChange={set} />
         </div>
       </section>
 
       <section>
         <h4 className="font-semibold text-gray-800 mb-3">⚕️ Health & Safety</h4>
+        {/* ✅ Removed invalid className prop from Field - use wrapper div instead */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Malaria Risk" path="healthAndSafety.malariaRisk" />
-          <Field label="Water Safety" path="healthAndSafety.waterSafety" />
-          <Field label="Medical Facilities" path="healthAndSafety.medicalFacilities" />
-          <Field label="Safety Rating" path="healthAndSafety.safetyRating" />
-          <Field label="Safety Notes" path="healthAndSafety.safetyNotes" type="textarea" className="col-span-2" />
+          <Field label="Malaria Risk" path="healthAndSafety.malariaRisk" form={form} onChange={set} />
+          <Field label="Water Safety" path="healthAndSafety.waterSafety" form={form} onChange={set} />
+          <Field label="Medical Facilities" path="healthAndSafety.medicalFacilities" form={form} onChange={set} />
+          <Field label="Safety Rating" path="healthAndSafety.safetyRating" form={form} onChange={set} />
+          <div className="col-span-2">
+            <Field label="Safety Notes" path="healthAndSafety.safetyNotes" type="textarea" form={form} onChange={set} />
+          </div>
         </div>
       </section>
 
       <section>
         <h4 className="font-semibold text-gray-800 mb-3">🌤️ Climate</h4>
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Avg Low Temp (°C)" path="climate.avgTempLowC" type="number" />
-          <Field label="Avg High Temp (°C)" path="climate.avgTempHighC" type="number" />
-          <Field label="Climate Notes" path="climate.climateNotes" />
+          <Field label="Avg Low Temp (°C)" path="climate.avgTempLowC" type="number" form={form} onChange={set} />
+          <Field label="Avg High Temp (°C)" path="climate.avgTempHighC" type="number" form={form} onChange={set} />
+          <Field label="Climate Notes" path="climate.climateNotes" form={form} onChange={set} />
         </div>
       </section>
 
       <section>
         <h4 className="font-semibold text-gray-800 mb-3">💰 Budget</h4>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Budget Range (USD)" path="budget.rangeUsd" placeholder="$100–$300/day" />
-          <Field label="Entrance Fee (USD)" path="budget.entranceFeeUsd" placeholder="$400" />
-          <Field label="Guide Cost (USD)" path="budget.guideCostUsd" />
-          <Field label="Meal Cost Range" path="budget.mealCostRange" />
+          <Field label="Budget Range (USD)" path="budget.rangeUsd" placeholder="$100–$300/day" form={form} onChange={set} />
+          <Field label="Entrance Fee (USD)" path="budget.entranceFeeUsd" placeholder="$400" form={form} onChange={set} />
+          <Field label="Guide Cost (USD)" path="budget.guideCostUsd" form={form} onChange={set} />
+          <Field label="Meal Cost Range" path="budget.mealCostRange" form={form} onChange={set} />
         </div>
       </section>
 
       <section>
         <h4 className="font-semibold text-gray-800 mb-3">📡 Connectivity</h4>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Cell Coverage" path="connectivity.cellCoverage" />
-          <Field label="Electricity Voltage" path="connectivity.electricityVoltage" />
+          <Field label="Cell Coverage" path="connectivity.cellCoverage" form={form} onChange={set} />
+          <Field label="Electricity Voltage" path="connectivity.electricityVoltage" form={form} onChange={set} />
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -820,9 +1021,11 @@ function PracticalTab({ destinationId, initialData, onRefresh }) {
       <section>
         <h4 className="font-semibold text-gray-800 mb-3">🎭 Culture</h4>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Currency Tips" path="culture.currencyTips" />
-          <Field label="Tipping Culture" path="culture.tippingCulture" />
-          <Field label="Photography Rules" path="culture.photographyRules" type="textarea" className="col-span-2" />
+          <Field label="Currency Tips" path="culture.currencyTips" form={form} onChange={set} />
+          <Field label="Tipping Culture" path="culture.tippingCulture" form={form} onChange={set} />
+          <div className="col-span-2">
+            <Field label="Photography Rules" path="culture.photographyRules" type="textarea" form={form} onChange={set} />
+          </div>
         </div>
       </section>
 
@@ -833,21 +1036,15 @@ function PracticalTab({ destinationId, initialData, onRefresh }) {
           className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
         >
           {saving ? (
-            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Saving...
+            </>
           ) : (
             "Save Practical Info"
           )}
         </button>
       </div>
     </div>
-  );
-}
-
-// XMarkIcon needed inside DestinationDetail
-function XMarkIcon2({ className }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
   );
 }

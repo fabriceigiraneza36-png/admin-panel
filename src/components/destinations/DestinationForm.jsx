@@ -7,7 +7,7 @@ import {
   PlusIcon,
   TrashIcon,
   LinkIcon,
-  HiCheckIcon,
+  CheckIcon, // ✅ Fixed: was HiCheckIcon which doesn't exist in heroicons
 } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
@@ -92,7 +92,133 @@ const emptyForm = {
   meta_description: "",
 };
 
-export default function DestinationForm({ mode, destination, countries = [], onSuccess, onClose }) {
+// ✅ Fixed: Moved ArrayField OUTSIDE the main component to prevent
+// state loss on every parent re-render
+function ArrayField({ label, fieldKey, placeholder, values, onAdd, onRemove }) {
+  const [input, setInput] = useState("");
+
+  const add = () => {
+    const v = input.trim();
+    if (!v) return;
+    onAdd(fieldKey, v);
+    setInput("");
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex gap-2 mb-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && (e.preventDefault(), add())
+          }
+          placeholder={placeholder}
+          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+        >
+          <PlusIcon className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(values || []).map((item, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full"
+          >
+            {item}
+            <button
+              type="button"
+              onClick={() => onRemove(fieldKey, i)}
+              className="ml-1 text-blue-400 hover:text-blue-700"
+            >
+              <XMarkIcon className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ✅ Fixed: Moved Input outside to prevent recreation on each render
+function Input({ label, field, type = "text", placeholder, className = "", help, form, onChange }) {
+  return (
+    <div className={className}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={form[field] ?? ""}
+        onChange={(e) => onChange(field, e.target.value)}
+        placeholder={placeholder}
+        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      {help && <p className="text-xs text-gray-400 mt-1">{help}</p>}
+    </div>
+  );
+}
+
+// ✅ Fixed: Moved Textarea outside
+function Textarea({ label, field, rows = 3, placeholder, className = "", form, onChange }) {
+  return (
+    <div className={className}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <textarea
+        value={form[field] ?? ""}
+        onChange={(e) => onChange(field, e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+      />
+    </div>
+  );
+}
+
+// ✅ Fixed: Moved Toggle outside
+function Toggle({ label, field, form, onChange }) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer">
+      <div className="relative">
+        <input
+          type="checkbox"
+          checked={!!form[field]}
+          onChange={(e) => onChange(field, e.target.checked)}
+          className="sr-only"
+        />
+        <div
+          className={`w-10 h-6 rounded-full transition-colors ${
+            form[field] ? "bg-blue-600" : "bg-gray-300"
+          }`}
+        />
+        <div
+          className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+            form[field] ? "translate-x-5" : "translate-x-1"
+          }`}
+        />
+      </div>
+      <span className="text-sm text-gray-700">{label}</span>
+    </label>
+  );
+}
+
+export default function DestinationForm({
+  mode,
+  destination,
+  countries = [],
+  onSuccess,
+  onClose,
+}) {
   const { toast } = useToast();
   const [tab, setTab] = useState("basic");
   const [form, setForm] = useState(emptyForm);
@@ -174,7 +300,7 @@ export default function DestinationForm({ mode, destination, countries = [], onS
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-    set("image_url", ""); // clear manual URL if file selected
+    set("image_url", "");
   };
 
   // ── Add URL to image_urls list ────────────────────────────────
@@ -183,7 +309,6 @@ export default function DestinationForm({ mode, destination, countries = [], onS
     if (!url) return;
     set("image_urls", [...(form.image_urls || []), url]);
     setUrlInput("");
-    // Set primary image_url if not set
     if (!form.image_url) set("image_url", url);
   };
 
@@ -201,52 +326,15 @@ export default function DestinationForm({ mode, destination, countries = [], onS
     set("thumbnail_url", url);
   };
 
-  // ── Array field helpers ───────────────────────────────────────
-  const ArrayField = ({ label, fieldKey, placeholder }) => {
-    const [input, setInput] = useState("");
-    const add = () => {
-      const v = input.trim();
-      if (!v) return;
-      set(fieldKey, [...(form[fieldKey] || []), v]);
-      setInput("");
-    };
-    return (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-        <div className="flex gap-2 mb-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
-            placeholder={placeholder}
-            className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="button"
-            onClick={add}
-            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-          >
-            <PlusIcon className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(form[fieldKey] || []).map((item, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full"
-            >
-              {item}
-              <button
-                type="button"
-                onClick={() => set(fieldKey, form[fieldKey].filter((_, j) => j !== i))}
-                className="ml-1 text-blue-400 hover:text-blue-700"
-              >
-                <XMarkIcon className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      </div>
+  // ✅ Fixed: Array helpers for the external ArrayField component
+  const handleArrayAdd = (fieldKey, value) => {
+    set(fieldKey, [...(form[fieldKey] || []), value]);
+  };
+
+  const handleArrayRemove = (fieldKey, index) => {
+    set(
+      fieldKey,
+      form[fieldKey].filter((_, j) => j !== index)
     );
   };
 
@@ -260,20 +348,17 @@ export default function DestinationForm({ mode, destination, countries = [], onS
     try {
       const fd = new FormData();
 
-      // Append all scalar fields
       const scalarFields = [
         "name", "tagline", "short_description", "description", "overview",
-        "country_id", "region", "category", "difficulty", "destination_type", "status",
-        "image_url", "hero_image", "thumbnail_url", "cover_image_url",
-        "video_url", "virtual_tour_url",
-        "duration_days", "duration_nights", "min_group_size", "max_group_size",
-        "min_age", "fitness_level", "entrance_fee", "operating_hours",
-        "best_time_to_visit", "getting_there", "what_to_expect",
-        "local_tips", "safety_info",
-        "latitude", "longitude", "altitude_meters",
-        "nearest_city", "nearest_airport", "distance_from_airport_km", "address",
-        "is_featured", "is_popular", "is_new", "is_eco_friendly",
-        "is_family_friendly", "is_sold_out",
+        "country_id", "region", "category", "difficulty", "destination_type",
+        "status", "image_url", "hero_image", "thumbnail_url", "cover_image_url",
+        "video_url", "virtual_tour_url", "duration_days", "duration_nights",
+        "min_group_size", "max_group_size", "min_age", "fitness_level",
+        "entrance_fee", "operating_hours", "best_time_to_visit", "getting_there",
+        "what_to_expect", "local_tips", "safety_info", "latitude", "longitude",
+        "altitude_meters", "nearest_city", "nearest_airport",
+        "distance_from_airport_km", "address", "is_featured", "is_popular",
+        "is_new", "is_eco_friendly", "is_family_friendly", "is_sold_out",
         "meta_title", "meta_description",
       ];
 
@@ -283,16 +368,13 @@ export default function DestinationForm({ mode, destination, countries = [], onS
         }
       });
 
-      // Arrays
       ["highlights", "activities", "wildlife", "image_urls"].forEach((key) => {
         if (Array.isArray(form[key])) {
           form[key].forEach((v) => fd.append(`${key}[]`, v));
-          // Also send as JSON string for backends that parse it that way
           fd.append(key, JSON.stringify(form[key]));
         }
       });
 
-      // File upload
       if (imageFile) fd.append("image", imageFile);
 
       let saved;
@@ -311,74 +393,20 @@ export default function DestinationForm({ mode, destination, countries = [], onS
     }
   };
 
-  // ── Input helpers ─────────────────────────────────────────────
-  const Input = ({ label, field, type = "text", placeholder, className = "", help }) => (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        type={type}
-        value={form[field] ?? ""}
-        onChange={(e) => set(field, e.target.value)}
-        placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      {help && <p className="text-xs text-gray-400 mt-1">{help}</p>}
-    </div>
-  );
-
-  const Textarea = ({ label, field, rows = 3, placeholder, className = "" }) => (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <textarea
-        value={form[field] ?? ""}
-        onChange={(e) => set(field, e.target.value)}
-        rows={rows}
-        placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-      />
-    </div>
-  );
-
-  const Select = ({ label, field, options, className = "" }) => (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <select
-        value={form[field] ?? ""}
-        onChange={(e) => set(field, e.target.value)}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </div>
-  );
-
-  const Toggle = ({ label, field }) => (
-    <label className="flex items-center gap-3 cursor-pointer">
-      <div className="relative">
-        <input
-          type="checkbox"
-          checked={!!form[field]}
-          onChange={(e) => set(field, e.target.checked)}
-          className="sr-only"
-        />
-        <div className={`w-10 h-6 rounded-full transition-colors ${form[field] ? "bg-blue-600" : "bg-gray-300"}`} />
-        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${form[field] ? "translate-x-5" : "translate-x-1"}`} />
-      </div>
-      <span className="text-sm text-gray-700">{label}</span>
-    </label>
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-bold text-gray-900">
-            {mode === "create" ? "Add New Destination" : `Edit: ${destination?.name}`}
+            {mode === "create"
+              ? "Add New Destination"
+              : `Edit: ${destination?.name}`}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+          >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
@@ -407,15 +435,17 @@ export default function DestinationForm({ mode, destination, countries = [], onS
             {/* ── BASIC INFO ── */}
             {tab === "basic" && (
               <div className="space-y-4">
-                <Input label="Name *" field="name" placeholder="e.g. Mount Karisimbi" />
-                <Input label="Tagline" field="tagline" placeholder="e.g. The Roof of the Virungas" />
-                <Textarea label="Short Description" field="short_description" rows={2} />
-                <Textarea label="Full Description" field="description" rows={5} />
-                <Textarea label="Overview (truncated version)" field="overview" rows={3} />
+                <Input label="Name *" field="name" placeholder="e.g. Mount Karisimbi" form={form} onChange={set} />
+                <Input label="Tagline" field="tagline" placeholder="e.g. The Roof of the Virungas" form={form} onChange={set} />
+                <Textarea label="Short Description" field="short_description" rows={2} form={form} onChange={set} />
+                <Textarea label="Full Description" field="description" rows={5} form={form} onChange={set} />
+                <Textarea label="Overview (truncated version)" field="overview" rows={3} form={form} onChange={set} />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Country *
+                    </label>
                     <select
                       value={form.country_id}
                       onChange={(e) => set("country_id", e.target.value)}
@@ -423,88 +453,110 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                     >
                       <option value="">Select country...</option>
                       {countries.map((c) => (
-                        <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
+                        <option key={c.id} value={c.id}>
+                          {c.flag} {c.name}
+                        </option>
                       ))}
                     </select>
                   </div>
-                  <Input label="Region / Province" field="region" placeholder="e.g. Northern Province" />
+                  <Input
+                    label="Region / Province"
+                    field="region"
+                    placeholder="e.g. Northern Province"
+                    form={form}
+                    onChange={set}
+                  />
                 </div>
 
-                 <div className="space-y-4">
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Category
-                   </div>
-                   <div className="space-y-2">
-                     {/* Predefined options */}
-                     <div className="flex flex-wrap gap-2 mb-3">
-                       {CATEGORIES.map((category) => (
-                         <button key={category} type="button"
-                           onClick={() => { set("category", category); }}
-                           className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2
-                             transition-all duration-200
-                             ${form.category === category
-                               ? "border-emerald-400 bg-emerald-50/80 shadow-sm"
-                               : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"}`}>
-                           <span className="text-sm font-semibold text-gray-800">{category}</span>
-                           {form.category === category && (
-                             <HiCheckIcon className="w-4 h-4 text-emerald-600" />
-                           )}
-                         </button>
-                       ))}
-                     </div>
-                     {/* Custom input */}
-                     <Input
-                       id="category"
-                       label="Or enter custom category"
-                       field="category"
-                       type="text"
-                       placeholder="e.g., Safari, Cultural, Adventure, Custom Category..."
-                       value={form.category}
-                       onChange={(e) => set("category", e.target.value)}
-                     />
-                   </div>
-                 </div>
+                {/* ✅ Fixed: label closed with </label> not </div> */}
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <div className="space-y-2">
+                    {/* Predefined options */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {CATEGORIES.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => set("category", category)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 ${
+                            form.category === category
+                              ? "border-emerald-400 bg-emerald-50/80 shadow-sm"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
+                          }`}
+                        >
+                          <span className="text-sm font-semibold text-gray-800">
+                            {category}
+                          </span>
+                          {/* ✅ Fixed: CheckIcon instead of HiCheckIcon */}
+                          {form.category === category && (
+                            <CheckIcon className="w-4 h-4 text-emerald-600" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {/* ✅ Fixed: Removed invalid id/value/onChange props,
+                        Input uses field + form + onChange pattern */}
+                    <Input
+                      label="Or enter custom category"
+                      field="category"
+                      type="text"
+                      placeholder="e.g., Safari, Cultural, Adventure, Custom Category..."
+                      form={form}
+                      onChange={set}
+                    />
+                  </div>
+                </div>
 
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Difficulty
-                     </label>
-                     <select
-                       value={form.difficulty}
-                       onChange={(e) => set("difficulty", e.target.value)}
-                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                     >
-                       {DIFFICULTIES.map((d) => (
-                         <option key={d} value={d}>
-                           {d.charAt(0).toUpperCase() + d.slice(1)}
-                         </option>
-                       ))}
-                     </select>
-                   </div>
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Status
-                     </label>
-                     <select
-                       value={form.status}
-                       onChange={(e) => set("status", e.target.value)}
-                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                     >
-                       {[
-                         { value: "draft", label: "Draft" },
-                         { value: "published", label: "Published" },
-                         { value: "archived", label: "Archived" },
-                       ].map((option) => (
-                         <option key={option.value} value={option.value}>
-                           {option.label}
-                         </option>
-                       ))}
-                     </select>
-                   </div>
-                 </div>
-                 <Input label="Destination Type" field="destination_type" placeholder="e.g. volcano, beach..." />
-                <Input label="Destination Type" field="destination_type" placeholder="e.g. volcano, beach..." />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Difficulty
+                    </label>
+                    <select
+                      value={form.difficulty}
+                      onChange={(e) => set("difficulty", e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {DIFFICULTIES.map((d) => (
+                        <option key={d} value={d}>
+                          {d.charAt(0).toUpperCase() + d.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => set("status", e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {[
+                        { value: "draft", label: "Draft" },
+                        { value: "published", label: "Published" },
+                        { value: "archived", label: "Archived" },
+                      ].map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* ✅ Fixed: Removed duplicate, kept only one */}
+                <Input
+                  label="Destination Type"
+                  field="destination_type"
+                  placeholder="e.g. volcano, beach..."
+                  form={form}
+                  onChange={set}
+                />
               </div>
             )}
 
@@ -524,7 +576,9 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                           src={imagePreview || form.image_url}
                           alt="Preview"
                           className="w-full h-full object-cover"
-                          onError={(e) => { e.target.style.display = "none"; }}
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
                         />
                       ) : (
                         <PhotoIcon className="w-10 h-10 text-gray-300" />
@@ -550,13 +604,17 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                           className="hidden"
                         />
                         {imageFile && (
-                          <p className="text-xs text-gray-500 mt-1">{imageFile.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {imageFile.name}
+                          </p>
                         )}
                       </div>
 
                       {/* URL input */}
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Or enter image URL</label>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          Or enter image URL
+                        </label>
                         <div className="flex gap-2">
                           <input
                             type="url"
@@ -581,7 +639,8 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                     Additional Images (Gallery)
                   </label>
                   <p className="text-xs text-gray-400 mb-3">
-                    Add multiple image URLs. Click a thumbnail to set as primary.
+                    Add multiple image URLs. Click a thumbnail to set as
+                    primary.
                   </p>
 
                   <div className="flex gap-2 mb-3">
@@ -589,7 +648,10 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                       type="url"
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addImageUrl())}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), addImageUrl())
+                      }
                       placeholder="https://example.com/photo.jpg"
                       className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -609,7 +671,9 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                         <div
                           key={i}
                           className={`relative group rounded-lg overflow-hidden border-2 cursor-pointer ${
-                            form.image_url === url ? "border-blue-500" : "border-transparent"
+                            form.image_url === url
+                              ? "border-blue-500"
+                              : "border-transparent"
                           }`}
                           onClick={() => setPrimaryImage(url)}
                         >
@@ -617,16 +681,24 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                             src={url}
                             alt=""
                             className="w-full h-20 object-cover"
-                            onError={(e) => { e.target.src = ""; e.target.parentElement.classList.add("bg-gray-100"); }}
+                            onError={(e) => {
+                              e.target.src = "";
+                              e.target.parentElement.classList.add("bg-gray-100");
+                            }}
                           />
                           {form.image_url === url && (
                             <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                              <span className="text-xs font-bold text-blue-700 bg-white px-1 rounded">Primary</span>
+                              <span className="text-xs font-bold text-blue-700 bg-white px-1 rounded">
+                                Primary
+                              </span>
                             </div>
                           )}
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); removeImageUrl(i); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeImageUrl(i);
+                            }}
                             className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <XMarkIcon className="w-3 h-3" />
@@ -651,7 +723,12 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     {form.hero_image && (
-                      <img src={form.hero_image} alt="" className="mt-1 h-12 w-full object-cover rounded" onError={() => {}} />
+                      <img
+                        src={form.hero_image}
+                        alt=""
+                        className="mt-1 h-12 w-full object-cover rounded"
+                        onError={() => {}}
+                      />
                     )}
                   </div>
                   <div>
@@ -666,7 +743,12 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     {form.thumbnail_url && (
-                      <img src={form.thumbnail_url} alt="" className="mt-1 h-12 w-full object-cover rounded" onError={() => {}} />
+                      <img
+                        src={form.thumbnail_url}
+                        alt=""
+                        className="mt-1 h-12 w-full object-cover rounded"
+                        onError={() => {}}
+                      />
                     )}
                   </div>
                   <div>
@@ -713,24 +795,24 @@ export default function DestinationForm({ mode, destination, countries = [], onS
             {tab === "details" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Input label="Duration (Days)" field="duration_days" type="number" placeholder="2" />
-                  <Input label="Duration (Nights)" field="duration_nights" type="number" placeholder="1" />
-                  <Input label="Min Group Size" field="min_group_size" type="number" placeholder="1" />
-                  <Input label="Max Group Size" field="max_group_size" type="number" placeholder="12" />
+                  <Input label="Duration (Days)" field="duration_days" type="number" placeholder="2" form={form} onChange={set} />
+                  <Input label="Duration (Nights)" field="duration_nights" type="number" placeholder="1" form={form} onChange={set} />
+                  <Input label="Min Group Size" field="min_group_size" type="number" placeholder="1" form={form} onChange={set} />
+                  <Input label="Max Group Size" field="max_group_size" type="number" placeholder="12" form={form} onChange={set} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Minimum Age" field="min_age" type="number" placeholder="12" />
-                  <Input label="Fitness Level" field="fitness_level" placeholder="e.g. High" />
+                  <Input label="Minimum Age" field="min_age" type="number" placeholder="12" form={form} onChange={set} />
+                  <Input label="Fitness Level" field="fitness_level" placeholder="e.g. High" form={form} onChange={set} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Entrance Fee" field="entrance_fee" placeholder="e.g. $400 climbing permit" />
-                  <Input label="Operating Hours" field="operating_hours" placeholder="e.g. Trek starts 07:00" />
+                  <Input label="Entrance Fee" field="entrance_fee" placeholder="e.g. $400 climbing permit" form={form} onChange={set} />
+                  <Input label="Operating Hours" field="operating_hours" placeholder="e.g. Trek starts 07:00" form={form} onChange={set} />
                 </div>
-                <Input label="Best Time to Visit" field="best_time_to_visit" placeholder="e.g. June–September" />
-                <Textarea label="Getting There" field="getting_there" rows={2} />
-                <Textarea label="What to Expect" field="what_to_expect" rows={3} />
-                <Textarea label="Local Tips" field="local_tips" rows={3} />
-                <Textarea label="Safety Information" field="safety_info" rows={3} />
+                <Input label="Best Time to Visit" field="best_time_to_visit" placeholder="e.g. June–September" form={form} onChange={set} />
+                <Textarea label="Getting There" field="getting_there" rows={2} form={form} onChange={set} />
+                <Textarea label="What to Expect" field="what_to_expect" rows={3} form={form} onChange={set} />
+                <Textarea label="Local Tips" field="local_tips" rows={3} form={form} onChange={set} />
+                <Textarea label="Safety Information" field="safety_info" rows={3} form={form} onChange={set} />
               </div>
             )}
 
@@ -738,22 +820,23 @@ export default function DestinationForm({ mode, destination, countries = [], onS
             {tab === "location" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Latitude" field="latitude" type="number" placeholder="-1.5067" />
-                  <Input label="Longitude" field="longitude" type="number" placeholder="29.4431" />
+                  <Input label="Latitude" field="latitude" type="number" placeholder="-1.5067" form={form} onChange={set} />
+                  <Input label="Longitude" field="longitude" type="number" placeholder="29.4431" form={form} onChange={set} />
                 </div>
-                <Input label="Altitude (meters)" field="altitude_meters" type="number" placeholder="4507" />
-                <Input label="Address" field="address" placeholder="Physical address..." />
+                <Input label="Altitude (meters)" field="altitude_meters" type="number" placeholder="4507" form={form} onChange={set} />
+                <Input label="Address" field="address" placeholder="Physical address..." form={form} onChange={set} />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Nearest City" field="nearest_city" placeholder="e.g. Kigali" />
-                  <Input label="Nearest Airport" field="nearest_airport" placeholder="e.g. KGL" />
+                  <Input label="Nearest City" field="nearest_city" placeholder="e.g. Kigali" form={form} onChange={set} />
+                  <Input label="Nearest Airport" field="nearest_airport" placeholder="e.g. KGL" form={form} onChange={set} />
                 </div>
                 <Input
                   label="Distance from Airport (km)"
                   field="distance_from_airport_km"
                   type="number"
                   placeholder="110"
+                  form={form}
+                  onChange={set}
                 />
-                {/* Map preview */}
                 {form.latitude && form.longitude && (
                   <div className="rounded-xl overflow-hidden border h-48 bg-gray-100 flex items-center justify-center">
                     <a
@@ -762,7 +845,8 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                       rel="noopener noreferrer"
                       className="text-blue-600 text-sm underline"
                     >
-                      📍 View on Google Maps ({form.latitude}, {form.longitude})
+                      📍 View on Google Maps ({form.latitude},{" "}
+                      {form.longitude})
                     </a>
                   </div>
                 )}
@@ -772,9 +856,31 @@ export default function DestinationForm({ mode, destination, countries = [], onS
             {/* ── HIGHLIGHTS ── */}
             {tab === "highlights" && (
               <div className="space-y-6">
-                <ArrayField label="Highlights" fieldKey="highlights" placeholder="e.g. Summit at 4,507m" />
-                <ArrayField label="Activities" fieldKey="activities" placeholder="e.g. Mountain trekking" />
-                <ArrayField label="Wildlife" fieldKey="wildlife" placeholder="e.g. Mountain gorilla" />
+                {/* ✅ Fixed: ArrayField now receives values and callbacks as props */}
+                <ArrayField
+                  label="Highlights"
+                  fieldKey="highlights"
+                  placeholder="e.g. Summit at 4,507m"
+                  values={form.highlights}
+                  onAdd={handleArrayAdd}
+                  onRemove={handleArrayRemove}
+                />
+                <ArrayField
+                  label="Activities"
+                  fieldKey="activities"
+                  placeholder="e.g. Mountain trekking"
+                  values={form.activities}
+                  onAdd={handleArrayAdd}
+                  onRemove={handleArrayRemove}
+                />
+                <ArrayField
+                  label="Wildlife"
+                  fieldKey="wildlife"
+                  placeholder="e.g. Mountain gorilla"
+                  values={form.wildlife}
+                  onAdd={handleArrayAdd}
+                  onRemove={handleArrayRemove}
+                />
               </div>
             )}
 
@@ -787,12 +893,16 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                     field="meta_title"
                     placeholder="SEO page title..."
                     help="Leave empty to use destination name"
+                    form={form}
+                    onChange={set}
                   />
                   <Textarea
                     label="Meta Description"
                     field="meta_description"
                     rows={2}
                     placeholder="SEO description (150–160 chars)..."
+                    form={form}
+                    onChange={set}
                   />
                 </div>
 
@@ -801,12 +911,12 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                     Feature Flags
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Toggle label="Featured" field="is_featured" />
-                    <Toggle label="Popular" field="is_popular" />
-                    <Toggle label="New" field="is_new" />
-                    <Toggle label="Eco-Friendly" field="is_eco_friendly" />
-                    <Toggle label="Family Friendly" field="is_family_friendly" />
-                    <Toggle label="Sold Out" field="is_sold_out" />
+                    <Toggle label="Featured" field="is_featured" form={form} onChange={set} />
+                    <Toggle label="Popular" field="is_popular" form={form} onChange={set} />
+                    <Toggle label="New" field="is_new" form={form} onChange={set} />
+                    <Toggle label="Eco-Friendly" field="is_eco_friendly" form={form} onChange={set} />
+                    <Toggle label="Family Friendly" field="is_family_friendly" form={form} onChange={set} />
+                    <Toggle label="Sold Out" field="is_sold_out" form={form} onChange={set} />
                   </div>
                 </div>
               </div>
@@ -815,7 +925,11 @@ export default function DestinationForm({ mode, destination, countries = [], onS
 
           {/* Footer */}
           <div className="flex items-center justify-between p-6 border-t bg-gray-50 rounded-b-2xl">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100"
+            >
               Cancel
             </button>
             <div className="flex items-center gap-3">
@@ -835,9 +949,14 @@ export default function DestinationForm({ mode, destination, countries = [], onS
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {saving ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : mode === "create" ? (
+                  "Create Destination"
                 ) : (
-                  mode === "create" ? "Create Destination" : "Update Destination"
+                  "Update Destination"
                 )}
               </button>
             </div>
@@ -846,4 +965,4 @@ export default function DestinationForm({ mode, destination, countries = [], onS
       </div>
     </div>
   );
-}
+} // ✅ Fixed: was }) instead of }

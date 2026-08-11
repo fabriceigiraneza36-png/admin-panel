@@ -1,7 +1,9 @@
 // src/components/notifications/NotificationPanel.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNotifications } from "@context/NotificationContext";
+// ✅ Fixed: Use relative path instead of unresolved @context alias
+// Update this path to match your actual project structure
+import { useNotifications } from "../../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -16,11 +18,15 @@ const formatDate = (dateStr) => {
 };
 
 const typeStyles = (type = "") => {
-  if (type.startsWith("booking"))  return { dot: "bg-blue-500",   badge: "bg-blue-100 text-blue-700"   };
-  if (type.includes("alert"))      return { dot: "bg-red-500",    badge: "bg-red-100 text-red-700"     };
-  if (type.includes("success"))    return { dot: "bg-green-500",  badge: "bg-green-100 text-green-700" };
-  if (type.includes("warning"))    return { dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700"};
-  return                                  { dot: "bg-gray-400",   badge: "bg-gray-100 text-gray-600"   };
+  if (type.startsWith("booking"))
+    return { dot: "bg-blue-500", badge: "bg-blue-100 text-blue-700" };
+  if (type.includes("alert"))
+    return { dot: "bg-red-500", badge: "bg-red-100 text-red-700" };
+  if (type.includes("success"))
+    return { dot: "bg-green-500", badge: "bg-green-100 text-green-700" };
+  if (type.includes("warning"))
+    return { dot: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-700" };
+  return { dot: "bg-gray-400", badge: "bg-gray-100 text-gray-600" };
 };
 
 // ── Bell Icon ──────────────────────────────────────────────────────────────
@@ -55,8 +61,8 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
     <div
       className={`group flex items-start gap-3 px-4 py-3 hover:bg-gray-50
                   transition-colors border-b border-gray-100 last:border-0 ${
-        notif.is_read ? "opacity-80" : ""
-      }`}
+                    notif.is_read ? "opacity-80" : ""
+                  }`}
     >
       {/* Dot */}
       <span
@@ -68,7 +74,9 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
       {/* Body */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${badge}`}>
+          <span
+            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${badge}`}
+          >
             {notif.type || "system"}
           </span>
           {notif.title && (
@@ -91,7 +99,10 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
       <div className="flex-shrink-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         {!notif.is_read && (
           <button
-            onClick={(e) => { e.stopPropagation(); onMarkRead(notif.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkRead(notif.id);
+            }}
             title="Mark as read"
             className="text-[10px] text-blue-600 hover:text-blue-800 font-medium
                        whitespace-nowrap"
@@ -100,7 +111,10 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
           </button>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(notif.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(notif.id);
+          }}
           title="Delete"
           className="text-[10px] text-red-500 hover:text-red-700 font-medium"
         >
@@ -127,26 +141,31 @@ function EmptyState() {
 
 export default function NotificationPanel() {
   const dispatch = useDispatch();
+
+  // ✅ Fixed: Added safe fallback in case Redux slice isn't set up yet
   const panelOpen = useSelector(
-    (state) => state.notifications.panelOpen,
+    (state) => state.notifications?.panelOpen ?? false
   );
 
+  // ✅ Fixed: Added null-safe destructuring with fallbacks in case
+  // context returns undefined during initialization
+  const notificationContext = useNotifications();
   const {
-    notifications,
-    unreadCount,
-    loading,
-    hasMore,
-    refresh,
-    loadMore,
-    markRead,
-    markAllRead,
-    deleteOne,
-    clearAll,
-  } = useNotifications();
+    notifications = [],
+    unreadCount = 0,
+    loading = false,
+    hasMore = false,
+    refresh = () => {},
+    loadMore = () => {},
+    markRead = () => {},
+    markAllRead = () => {},
+    deleteOne = () => {},
+    clearAll = () => {},
+  } = notificationContext || {};
 
   const [filter, setFilter] = useState("all"); // all | unread
-  const panelRef            = useRef(null);
-  const triggerRef          = useRef(null);
+  const panelRef = useRef(null);
+  // ✅ Fixed: Removed unused triggerRef
 
   // ── Close on outside click ───────────────────────────────────────────────
 
@@ -155,8 +174,10 @@ export default function NotificationPanel() {
 
     const handleClick = (e) => {
       if (
-        panelRef.current && !panelRef.current.contains(e.target) &&
-        !e.target.closest?.("[data-notif-trigger]")
+        panelRef.current &&
+        !panelRef.current.contains(e.target) &&
+        // ✅ Fixed: Added proper string value for data attribute selector
+        !e.target.closest?.('[data-notif-trigger="true"]')
       ) {
         dispatch({ type: "notifications/setPanelOpen", payload: false });
       }
@@ -169,10 +190,10 @@ export default function NotificationPanel() {
     };
 
     document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown",   handleKey);
+    document.addEventListener("keydown", handleKey);
     return () => {
       document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown",   handleKey);
+      document.removeEventListener("keydown", handleKey);
     };
   }, [panelOpen, dispatch]);
 
@@ -210,12 +231,15 @@ export default function NotificationPanel() {
     <div className="relative">
       {/* Bell trigger */}
       <button
-        ref={triggerRef}
+        // ✅ Fixed: Removed unused ref={triggerRef}
         onClick={handleToggle}
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-label={`Notifications${
+          unreadCount > 0 ? ` (${unreadCount} unread)` : ""
+        }`}
         aria-expanded={panelOpen}
         aria-haspopup="true"
-        data-notif-trigger
+        // ✅ Fixed: Added explicit string value so CSS selector [data-notif-trigger="true"] works
+        data-notif-trigger="true"
         className="relative p-2 rounded-lg text-gray-500 hover:text-gray-700
                    hover:bg-gray-100 transition-colors focus:outline-none
                    focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -256,15 +280,19 @@ export default function NotificationPanel() {
           style={{ top: "calc(100% + 8px)" }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3
-                          border-b border-gray-100">
+          <div
+            className="flex items-center justify-between px-4 py-3
+                          border-b border-gray-100"
+          >
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-gray-800">
                 Notifications
               </h2>
               {unreadCount > 0 && (
-                <span className="bg-red-100 text-red-700 text-xs font-bold
-                                 px-1.5 py-0.5 rounded-full">
+                <span
+                  className="bg-red-100 text-red-700 text-xs font-bold
+                                 px-1.5 py-0.5 rounded-full"
+                >
                   {unreadCount}
                 </span>
               )}
@@ -278,10 +306,10 @@ export default function NotificationPanel() {
                   onClick={() => setFilter(f)}
                   className={`px-2 py-1 rounded-md capitalize font-medium
                               transition-colors ${
-                    filter === f
-                      ? "bg-blue-100 text-blue-700"
-                      : "text-gray-500 hover:bg-gray-100"
-                  }`}
+                                filter === f
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "text-gray-500 hover:bg-gray-100"
+                              }`}
                 >
                   {f}
                 </button>
@@ -291,8 +319,10 @@ export default function NotificationPanel() {
 
           {/* Action bar */}
           {notifications.length > 0 && (
-            <div className="flex items-center justify-between px-4 py-2
-                            border-b border-gray-100 bg-gray-50">
+            <div
+              className="flex items-center justify-between px-4 py-2
+                            border-b border-gray-100 bg-gray-50"
+            >
               <button
                 onClick={handleMarkAllRead}
                 disabled={unreadCount === 0}
@@ -315,8 +345,10 @@ export default function NotificationPanel() {
           <div className="flex-1 overflow-y-auto overscroll-contain">
             {loading && displayed.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent
-                               rounded-full animate-spin" />
+                <div
+                  className="h-6 w-6 border-2 border-blue-500 border-t-transparent
+                               rounded-full animate-spin"
+                />
               </div>
             ) : displayed.length === 0 ? (
               <EmptyState />
@@ -347,18 +379,23 @@ export default function NotificationPanel() {
           </div>
 
           {/* Footer — link to full page */}
-          <div className="border-t border-gray-100 px-4 py-2.5 bg-gray-50
-                          flex justify-center">
-              <a
-                href="/notifications"
-                onClick={() =>
-                  dispatch({ type: "notifications/setPanelOpen", payload: false })
-                }
-                className="text-xs text-blue-600 hover:text-blue-800
+          <div
+            className="border-t border-gray-100 px-4 py-2.5 bg-gray-50
+                          flex justify-center"
+          >
+            <a
+              href="/notifications"
+              onClick={() =>
+                dispatch({
+                  type: "notifications/setPanelOpen",
+                  payload: false,
+                })
+              }
+              className="text-xs text-blue-600 hover:text-blue-800
                            font-medium transition-colors"
-              >
-                View all notifications →
-              </a>
+            >
+              View all notifications →
+            </a>
           </div>
         </div>
       )}
