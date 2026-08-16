@@ -1,953 +1,419 @@
-import { useState, useEffect, useRef } from "react";
-import * as api from "../../api/destinations";
-import { useToast } from "../../hooks/useToast";
-import {
-  XMarkIcon,
-  PhotoIcon,
-  PlusIcon,
-  TrashIcon,
-  LinkIcon,
-  CheckIcon, // ✅ Fixed: was HiCheckIcon which doesn't exist in heroicons
-} from "@heroicons/react/24/outline";
+import { useState } from "react";
+import { 
+  MapPinIcon, 
+  StarIcon,
+  ClockIcon,
+  UsersIcon,
+  ArrowRightIcon,
+  CalendarDaysIcon,
+  SparklesIcon,
+  FireIcon,
+  LeafIcon,
+} from "@heroicons/react/24/solid";
+import { HeartIcon, ShareIcon } from "@heroicons/react/24/outline";
 
-const CATEGORIES = [
-  "Safari", "Mountain Climbing", "Beach", "Cultural", "Wildlife",
-  "Adventure", "Historical", "Eco-Tourism", "Water Sports", "Hiking",
-  "City Tour", "Desert", "Rainforest", "National Park", "Island",
+// ── Badge config ────────────────────────────────────────────────
+const FLAG_BADGES = [
+  { key: "is_featured",      label: "Featured",    color: "bg-amber-500",   icon: StarIcon },
+  { key: "is_popular",       label: "Popular",     color: "bg-rose-500",    icon: FireIcon },
+  { key: "is_new",           label: "New",         color: "bg-violet-500",  icon: SparklesIcon },
+  { key: "is_eco_friendly",  label: "Eco",         color: "bg-emerald-500", icon: LeafIcon },
 ];
 
-const DIFFICULTIES = ["easy", "moderate", "challenging", "strenuous", "expert"];
-
-const TABS = [
-  { id: "basic", label: "Basic Info" },
-  { id: "media", label: "Images & Media" },
-  { id: "details", label: "Details" },
-  { id: "location", label: "Location" },
-  { id: "highlights", label: "Highlights" },
-  { id: "seo", label: "SEO & Flags" },
-];
-
-const emptyForm = {
-   // Basic
-   name: "",
-   tagline: "",
-   short_description: "",
-   description: "",
-   overview: "",
-   country_id: "",
-   category: "Safari",
-   difficulty: "moderate",
-   destination_type: "",
-   status: "draft",
-
-  // Media
-  image_url: "",
-  image_urls: [],
-  hero_image: "",
-  thumbnail_url: "",
-  cover_image_url: "",
-  video_url: "",
-  virtual_tour_url: "",
-
-   // Details
-   duration_days: "",
-   duration_nights: "",
-   min_group_size: 1,
-   max_group_size: "",
-   min_age: "",
-   fitness_level: "",
-   entrance_fee: "",
-   operating_hours: "",
-   best_time_to_visit: "",
-   getting_there: "",
-   what_to_expect: "",
-
-  // Location
-  latitude: "",
-  longitude: "",
-  altitude_meters: "",
-  nearest_city: "",
-  nearest_airport: "",
-  distance_from_airport_km: "",
-  address: "",
-
-  // Highlights / Arrays
-  highlights: [],
-  activities: [],
-  wildlife: [],
-
-  // Flags
-  is_featured: false,
-  is_popular: false,
-  is_new: false,
-  is_eco_friendly: false,
-  is_family_friendly: false,
-  is_sold_out: false,
-
-  // SEO
-  meta_title: "",
-  meta_description: "",
+const DIFFICULTY_STYLES = {
+  easy:        { dot: "bg-emerald-400", text: "text-emerald-300" },
+  moderate:    { dot: "bg-amber-400",   text: "text-amber-300"   },
+  challenging: { dot: "bg-orange-400",  text: "text-orange-300"  },
+  strenuous:   { dot: "bg-red-400",     text: "text-red-300"     },
+  expert:      { dot: "bg-red-600",     text: "text-red-400"     },
 };
 
-// ✅ Fixed: Moved ArrayField OUTSIDE the main component to prevent
-// state loss on every parent re-render
-function ArrayField({ label, fieldKey, placeholder, values, onAdd, onRemove }) {
-  const [input, setInput] = useState("");
-
-  const add = () => {
-    const v = input.trim();
-    if (!v) return;
-    onAdd(fieldKey, v);
-    setInput("");
-  };
-
+// ── Skeleton loader ─────────────────────────────────────────────
+export function DestinationCardSkeleton() {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      <div className="flex gap-2 mb-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) =>
-            e.key === "Enter" && (e.preventDefault(), add())
-          }
-          placeholder={placeholder}
-          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="button"
-          onClick={add}
-          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-        >
-          <PlusIcon className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {(values || []).map((item, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full"
-          >
-            {item}
-            <button
-              type="button"
-              onClick={() => onRemove(fieldKey, i)}
-              className="ml-1 text-blue-400 hover:text-blue-700"
-            >
-              <XMarkIcon className="w-3 h-3" />
-            </button>
-          </span>
-        ))}
-      </div>
+    <div className="rounded-3xl overflow-hidden bg-gray-200 animate-pulse h-[420px]">
+      <div className="h-full bg-gradient-to-br from-gray-200 to-gray-300" />
     </div>
   );
 }
 
-// ✅ Fixed: Moved Input outside to prevent recreation on each render
-function Input({ label, field, type = "text", placeholder, className = "", help, form, onChange }) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={form[field] ?? ""}
-        onChange={(e) => onChange(field, e.target.value)}
-        placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      {help && <p className="text-xs text-gray-400 mt-1">{help}</p>}
-    </div>
-  );
-}
-
-// ✅ Fixed: Moved Textarea outside
-function Textarea({ label, field, rows = 3, placeholder, className = "", form, onChange }) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
-      <textarea
-        value={form[field] ?? ""}
-        onChange={(e) => onChange(field, e.target.value)}
-        rows={rows}
-        placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-      />
-    </div>
-  );
-}
-
-// ✅ Fixed: Moved Toggle outside
-function Toggle({ label, field, form, onChange }) {
-  return (
-    <label className="flex items-center gap-3 cursor-pointer">
-      <div className="relative">
-        <input
-          type="checkbox"
-          checked={!!form[field]}
-          onChange={(e) => onChange(field, e.target.checked)}
-          className="sr-only"
-        />
-        <div
-          className={`w-10 h-6 rounded-full transition-colors ${
-            form[field] ? "bg-blue-600" : "bg-gray-300"
-          }`}
-        />
-        <div
-          className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-            form[field] ? "translate-x-5" : "translate-x-1"
-          }`}
-        />
-      </div>
-      <span className="text-sm text-gray-700">{label}</span>
-    </label>
-  );
-}
-
-export default function DestinationForm({
-  mode,
+// ── Main card ───────────────────────────────────────────────────
+export default function DestinationCard({
   destination,
-  countries = [],
-  onSuccess,
-  onClose,
+  onBookNow,
+  onLearnMore,
+  onWishlist,
+  priority = false,          // true → larger card variant
+  compact  = false,          // true → smaller card variant
 }) {
-  const { toast } = useToast();
-  const [tab, setTab] = useState("basic");
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [urlInput, setUrlInput] = useState("");
-  const fileRef = useRef();
+  const [imgError,    setImgError]    = useState(false);
+  const [wishlisted,  setWishlisted]  = useState(false);
+  const [imgLoaded,   setImgLoaded]   = useState(false);
+  const [shareHover,  setShareHover]  = useState(false);
 
-  // Populate form in edit mode
-  useEffect(() => {
-    if (mode === "edit" && destination) {
-      setForm({
-        name: destination.name || "",
-         tagline: destination.tagline || "",
-         short_description: destination.shortDescription || "",
-         description: destination.description || "",
-         overview: destination.overview || "",
-         country_id: destination.countryId || destination.country?.id || "",
-         category: destination.category || "Safari",
-         difficulty: destination.difficulty || "moderate",
-         destination_type: destination.destinationType || "",
-         status: destination.status || "draft",
+  if (!destination) return <DestinationCardSkeleton />;
 
-        image_url: destination.imageUrl || "",
-        image_urls: destination.images || [],
-        hero_image: destination.heroImage || "",
-        thumbnail_url: destination.thumbnailUrl || "",
-        cover_image_url: destination.coverImageUrl || "",
-        video_url: destination.videoUrl || "",
-        virtual_tour_url: destination.virtualTourUrl || "",
+  const {
+    name,
+    tagline,
+    category,
+    difficulty      = "moderate",
+    duration_days,
+    duration_nights,
+    min_group_size,
+    max_group_size,
+    image_url,
+    hero_image,
+    thumbnail_url,
+    entrance_fee,
+    best_time_to_visit,
+    nearest_city,
+    country,
+    highlights      = [],
+    activities      = [],
+    is_featured,
+    is_popular,
+    is_new,
+    is_eco_friendly,
+    is_sold_out,
+    is_family_friendly,
+    rating,
+    review_count,
+  } = destination;
 
-         duration_days: destination.durationDays ?? "",
-         duration_nights: destination.durationNights ?? "",
-         min_group_size: destination.minGroupSize || 1,
-         max_group_size: destination.maxGroupSize ?? "",
-         min_age: destination.minAge ?? "",
-         fitness_level: destination.fitnessLevel || "",
-         entrance_fee: destination.entranceFee || "",
-         operating_hours: destination.operatingHours || "",
-         best_time_to_visit: destination.bestTimeToVisit || "",
-         getting_there: destination.gettingThere || "",
-         what_to_expect: destination.whatToExpect || "",
+  // ── Derived values ─────────────────────────────────────────
+  const imageSrc   = !imgError && (hero_image || image_url || thumbnail_url);
+  const diff       = DIFFICULTY_STYLES[difficulty] ?? DIFFICULTY_STYLES.moderate;
+  const activeBadges = FLAG_BADGES.filter(({ key }) => destination[key]);
+  const location   = [nearest_city, country?.name].filter(Boolean).join(", ");
+  const groupRange = max_group_size
+    ? `${min_group_size ?? 1}–${max_group_size}`
+    : `${min_group_size ?? 1}+`;
 
-        latitude: destination.latitude ?? "",
-        longitude: destination.longitude ?? "",
-        altitude_meters: destination.altitudeMeters ?? "",
-        nearest_city: destination.nearestCity || "",
-        nearest_airport: destination.nearestAirport || "",
-        distance_from_airport_km: destination.distanceFromAirportKm ?? "",
-        address: destination.address || "",
+  const cardHeight = priority ? "h-[500px]" : compact ? "h-[340px]" : "h-[420px]";
 
-        highlights: destination.highlights || [],
-        activities: destination.activities || [],
-        wildlife: destination.wildlife || [],
-
-        is_featured: destination.isFeatured || false,
-        is_popular: destination.isPopular || false,
-        is_new: destination.isNew || false,
-        is_eco_friendly: destination.isEcoFriendly || false,
-        is_family_friendly: destination.isFamilyFriendly || false,
-        is_sold_out: destination.isSoldOut || false,
-
-        meta_title: destination.metaTitle || "",
-        meta_description: destination.metaDescription || "",
-      });
-      setImagePreview(destination.imageUrl || null);
-    }
-  }, [mode, destination]);
-
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
-  // ── File pick ─────────────────────────────────────────────────
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    set("image_url", "");
+  // ── Handlers ────────────────────────────────────────────────
+  const handleWishlist = (e) => {
+    e.stopPropagation();
+    setWishlisted((w) => !w);
+    onWishlist?.(destination);
   };
 
-  // ── Add URL to image_urls list ────────────────────────────────
-  const addImageUrl = () => {
-    const url = urlInput.trim();
-    if (!url) return;
-    set("image_urls", [...(form.image_urls || []), url]);
-    setUrlInput("");
-    if (!form.image_url) set("image_url", url);
-  };
-
-  const removeImageUrl = (idx) => {
-    const updated = form.image_urls.filter((_, i) => i !== idx);
-    set("image_urls", updated);
-    if (form.image_url === form.image_urls[idx]) {
-      set("image_url", updated[0] || "");
-    }
-  };
-
-  const setPrimaryImage = (url) => {
-    set("image_url", url);
-    set("hero_image", url);
-    set("thumbnail_url", url);
-  };
-
-  // ✅ Fixed: Array helpers for the external ArrayField component
-  const handleArrayAdd = (fieldKey, value) => {
-    set(fieldKey, [...(form[fieldKey] || []), value]);
-  };
-
-  const handleArrayRemove = (fieldKey, index) => {
-    set(
-      fieldKey,
-      form[fieldKey].filter((_, j) => j !== index)
-    );
-  };
-
-  // ── Submit ────────────────────────────────────────────────────
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim()) return toast("Name is required", "error");
-    if (!form.country_id) return toast("Country is required", "error");
-
-    setSaving(true);
-    try {
-      const fd = new FormData();
-
-      const scalarFields = [
-         "name", "tagline", "short_description", "description", "overview",
-         "country_id", "category", "difficulty", "destination_type",
-         "status", "image_url", "hero_image", "thumbnail_url", "cover_image_url",
-         "video_url", "virtual_tour_url", "duration_days", "duration_nights",
-         "min_group_size", "max_group_size", "min_age", "fitness_level",
-         "entrance_fee", "operating_hours", "best_time_to_visit", "getting_there",
-         "what_to_expect", "latitude", "longitude",
-         "altitude_meters", "nearest_city", "nearest_airport",
-         "distance_from_airport_km", "address", "is_featured", "is_popular",
-         "is_new", "is_eco_friendly", "is_family_friendly", "is_sold_out",
-         "meta_title", "meta_description",
-       ];
-
-      scalarFields.forEach((key) => {
-        if (form[key] !== "" && form[key] !== null && form[key] !== undefined) {
-          fd.append(key, form[key]);
-        }
-      });
-
-      ["highlights", "activities", "wildlife", "image_urls"].forEach((key) => {
-        if (Array.isArray(form[key])) {
-          form[key].forEach((v) => fd.append(`${key}[]`, v));
-          fd.append(key, JSON.stringify(form[key]));
-        }
-      });
-
-      if (imageFile) fd.append("image", imageFile);
-
-      let saved;
-      if (mode === "create") {
-        const res = await api.create(fd);
-        saved = res.data;
-      } else {
-        const res = await api.update(destination.id, fd);
-        saved = res.data;
-      }
-      onSuccess(saved);
-    } catch (err) {
-      toast(err?.response?.data?.error || "Save failed", "error");
-    } finally {
-      setSaving(false);
+  const handleShare = (e) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      navigator.share({ title: name, text: tagline, url: window.location.href });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">
-            {mode === "create"
-              ? "Add New Destination"
-              : `Edit: ${destination?.name}`}
-          </h2>
+    <article
+      className={`
+        group relative ${cardHeight} rounded-3xl overflow-hidden
+        shadow-lg hover:shadow-2xl
+        transition-all duration-500 ease-out
+        hover:-translate-y-1
+        cursor-pointer select-none
+      `}
+      onClick={() => onLearnMore?.(destination)}
+    >
+      {/* ── Background image ─────────────────────────────────── */}
+      <div className="absolute inset-0">
+        {imageSrc ? (
+          <>
+            {/* blur-up placeholder */}
+            {!imgLoaded && (
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900 animate-pulse" />
+            )}
+            <img
+              src={imageSrc}
+              alt={name}
+              loading={priority ? "eager" : "lazy"}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
+              className={`
+                w-full h-full object-cover
+                transition-all duration-700
+                group-hover:scale-105
+                ${imgLoaded ? "opacity-100" : "opacity-0"}
+              `}
+            />
+          </>
+        ) : (
+          /* Fallback gradient */
+          <div className="w-full h-full bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
+            <MapPinIcon className="w-16 h-16 text-slate-600" />
+          </div>
+        )}
+
+        {/* Multi-layer gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t
+          from-black/90 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br
+          from-black/20 via-transparent to-transparent" />
+      </div>
+
+      {/* ── Sold-out ribbon ──────────────────────────────────── */}
+      {is_sold_out && (
+        <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20
+            rounded-2xl px-8 py-4 rotate-[-8deg]">
+            <span className="text-white font-black text-2xl tracking-widest uppercase">
+              Sold Out
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOP ROW — badges + action buttons ────────────────── */}
+      <div className="absolute top-0 left-0 right-0 z-10
+        flex items-start justify-between p-4">
+        {/* Left: flag badges */}
+        <div className="flex flex-col gap-1.5">
+          {activeBadges.slice(0, 2).map(({ key, label, color, icon: Icon }) => (
+            <span
+              key={key}
+              className={`
+                inline-flex items-center gap-1 ${color}
+                text-white text-[10px] font-bold tracking-wide uppercase
+                px-2.5 py-1 rounded-full shadow-lg
+                backdrop-blur-sm
+              `}
+            >
+              <Icon className="w-3 h-3" />
+              {label}
+            </span>
+          ))}
+          {is_family_friendly && (
+            <span className="inline-flex items-center gap-1 bg-sky-500/90
+              text-white text-[10px] font-bold tracking-wide uppercase
+              px-2.5 py-1 rounded-full shadow-lg backdrop-blur-sm">
+              👨‍👩‍👧 Family
+            </span>
+          )}
+        </div>
+
+        {/* Right: wishlist + share */}
+        <div className="flex flex-col gap-2">
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            onClick={handleWishlist}
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            className={`
+              w-9 h-9 rounded-full flex items-center justify-center
+              backdrop-blur-md border transition-all duration-300
+              ${wishlisted
+                ? "bg-rose-500 border-rose-400 shadow-lg shadow-rose-500/40"
+                : "bg-white/10 border-white/20 hover:bg-white/20"}
+            `}
           >
-            <XMarkIcon className="w-5 h-5" />
+            <HeartIcon
+              className={`w-4 h-4 transition-colors duration-300
+                ${wishlisted ? "text-white fill-white" : "text-white"}`}
+            />
+          </button>
+
+          <button
+            onClick={handleShare}
+            onMouseEnter={() => setShareHover(true)}
+            onMouseLeave={() => setShareHover(false)}
+            aria-label="Share destination"
+            className="w-9 h-9 rounded-full flex items-center justify-center
+              bg-white/10 border border-white/20 backdrop-blur-md
+              hover:bg-white/20 transition-all duration-300"
+          >
+            <ShareIcon className="w-4 h-4 text-white" />
+          </button>
+
+          {shareHover && (
+            <span className="absolute top-20 right-14 bg-black/80 text-white
+              text-[10px] px-2 py-1 rounded-lg whitespace-nowrap z-30">
+              Copy link
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── CATEGORY pill — center top ────────────────────────── */}
+      {category && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+          <span className="bg-white/10 backdrop-blur-md border border-white/20
+            text-white text-[10px] font-semibold tracking-widest uppercase
+            px-3 py-1 rounded-full shadow">
+            {category}
+          </span>
+        </div>
+      )}
+
+      {/* ── MIDDLE — rating (if available) ───────────────────── */}
+      {rating && (
+        <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10
+          flex flex-col items-center
+          bg-white/10 backdrop-blur-md border border-white/20
+          rounded-2xl px-3 py-2 shadow-lg">
+          <StarIcon className="w-4 h-4 text-amber-400" />
+          <span className="text-white font-bold text-sm leading-tight">
+            {Number(rating).toFixed(1)}
+          </span>
+          {review_count && (
+            <span className="text-white/60 text-[9px]">
+              {review_count > 999
+                ? `${(review_count / 1000).toFixed(1)}k`
+                : review_count}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── BOTTOM — main content ─────────────────────────────── */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-4 space-y-3">
+
+        {/* Location + difficulty */}
+        <div className="flex items-center justify-between">
+          {location && (
+            <div className="flex items-center gap-1">
+              <MapPinIcon className="w-3.5 h-3.5 text-white/70 flex-shrink-0" />
+              <span className="text-white/70 text-[11px] font-medium truncate max-w-[140px]">
+                {location}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${diff.dot} flex-shrink-0`} />
+            <span className={`text-[10px] font-semibold uppercase tracking-wide ${diff.text}`}>
+              {difficulty}
+            </span>
+          </div>
+        </div>
+
+        {/* Name + tagline */}
+        <div>
+          <h3 className="text-white font-black text-xl leading-tight line-clamp-2
+            drop-shadow-lg tracking-tight">
+            {name}
+          </h3>
+          {tagline && (
+            <p className="text-white/60 text-[11px] mt-0.5 line-clamp-1 font-medium">
+              {tagline}
+            </p>
+          )}
+        </div>
+
+        {/* Icon chips row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {duration_days && (
+            <Chip icon={ClockIcon}>
+              {duration_days}d{duration_nights ? ` / ${duration_nights}n` : ""}
+            </Chip>
+          )}
+          {(min_group_size || max_group_size) && (
+            <Chip icon={UsersIcon}>{groupRange} pax</Chip>
+          )}
+          {best_time_to_visit && (
+            <Chip icon={CalendarDaysIcon}>
+              {best_time_to_visit.length > 12
+                ? best_time_to_visit.slice(0, 12) + "…"
+                : best_time_to_visit}
+            </Chip>
+          )}
+          {entrance_fee && (
+            <Chip>
+              {String(entrance_fee).length > 10
+                ? String(entrance_fee).slice(0, 10) + "…"
+                : entrance_fee}
+            </Chip>
+          )}
+        </div>
+
+        {/* Highlights pills */}
+        {highlights.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            {highlights.slice(0, 3).map((h, i) => (
+              <span
+                key={i}
+                className="text-white/80 text-[9px] font-semibold uppercase
+                  tracking-wide bg-white/10 backdrop-blur-sm
+                  border border-white/10 rounded-full px-2 py-0.5"
+              >
+                {h.length > 18 ? h.slice(0, 18) + "…" : h}
+              </span>
+            ))}
+            {highlights.length > 3 && (
+              <span className="text-white/50 text-[9px] font-semibold
+                uppercase tracking-wide px-1 py-0.5">
+                +{highlights.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ── CTA BUTTONS ─────────────────────────────────────── */}
+        <div className="flex gap-2 pt-1">
+          {/* Learn More */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onLearnMore?.(destination);
+            }}
+            disabled={is_sold_out}
+            className="
+              flex-1 flex items-center justify-center gap-1.5
+              bg-white/10 hover:bg-white/20
+              backdrop-blur-md border border-white/25
+              text-white font-semibold text-xs
+              rounded-xl px-3 py-2.5
+              transition-all duration-300
+              disabled:opacity-40 disabled:cursor-not-allowed
+              group/btn
+            "
+          >
+            View Details
+            <ArrowRightIcon className="w-3.5 h-3.5
+              transition-transform duration-300
+              group-hover/btn:translate-x-0.5" />
+          </button>
+
+          {/* Book Now */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onBookNow?.(destination);
+            }}
+            disabled={is_sold_out}
+            className="
+              flex-[1.4] flex items-center justify-center gap-1.5
+              bg-white hover:bg-white/90
+              text-gray-900 font-bold text-xs
+              rounded-xl px-4 py-2.5
+              shadow-lg shadow-black/20
+              transition-all duration-300
+              hover:shadow-xl hover:shadow-black/30
+              active:scale-[0.98]
+              disabled:opacity-40 disabled:cursor-not-allowed
+            "
+          >
+            {is_sold_out ? "Sold Out" : "Book Now"}
+            {!is_sold_out && (
+              <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-600" />
+            )}
           </button>
         </div>
-
-        {/* Tabs */}
-        <div className="flex border-b overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                tab === t.id
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-6 max-h-[65vh] overflow-y-auto">
-
-            {/* ── BASIC INFO ── */}
-            {tab === "basic" && (
-              <div className="space-y-4">
-                <Input label="Name *" field="name" placeholder="e.g. Mount Karisimbi" form={form} onChange={set} />
-                <Input label="Tagline" field="tagline" placeholder="e.g. The Roof of the Virungas" form={form} onChange={set} />
-                <Textarea label="Short Description" field="short_description" rows={2} form={form} onChange={set} />
-                <Textarea label="Full Description" field="description" rows={5} form={form} onChange={set} />
-                <Textarea label="Overview (truncated version)" field="overview" rows={3} form={form} onChange={set} />
-
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                       Country *
-                     </label>
-                     <select
-                       value={form.country_id}
-                       onChange={(e) => set("country_id", e.target.value)}
-                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                     >
-                       <option value="">Select country...</option>
-                       {countries.map((c) => (
-                         <option key={c.id} value={c.id}>
-                           {c.flag} {c.name}
-                         </option>
-                       ))}
-                     </select>
-                   </div>
-                 </div>
-
-                {/* ✅ Fixed: label closed with </label> not </div> */}
-                <div className="space-y-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <div className="space-y-2">
-                    {/* Predefined options */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {CATEGORIES.map((category) => (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => set("category", category)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 ${
-                            form.category === category
-                              ? "border-emerald-400 bg-emerald-50/80 shadow-sm"
-                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
-                          }`}
-                        >
-                          <span className="text-sm font-semibold text-gray-800">
-                            {category}
-                          </span>
-                          {/* ✅ Fixed: CheckIcon instead of HiCheckIcon */}
-                          {form.category === category && (
-                            <CheckIcon className="w-4 h-4 text-emerald-600" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {/* ✅ Fixed: Removed invalid id/value/onChange props,
-                        Input uses field + form + onChange pattern */}
-                    <Input
-                      label="Or enter custom category"
-                      field="category"
-                      type="text"
-                      placeholder="e.g., Safari, Cultural, Adventure, Custom Category..."
-                      form={form}
-                      onChange={set}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Difficulty
-                    </label>
-                    <select
-                      value={form.difficulty}
-                      onChange={(e) => set("difficulty", e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {DIFFICULTIES.map((d) => (
-                        <option key={d} value={d}>
-                          {d.charAt(0).toUpperCase() + d.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={form.status}
-                      onChange={(e) => set("status", e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {[
-                        { value: "draft", label: "Draft" },
-                        { value: "published", label: "Published" },
-                        { value: "archived", label: "Archived" },
-                      ].map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* ✅ Fixed: Removed duplicate, kept only one */}
-                <Input
-                  label="Destination Type"
-                  field="destination_type"
-                  placeholder="e.g. volcano, beach..."
-                  form={form}
-                  onChange={set}
-                />
-              </div>
-            )}
-
-            {/* ── IMAGES & MEDIA ── */}
-            {tab === "media" && (
-              <div className="space-y-6">
-                {/* Primary image upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Primary Image
-                  </label>
-                  <div className="flex gap-4 items-start flex-wrap">
-                    {/* Preview */}
-                    <div className="w-40 h-32 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center bg-gray-50 flex-shrink-0">
-                      {imagePreview || form.image_url ? (
-                        <img
-                          src={imagePreview || form.image_url}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <PhotoIcon className="w-10 h-10 text-gray-300" />
-                      )}
-                    </div>
-
-                    <div className="flex-1 space-y-3">
-                      {/* File upload */}
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => fileRef.current?.click()}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <PhotoIcon className="w-4 h-4" />
-                          Upload File
-                        </button>
-                        <input
-                          ref={fileRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                        {imageFile && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {imageFile.name}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* URL input */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          Or enter image URL
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="url"
-                            value={form.image_url}
-                            onChange={(e) => {
-                              set("image_url", e.target.value);
-                              setImagePreview(e.target.value);
-                              setImageFile(null);
-                            }}
-                            placeholder="https://example.com/image.jpg"
-                            className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional image URLs */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Images (Gallery)
-                  </label>
-                  <p className="text-xs text-gray-400 mb-3">
-                    Add multiple image URLs. Click a thumbnail to set as
-                    primary.
-                  </p>
-
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="url"
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        (e.preventDefault(), addImageUrl())
-                      }
-                      placeholder="https://example.com/photo.jpg"
-                      className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={addImageUrl}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-1"
-                    >
-                      <PlusIcon className="w-4 h-4" /> Add
-                    </button>
-                  </div>
-
-                  {/* Gallery grid */}
-                  {(form.image_urls || []).length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                      {form.image_urls.map((url, i) => (
-                        <div
-                          key={i}
-                          className={`relative group rounded-lg overflow-hidden border-2 cursor-pointer ${
-                            form.image_url === url
-                              ? "border-blue-500"
-                              : "border-transparent"
-                          }`}
-                          onClick={() => setPrimaryImage(url)}
-                        >
-                          <img
-                            src={url}
-                            alt=""
-                            className="w-full h-20 object-cover"
-                            onError={(e) => {
-                              e.target.src = "";
-                              e.target.parentElement.classList.add("bg-gray-100");
-                            }}
-                          />
-                          {form.image_url === url && (
-                            <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                              <span className="text-xs font-bold text-blue-700 bg-white px-1 rounded">
-                                Primary
-                              </span>
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeImageUrl(i);
-                            }}
-                            className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <XMarkIcon className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Special image URLs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                      <LinkIcon className="w-4 h-4" /> Hero Image URL
-                    </label>
-                    <input
-                      type="url"
-                      value={form.hero_image}
-                      onChange={(e) => set("hero_image", e.target.value)}
-                      placeholder="https://..."
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {form.hero_image && (
-                      <img
-                        src={form.hero_image}
-                        alt=""
-                        className="mt-1 h-12 w-full object-cover rounded"
-                        onError={() => {}}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                      <LinkIcon className="w-4 h-4" /> Thumbnail URL
-                    </label>
-                    <input
-                      type="url"
-                      value={form.thumbnail_url}
-                      onChange={(e) => set("thumbnail_url", e.target.value)}
-                      placeholder="https://..."
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {form.thumbnail_url && (
-                      <img
-                        src={form.thumbnail_url}
-                        alt=""
-                        className="mt-1 h-12 w-full object-cover rounded"
-                        onError={() => {}}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                      <LinkIcon className="w-4 h-4" /> Cover Image URL
-                    </label>
-                    <input
-                      type="url"
-                      value={form.cover_image_url}
-                      onChange={(e) => set("cover_image_url", e.target.value)}
-                      placeholder="https://... (1200×600)"
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                      <LinkIcon className="w-4 h-4" /> Video URL
-                    </label>
-                    <input
-                      type="url"
-                      value={form.video_url}
-                      onChange={(e) => set("video_url", e.target.value)}
-                      placeholder="https://youtube.com/..."
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                      <LinkIcon className="w-4 h-4" /> Virtual Tour URL
-                    </label>
-                    <input
-                      type="url"
-                      value={form.virtual_tour_url}
-                      onChange={(e) => set("virtual_tour_url", e.target.value)}
-                      placeholder="https://matterport.com/..."
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── DETAILS ── */}
-            {tab === "details" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Input label="Duration (Days)" field="duration_days" type="number" placeholder="2" form={form} onChange={set} />
-                  <Input label="Duration (Nights)" field="duration_nights" type="number" placeholder="1" form={form} onChange={set} />
-                  <Input label="Min Group Size" field="min_group_size" type="number" placeholder="1" form={form} onChange={set} />
-                  <Input label="Max Group Size" field="max_group_size" type="number" placeholder="12" form={form} onChange={set} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Minimum Age" field="min_age" type="number" placeholder="12" form={form} onChange={set} />
-                  <Input label="Fitness Level" field="fitness_level" placeholder="e.g. High" form={form} onChange={set} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Entrance Fee" field="entrance_fee" placeholder="e.g. $400 climbing permit" form={form} onChange={set} />
-                  <Input label="Operating Hours" field="operating_hours" placeholder="e.g. Trek starts 07:00" form={form} onChange={set} />
-                </div>
-                 <Input label="Best Time to Visit" field="best_time_to_visit" placeholder="e.g. June–September" form={form} onChange={set} />
-                 <Textarea label="Getting There" field="getting_there" rows={2} form={form} onChange={set} />
-                 <Textarea label="What to Expect" field="what_to_expect" rows={3} form={form} onChange={set} />
-              </div>
-            )}
-
-            {/* ── LOCATION ── */}
-            {tab === "location" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Latitude" field="latitude" type="number" placeholder="-1.5067" form={form} onChange={set} />
-                  <Input label="Longitude" field="longitude" type="number" placeholder="29.4431" form={form} onChange={set} />
-                </div>
-                <Input label="Altitude (meters)" field="altitude_meters" type="number" placeholder="4507" form={form} onChange={set} />
-                <Input label="Address" field="address" placeholder="Physical address..." form={form} onChange={set} />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Nearest City" field="nearest_city" placeholder="e.g. Kigali" form={form} onChange={set} />
-                  <Input label="Nearest Airport" field="nearest_airport" placeholder="e.g. KGL" form={form} onChange={set} />
-                </div>
-                <Input
-                  label="Distance from Airport (km)"
-                  field="distance_from_airport_km"
-                  type="number"
-                  placeholder="110"
-                  form={form}
-                  onChange={set}
-                />
-                {form.latitude && form.longitude && (
-                  <div className="rounded-xl overflow-hidden border h-48 bg-gray-100 flex items-center justify-center">
-                    <a
-                      href={`https://www.google.com/maps?q=${form.latitude},${form.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 text-sm underline"
-                    >
-                      📍 View on Google Maps ({form.latitude},{" "}
-                      {form.longitude})
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── HIGHLIGHTS ── */}
-            {tab === "highlights" && (
-              <div className="space-y-6">
-                {/* ✅ Fixed: ArrayField now receives values and callbacks as props */}
-                <ArrayField
-                  label="Highlights"
-                  fieldKey="highlights"
-                  placeholder="e.g. Summit at 4,507m"
-                  values={form.highlights}
-                  onAdd={handleArrayAdd}
-                  onRemove={handleArrayRemove}
-                />
-                <ArrayField
-                  label="Activities"
-                  fieldKey="activities"
-                  placeholder="e.g. Mountain trekking"
-                  values={form.activities}
-                  onAdd={handleArrayAdd}
-                  onRemove={handleArrayRemove}
-                />
-                <ArrayField
-                  label="Wildlife"
-                  fieldKey="wildlife"
-                  placeholder="e.g. Mountain gorilla"
-                  values={form.wildlife}
-                  onAdd={handleArrayAdd}
-                  onRemove={handleArrayRemove}
-                />
-              </div>
-            )}
-
-            {/* ── SEO & FLAGS ── */}
-            {tab === "seo" && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <Input
-                    label="Meta Title"
-                    field="meta_title"
-                    placeholder="SEO page title..."
-                    help="Leave empty to use destination name"
-                    form={form}
-                    onChange={set}
-                  />
-                  <Textarea
-                    label="Meta Description"
-                    field="meta_description"
-                    rows={2}
-                    placeholder="SEO description (150–160 chars)..."
-                    form={form}
-                    onChange={set}
-                  />
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-2">
-                    Feature Flags
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Toggle label="Featured" field="is_featured" form={form} onChange={set} />
-                    <Toggle label="Popular" field="is_popular" form={form} onChange={set} />
-                    <Toggle label="New" field="is_new" form={form} onChange={set} />
-                    <Toggle label="Eco-Friendly" field="is_eco_friendly" form={form} onChange={set} />
-                    <Toggle label="Family Friendly" field="is_family_friendly" form={form} onChange={set} />
-                    <Toggle label="Sold Out" field="is_sold_out" form={form} onChange={set} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between p-6 border-t bg-gray-50 rounded-b-2xl">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <div className="flex items-center gap-3">
-              {mode === "edit" && (
-                <button
-                  type="submit"
-                  onClick={() => set("status", "draft")}
-                  disabled={saving}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Save as Draft
-                </button>
-              )}
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : mode === "create" ? (
-                  "Create Destination"
-                ) : (
-                  "Update Destination"
-                )}
-              </button>
-            </div>
-          </div>
-        </form>
       </div>
+    </article>
+  );
+}
+
+// ── Tiny reusable icon chip ─────────────────────────────────────
+function Chip({ icon: Icon, children }) {
+  return (
+    <div className="flex items-center gap-1
+      bg-white/10 backdrop-blur-sm border border-white/15
+      rounded-full px-2 py-0.5">
+      {Icon && <Icon className="w-3 h-3 text-white/60 flex-shrink-0" />}
+      <span className="text-white/80 text-[10px] font-medium whitespace-nowrap">
+        {children}
+      </span>
     </div>
   );
-} // ✅ Fixed: was }) instead of }
+}
