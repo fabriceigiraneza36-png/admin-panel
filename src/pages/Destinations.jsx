@@ -279,7 +279,7 @@ function HeroImagePanel({ label, description, value, onChange, folder, allImages
   )
 }
 
-/* ─── DestinationGallery (Upload/URL — max 10) ───────────────────────────── */
+/* ─── DestinationGallery (Upload/URL — max 10 with placeholders) ─────────── */
 function DestinationGallery({ gallery=[], onChange, onLightbox }) {
   const [mode,setMode]           = useState('upload')
   const [urlInput,setUrlInput]   = useState('')
@@ -288,27 +288,36 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
   const [uploaded,setUploaded]   = useState('')
   const [editIdx,setEditIdx]     = useState(null)
   const [editCap,setEditCap]     = useState('')
+  const [activeSlot,setActiveSlot] = useState(null)  // which placeholder is being filled
 
   const remaining = MAX_GALLERY_IMAGES - gallery.length
   const isFull = remaining <= 0
+  const nextSlot = gallery.length  // index of next empty slot
 
   const addUrl = () => {
     if(!urlInput.trim() || isFull) return
     if(!isValidUrl(urlInput.trim())){setUrlValid(false);return}
     setUrlValid(true)
     onChange([...gallery,{url:urlInput.trim(),caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'url'}])
-    setUrlInput(''); setCaption('')
+    setUrlInput(''); setCaption(''); setActiveSlot(null)
   }
   const addUpload = () => {
     if(!uploaded || isFull) return
     onChange([...gallery,{url:uploaded,caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'upload'}])
-    setUploaded(''); setCaption('')
+    setUploaded(''); setCaption(''); setActiveSlot(null)
   }
   const remove     = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
   const moveUp     = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
   const moveDown   = (i) => { if(i===gallery.length-1) return; const g=[...gallery];[g[i],g[i+1]]=[g[i+1],g[i]];onChange(g) }
   const setPrimary = (i) => onChange(gallery.map((img,idx)=>({...img,is_primary:idx===i})))
   const saveCaption= (i) => { const g=[...gallery]; g[i]={...g[i],caption:editCap}; onChange(g); setEditIdx(null) }
+
+  // Build 10 slots — filled or empty
+  const slots = Array.from({ length: MAX_GALLERY_IMAGES }, (_, i) => ({
+    index: i,
+    image: gallery[i] || null,
+    isNext: i === nextSlot,
+  }))
 
   return (
     <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-white to-green-50/30 overflow-hidden">
@@ -342,57 +351,112 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
         </div>
       </div>
 
-      {/* Gallery grid */}
+      {/* 10 Placeholder Slots Grid */}
       <div className="p-5 space-y-4">
-        {gallery.length>0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {gallery.map((img,i)=>(
-              <div key={i} className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-[4/3] transition-all ${img.is_primary?'border-emerald-500 ring-2 ring-emerald-200':'border-gray-200 hover:border-emerald-300'}`}>
-                <img src={img.url} alt={img.caption||`Photo ${i+1}`}
-                  className="w-full h-full object-cover"
-                  onError={e=>{e.target.src='https://placehold.co/200x150?text=?'}}/>
-                {img.is_primary&&(
-                  <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase bg-emerald-500 text-white flex items-center gap-1 shadow"><Star size={9} className="fill-white"/>Primary</div>
-                )}
-                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-black/60 text-white/90 backdrop-blur-sm">
-                  {img.source==='upload'?'Upload':'URL'}
-                </div>
-                {img.caption&&(
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
-                    <p className="text-[10px] text-white truncate font-medium">{img.caption}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {slots.map(({ index, image, isNext }) => {
+            if (image) {
+              /* ── FILLED SLOT ── */
+              return (
+                <div key={index} className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-[4/3] transition-all ${image.is_primary?'border-emerald-500 ring-2 ring-emerald-200':'border-gray-200 hover:border-emerald-300'}`}>
+                  <img src={image.url} alt={image.caption||`Photo ${index+1}`}
+                    className="w-full h-full object-cover"
+                    onError={e=>{e.target.src='https://placehold.co/200x150?text=?'}}/>
+
+                  {/* Slot number badge */}
+                  <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-md bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold flex items-center justify-center">
+                    {index+1}
                   </div>
-                )}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
-                  <button type="button" onClick={()=>onLightbox(gallery.map(g=>({url:g.url,caption:g.caption,source:g.source})),i)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50"><Maximize2 size={10}/>View</button>
-                  {!img.is_primary&&(
-                    <button type="button" onClick={()=>setPrimary(i)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600"><Star size={10}/>Set Primary</button>
+
+                  {image.is_primary && (
+                    <div className="absolute top-1.5 left-8 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase bg-emerald-500 text-white flex items-center gap-1 shadow">
+                      <Star size={9} className="fill-white"/>Primary
+                    </div>
                   )}
-                  <button type="button" onClick={()=>{setEditIdx(i);setEditCap(img.caption||'')}}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50"><Pencil size={10}/>Caption</button>
-                  <div className="flex gap-1">
-                    <button type="button" onClick={()=>moveUp(i)} disabled={i===0}
-                      className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronUp size={11}/></button>
-                    <button type="button" onClick={()=>moveDown(i)} disabled={i===gallery.length-1}
-                      className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronDown size={11}/></button>
-                    <button type="button" onClick={()=>remove(i)}
-                      className="w-6 h-6 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white"><Trash2 size={10}/></button>
+                  <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-black/60 text-white/90 backdrop-blur-sm">
+                    {image.source==='upload'?'Upload':'URL'}
+                  </div>
+                  {image.caption && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
+                      <p className="text-[10px] text-white truncate font-medium">{image.caption}</p>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
+                    <button type="button" onClick={()=>onLightbox(gallery.map(g=>({url:g.url,caption:g.caption,source:g.source})),index)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50"><Maximize2 size={10}/>View</button>
+                    {!image.is_primary && (
+                      <button type="button" onClick={()=>setPrimary(index)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600"><Star size={10}/>Set Primary</button>
+                    )}
+                    <button type="button" onClick={()=>{setEditIdx(index);setEditCap(image.caption||'')}}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50"><Pencil size={10}/>Caption</button>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={()=>moveUp(index)} disabled={index===0}
+                        className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronUp size={11}/></button>
+                      <button type="button" onClick={()=>moveDown(index)} disabled={index===gallery.length-1}
+                        className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronDown size={11}/></button>
+                      <button type="button" onClick={()=>remove(index)}
+                        className="w-6 h-6 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white"><Trash2 size={10}/></button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 rounded-xl bg-white border-2 border-dashed border-emerald-200 text-emerald-400">
-            <Camera size={36} className="mx-auto mb-2 opacity-40"/>
-            <p className="text-sm font-medium text-gray-500">No gallery photos yet</p>
-            <p className="text-xs text-gray-400 mt-1">First image added becomes primary</p>
-          </div>
-        )}
+              )
+            }
+
+            /* ── EMPTY PLACEHOLDER SLOT ── */
+            const isActive = activeSlot === index
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => isNext && setActiveSlot(isActive ? null : index)}
+                disabled={!isNext}
+                className={`relative rounded-xl border-2 border-dashed aspect-[4/3] flex flex-col items-center justify-center gap-1.5 transition-all group
+                  ${isNext
+                    ? isActive
+                      ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 shadow-inner cursor-pointer'
+                      : 'border-emerald-300 bg-white hover:border-emerald-500 hover:bg-emerald-50/70 cursor-pointer shadow-sm hover:shadow-md'
+                    : 'border-gray-200 bg-gray-50/60 cursor-not-allowed opacity-60'
+                  }`}
+              >
+                {/* Slot number */}
+                <div className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-md text-[9px] font-bold flex items-center justify-center
+                  ${isNext?'bg-emerald-500 text-white':'bg-gray-200 text-gray-400'}`}>
+                  {index+1}
+                </div>
+
+                {isNext ? (
+                  <>
+                    <motion.div
+                      animate={isActive ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+                      transition={{ duration: 1.5, repeat: isActive ? Infinity : 0 }}
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all
+                        ${isActive?'bg-emerald-500 text-white shadow-md shadow-emerald-200':'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white group-hover:shadow-md group-hover:shadow-emerald-200'}`}
+                    >
+                      <Plus size={18} className="stroke-[2.5]"/>
+                    </motion.div>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${isActive?'text-emerald-700':'text-emerald-600'}`}>
+                      {isActive ? 'Adding…' : 'Add Photo'}
+                    </p>
+                    <p className="text-[9px] text-emerald-400/70 font-medium">Slot {index+1}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+                      <ImagePlus size={16} className="text-gray-300"/>
+                    </div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Locked</p>
+                    <p className="text-[9px] text-gray-300 font-medium">Slot {index+1}</p>
+                  </>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
         {/* Caption editor */}
-        {editIdx!==null&&(
+        {editIdx!==null && (
           <motion.div initial={{opacity:0,y:-5}} animate={{opacity:1,y:0}}
             className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
             <input className="flex-1 px-3 py-1.5 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400"
@@ -404,59 +468,84 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
           </motion.div>
         )}
 
-        {/* Add new */}
-        {!isFull ? (
-          <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-white p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                <ImagePlus size={13}/>Add new photo
-                <span className="ml-1 text-[10px] text-emerald-500 font-medium">({remaining} slot{remaining!==1?'s':''} left)</span>
-              </p>
-              <div className="flex items-center bg-emerald-50 rounded-lg p-0.5">
-                {[['upload',Upload,'Upload'],['url',Link,'URL']].map(([m,Icon,lbl])=>(
-                  <button key={m} type="button" onClick={()=>setMode(m)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?'bg-white text-emerald-700 shadow-sm':'text-emerald-500 hover:text-emerald-700'}`}>
-                    <Icon size={10}/> {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {mode==='url'
-                ? <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-2">
-                    <div className="relative">
-                      <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
-                      <input type="url"
-                        className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 bg-white transition-all ${!urlValid?'border-red-400':'border-gray-200 focus:border-emerald-400'}`}
-                        value={urlInput} onChange={e=>{setUrlInput(e.target.value);setUrlValid(true)}} placeholder="https://example.com/photo.jpg"/>
+        {/* Add new (only when a slot is active or hidden while full) */}
+        <AnimatePresence>
+          {activeSlot !== null && !isFull && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-xl border-2 border-emerald-400 bg-white p-4 space-y-3 shadow-md shadow-emerald-100">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                    <ImagePlus size={13}/>
+                    Filling slot #{activeSlot+1}
+                    <span className="ml-1 text-[10px] text-emerald-500 font-medium">({remaining} slot{remaining!==1?'s':''} remaining after this)</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-emerald-50 rounded-lg p-0.5">
+                      {[['upload',Upload,'Upload'],['url',Link,'URL']].map(([m,Icon,lbl])=>(
+                        <button key={m} type="button" onClick={()=>setMode(m)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?'bg-white text-emerald-700 shadow-sm':'text-emerald-500 hover:text-emerald-700'}`}>
+                          <Icon size={10}/> {lbl}
+                        </button>
+                      ))}
                     </div>
-                    {!urlValid&&<p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>Enter a valid URL</p>}
-                  </motion.div>
-                : <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-                    <ImageUpload label="" value={uploaded} onChange={setUploaded} folder="destinations/gallery"/>
-                  </motion.div>
-              }
-            </AnimatePresence>
+                    <button type="button" onClick={()=>{setActiveSlot(null);setUrlInput('');setUploaded('');setCaption('')}}
+                      className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+                      <X size={12}/>
+                    </button>
+                  </div>
+                </div>
 
-            <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
-              value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
+                <AnimatePresence mode="wait">
+                  {mode==='url'
+                    ? <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-2">
+                        <div className="relative">
+                          <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
+                          <input type="url"
+                            className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 bg-white transition-all ${!urlValid?'border-red-400':'border-gray-200 focus:border-emerald-400'}`}
+                            value={urlInput} onChange={e=>{setUrlInput(e.target.value);setUrlValid(true)}} placeholder="https://example.com/photo.jpg"/>
+                        </div>
+                        {!urlValid && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>Enter a valid URL</p>}
+                      </motion.div>
+                    : <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+                        <ImageUpload label="" value={uploaded} onChange={setUploaded} folder="destinations/gallery"/>
+                      </motion.div>
+                  }
+                </AnimatePresence>
 
-            <button type="button"
-              onClick={mode==='url'?addUrl:addUpload}
-              disabled={mode==='url'?!urlInput.trim():!uploaded}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
-              <Plus size={14}/> Add to Gallery
-            </button>
-          </div>
-        ) : (
+                <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+                  value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
+
+                <button type="button"
+                  onClick={mode==='url'?addUrl:addUpload}
+                  disabled={mode==='url'?!urlInput.trim():!uploaded}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
+                  <Plus size={14}/> Add to Slot #{activeSlot+1}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {isFull && (
           <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-start gap-3">
             <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5"/>
             <div>
-              <p className="text-sm font-bold text-amber-800">Gallery full</p>
-              <p className="text-xs text-amber-700 mt-0.5">You've reached the maximum of {MAX_GALLERY_IMAGES} gallery photos. Remove one to add another, or use the Library Import section for unlimited images from your central gallery.</p>
+              <p className="text-sm font-bold text-amber-800">All 10 slots filled</p>
+              <p className="text-xs text-amber-700 mt-0.5">You've reached the maximum of {MAX_GALLERY_IMAGES} gallery photos. Remove one to add another, or use the Library Import section for unlimited images.</p>
             </div>
           </div>
+        )}
+
+        {gallery.length === 0 && activeSlot === null && (
+          <p className="text-center text-xs text-emerald-600 py-1 font-medium">
+            👆 Click on <span className="font-bold">Slot #1</span> to add your first photo
+          </p>
         )}
       </div>
     </div>
