@@ -3,13 +3,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   MapPin, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
   DollarSign, Image, Info, Check, ChevronRight, ChevronLeft,
-  AlertTriangle, Zap, Heart, BookOpen, Camera, Shield,
-  Clock, Users, Ruler, Thermometer, Plane, Link, Upload,
+  AlertTriangle, Heart, BookOpen, Camera, Shield,
+  Clock, Users, Ruler, Plane, Link, Upload,
   X, ZoomIn, ExternalLink, CheckCircle2, ImagePlus, Maximize2,
   ChevronDown, ChevronUp, Eye as EyeIcon, Globe2, Mountain,
-  Navigation, Hash, FileText, List, Layers, Tag, Flag,
-  Video, Globe, Phone, Calendar, TrendingUp, Award,
-  Compass, TreePine, Bike, Coffee, Tent, Activity,
+  Hash, FileText, List, Tag, Flag,
+  Video, Globe, Calendar, TrendingUp, Award,
+  Compass, TreePine, Coffee, Activity, Sparkles, Library,
+  Layers, Palette, Sun,
 } from 'lucide-react'
 import { destinationsAPI } from '@api/destinations'
 import { countriesAPI }    from '@api/countries'
@@ -34,78 +35,52 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const DIFFICULTIES = ['easy', 'moderate', 'challenging', 'strenuous', 'expert']
 const STATUSES     = ['draft', 'published', 'archived']
-const CATEGORIES   = [];
+const CATEGORIES   = []
+const MAX_GALLERY_IMAGES = 10   // uploaded/URL gallery images (excludes hero/cover/main + library imports)
 
 const INITIAL_FORM = {
   // Identity
-  name:               '',
-  slug:               '',
-  category:           '',
-  destination_type:   '',
-  classification:     '',
-  adventure_category: '',
-  difficulty:         '',
-  status:             'published',
-  region:             '',
-  nearest_city:       '',
-  nearest_airport:    '',
-  address:            '',
-  latitude:           '',
-  longitude:          '',
-  altitude_meters:    '',
+  name: '', slug: '', tagline: '', category: '', destination_type: '',
+  classification: '', adventure_category: '', difficulty: '',
+  status: 'published', region: '', nearest_city: '', nearest_airport: '',
+  address: '', latitude: '', longitude: '', altitude_meters: '',
   distance_from_airport_km: '',
 
   // Country
-  country_id:         '',
+  country_id: '',
 
-  // Media
-  image_url:          '',
-  hero_image:         '',
-  cover_image_url:    '',
-  video_url:          '',
-  virtual_tour_url:   '',
+  // Media - Primary/Hero
+  image_url: '', hero_image: '', cover_image_url: '',
+  video_url: '', virtual_tour_url: '',
+
+  // Media - Galleries (separated)
+  gallery: [],          // uploaded/URL — max 10
+  library_images: [],   // imported from central gallery library — unlimited
 
   // Arrays / lists
-  activities:         [],
-  attractions:        [],
-  highlights:         [],
-  wildlife:           [],
-  local_tips:         [],
-  tags:               [],
-  faqs:               [],
-  gallery:            [],
+  activities: [], attractions: [], highlights: [], wildlife: [],
+  local_tips: [], tags: [], faqs: [], itinerary: [],
 
   // Details
-  description:        '',
-  short_description:  '',
-  overview:           '',
-  getting_there:      '',
-  what_to_expect:     '',
-  best_time_to_visit: '',
-  safety_info:        '',
-  duration_days:      '',
-  duration_nights:    '',
-  duration_display:   '',
-  min_group_size:     '',
-  max_group_size:     '',
-  min_age:            '',
-  fitness_level:      '',
-  entrance_fee:       '',
-  operating_hours:    '',
+  description: '', short_description: '', overview: '', getting_there: '',
+  what_to_expect: '', best_time_to_visit: '', safety_info: '',
+  duration_days: '', duration_nights: '', duration_display: '',
+  min_group_size: '', max_group_size: '', min_age: '', fitness_level: '',
+  entrance_fee: '', operating_hours: '',
 
   // SEO / flags
-  meta_title:         '',
-  meta_description:   '',
-  is_featured:        false,
-  is_active:          true,
+  meta_title: '', meta_description: '',
+  is_featured: false, is_active: true, is_popular: false,
+  is_new: false, is_eco_friendly: false, is_family_friendly: false,
+  is_sold_out: false,
 }
 
 const STEPS = [
-  { id: 'identity',  label: 'Identity',  icon: MapPin,    desc: 'Name, category & type'  },
-  { id: 'details',   label: 'Details',   icon: Info,      desc: 'Descriptions & practical'    },
-  { id: 'content',   label: 'Content',   icon: BookOpen,  desc: 'Highlights, tags & FAQs'     },
-  { id: 'media',     label: 'Media',     icon: Camera,    desc: 'All images & videos'         },
-  { id: 'settings',  label: 'Settings',  icon: Shield,    desc: 'SEO, flags & visibility'     },
+  { id: 'identity',  label: 'Identity',  icon: MapPin,    desc: 'Name, category & type'   },
+  { id: 'details',   label: 'Details',   icon: Info,      desc: 'Descriptions & practical'},
+  { id: 'content',   label: 'Content',   icon: BookOpen,  desc: 'Highlights, tags & FAQs' },
+  { id: 'media',     label: 'Media',     icon: Camera,    desc: 'Images & videos'         },
+  { id: 'settings',  label: 'Settings',  icon: Shield,    desc: 'SEO, flags & visibility' },
 ]
 const STEP_IDS = STEPS.map(s => s.id)
 
@@ -119,10 +94,6 @@ const isValidUrl = (str) => {
 
 const toSlug = (str = '') =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]/g, '').replace(/--+/g, '-')
-
-/* ─── Sub-components (Confetti, Lightbox, ImageManagerPanel, GalleryManager)
-      are identical to the Countries page — import or inline them here.
-      Below we inline the minimal versions needed.                         ── */
 
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
 function Confetti({ active }) {
@@ -182,7 +153,15 @@ function Lightbox({ images, startIndex=0, onClose }) {
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 bg-black/60 shrink-0">
-        <span className="text-white/70 text-sm">{idx+1}/{images.length}{cur?.caption&&<span className="ml-3 text-white/50">{cur.caption}</span>}</span>
+        <span className="text-white/70 text-sm flex items-center gap-2">
+          {idx+1}/{images.length}
+          {cur?.source && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/10 text-white/80">
+              {cur.source}
+            </span>
+          )}
+          {cur?.caption && <span className="ml-2 text-white/50">{cur.caption}</span>}
+        </span>
         <div className="flex gap-2">
           {cur?.url&&<a href={cur.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 text-xs transition-all"><ExternalLink size={12}/>Open original</a>}
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all"><X size={16}/></button>
@@ -206,8 +185,10 @@ function Lightbox({ images, startIndex=0, onClose }) {
   )
 }
 
-/* ─── Image Manager Panel ────────────────────────────────────────────────── */
-function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightbox }) {
+/* ─── HeroImagePanel ─────────────────────────────────────────────────────────
+   Professional single-image manager with distinct theming per role.
+──────────────────────────────────────────────────────────────────────────── */
+function HeroImagePanel({ label, description, value, onChange, folder, allImages, onLightbox, theme = 'emerald', icon: Icon = Image }) {
   const [mode,setMode]       = useState('upload')
   const [urlInput,setUrlInput] = useState(value||'')
   const [urlValid,setUrlValid] = useState(true)
@@ -217,6 +198,13 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 
   useEffect(()=>{ setUrlInput(value||''); setPreview(value||''); setLoaded(false); setError(false) },[value])
 
+  const themes = {
+    emerald: { border: 'border-emerald-300', bg: 'bg-emerald-50/40', text: 'text-emerald-700', accent: 'bg-emerald-500', accentHover: 'hover:bg-emerald-600', chip: 'bg-emerald-100 text-emerald-700', ring: 'focus:ring-emerald-100', ringBorder: 'focus:border-emerald-400' },
+    amber:   { border: 'border-amber-300',   bg: 'bg-amber-50/40',   text: 'text-amber-700',   accent: 'bg-amber-500',   accentHover: 'hover:bg-amber-600',   chip: 'bg-amber-100 text-amber-700',   ring: 'focus:ring-amber-100',   ringBorder: 'focus:border-amber-400'   },
+    sky:     { border: 'border-sky-300',     bg: 'bg-sky-50/40',     text: 'text-sky-700',     accent: 'bg-sky-500',     accentHover: 'hover:bg-sky-600',     chip: 'bg-sky-100 text-sky-700',     ring: 'focus:ring-sky-100',     ringBorder: 'focus:border-sky-400'     },
+  }
+  const t = themes[theme]
+
   const applyUrl = () => {
     if(!urlInput.trim()){onChange('');setPreview('');return}
     if(!isValidUrl(urlInput.trim())){setUrlValid(false);return}
@@ -225,236 +213,413 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
   const clear = () => { onChange(''); setUrlInput(''); setPreview(''); setLoaded(false); setError(false) }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-          <Image size={11} className="text-emerald-500"/> {label}
-        </label>
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-          {[['upload',Upload,'Upload'],['url',Link,'URL']].map(([m,Icon,lbl])=>(
+    <div className={`rounded-2xl border-2 ${t.border} ${t.bg} overflow-hidden`}>
+      <div className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b-2 ${t.border} bg-white`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-8 h-8 rounded-lg ${t.chip} flex items-center justify-center shrink-0`}>
+            <Icon size={14}/>
+          </div>
+          <div className="min-w-0">
+            <p className={`text-xs font-bold uppercase tracking-wider ${t.text}`}>{label}</p>
+            {description && <p className="text-[10px] text-gray-500 truncate">{description}</p>}
+          </div>
+        </div>
+        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 shrink-0">
+          {[['upload',Upload,'Upload'],['url',Link,'URL']].map(([m,I,lbl])=>(
             <button key={m} type="button" onClick={()=>setMode(m)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?'bg-white text-emerald-700 shadow-sm':'text-gray-400 hover:text-gray-600'}`}>
-              <Icon size={10}/> {lbl}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?`bg-white ${t.text} shadow-sm`:'text-gray-400 hover:text-gray-600'}`}>
+              <I size={10}/> {lbl}
             </button>
           ))}
         </div>
       </div>
-      {preview&&(
-        <div className="relative group rounded-2xl overflow-hidden border-2 border-emerald-200 bg-gray-50">
-          <img src={preview} alt={label}
-            className={`w-full h-44 object-cover transition-opacity duration-300 ${loaded?'opacity-100':'opacity-0'}`}
-            onLoad={()=>{setLoaded(true);setError(false)}}
-            onError={()=>{setError(true);setLoaded(true)}}/>
-          {!loaded&&!error&&<div className="absolute inset-0 flex items-center justify-center bg-gray-100"><div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"/></div>}
-          {error&&<div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-400 gap-2"><AlertTriangle size={20}/><p className="text-xs">Failed to load</p></div>}
-          {loaded&&!error&&(
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-              <button type="button" onClick={()=>onLightbox(allImages,allImages.findIndex(i=>i.url===preview))}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-gray-800 text-xs font-bold shadow-lg hover:bg-emerald-50"><Maximize2 size={12}/>View Full</button>
-              <a href={preview} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-gray-800 text-xs font-bold shadow-lg hover:bg-blue-50"><ExternalLink size={12}/>Original</a>
-              <button type="button" onClick={clear}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-red-500 text-xs font-bold shadow-lg hover:bg-red-50"><X size={12}/>Remove</button>
-            </div>
-          )}
-        </div>
-      )}
-      <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 overflow-hidden">
+
+      <div className="p-4 space-y-3">
+        {preview&&(
+          <div className={`relative group rounded-xl overflow-hidden border-2 ${t.border} bg-gray-50`}>
+            <img src={preview} alt={label}
+              className={`w-full h-40 object-cover transition-opacity duration-300 ${loaded?'opacity-100':'opacity-0'}`}
+              onLoad={()=>{setLoaded(true);setError(false)}}
+              onError={()=>{setError(true);setLoaded(true)}}/>
+            {!loaded&&!error&&<div className="absolute inset-0 flex items-center justify-center bg-gray-100"><div className={`w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin ${t.text}`}/></div>}
+            {error&&<div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-400 gap-2"><AlertTriangle size={20}/><p className="text-xs">Failed to load</p></div>}
+            {loaded&&!error&&(
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={()=>onLightbox(allImages,allImages.findIndex(i=>i.url===preview))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-gray-800 text-xs font-bold shadow hover:bg-gray-50"><Maximize2 size={11}/>View</button>
+                <button type="button" onClick={clear}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-red-500 text-xs font-bold shadow hover:bg-red-50"><X size={11}/>Remove</button>
+              </div>
+            )}
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {mode==='upload'
             ? <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
                 <ImageUpload label="" value={value} onChange={v=>{onChange(v);setPreview(v)}} folder={folder}/>
               </motion.div>
-            : <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="p-4 space-y-2">
+            : <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-2">
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
                     <input type="url"
-                      className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 bg-white transition-all ${!urlValid?'border-red-400':'border-gray-200 focus:border-emerald-400 focus:ring-emerald-50'}`}
+                      className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 bg-white transition-all ${!urlValid?'border-red-400':`border-gray-200 ${t.ringBorder} ${t.ring}`}`}
                       value={urlInput} onChange={e=>{setUrlInput(e.target.value);setUrlValid(true)}}
                       onKeyDown={e=>e.key==='Enter'&&applyUrl()} placeholder="https://example.com/photo.jpg"/>
                   </div>
-                  <button type="button" onClick={applyUrl} className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all shrink-0">Apply</button>
+                  <button type="button" onClick={applyUrl} className={`px-4 py-2.5 rounded-xl ${t.accent} ${t.accentHover} text-white text-xs font-bold transition-all shrink-0`}>Apply</button>
                 </div>
                 {!urlValid&&<p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>Enter a valid URL</p>}
               </motion.div>
           }
         </AnimatePresence>
       </div>
-      {value&&<button type="button" onClick={clear} className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 font-medium"><X size={11}/>Clear image</button>}
     </div>
   )
 }
 
-/* ─── Gallery Manager ────────────────────────────────────────────────────── */
-const MAX_DESTINATION_IMAGES = 10
-
-function GalleryManager({ gallery=[], onChange, onLightbox }) {
-  const [mode,setMode]           = useState('url')
+/* ─── DestinationGallery (Upload/URL — max 10) ───────────────────────────── */
+function DestinationGallery({ gallery=[], onChange, onLightbox }) {
+  const [mode,setMode]           = useState('upload')
   const [urlInput,setUrlInput]   = useState('')
   const [caption,setCaption]     = useState('')
   const [urlValid,setUrlValid]   = useState(true)
   const [uploaded,setUploaded]   = useState('')
   const [editIdx,setEditIdx]     = useState(null)
   const [editCap,setEditCap]     = useState('')
-  const [library,setLibrary]     = useState([])
-  const [showLibrary,setShowLibrary] = useState(false)
 
-  useEffect(() => {
-    if (!showLibrary || library.length) return
-    galleryAPI.getAll({ limit: 100 }).then(({ data }) => {
-      setLibrary(data.data || data.gallery || [])
-    }).catch(() => setLibrary([]))
-  }, [showLibrary, library.length])
-
-  const importImage = (item) => {
-    const url = item.image_url || item.url || item.imageUrl
-    if (!url || gallery.length >= MAX_DESTINATION_IMAGES || gallery.some(image => (image.url || image.imageUrl) === url)) return
-    onChange([...gallery, { url, caption: item.title || item.description || '', is_primary: gallery.length === 0, sort_order: gallery.length, source: 'gallery' }])
-  }
+  const remaining = MAX_GALLERY_IMAGES - gallery.length
+  const isFull = remaining <= 0
 
   const addUrl = () => {
-    if(!urlInput.trim() || gallery.length >= MAX_DESTINATION_IMAGES) return
+    if(!urlInput.trim() || isFull) return
     if(!isValidUrl(urlInput.trim())){setUrlValid(false);return}
     setUrlValid(true)
-    const isPrimary = gallery.length===0
-    onChange([...gallery,{url:urlInput.trim(),caption:caption.trim(),is_primary:isPrimary,sort_order:gallery.length,source:'url'}])
+    onChange([...gallery,{url:urlInput.trim(),caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'url'}])
     setUrlInput(''); setCaption('')
   }
   const addUpload = () => {
-    if(!uploaded || gallery.length >= MAX_DESTINATION_IMAGES) return
-    const isPrimary = gallery.length===0
-    onChange([...gallery,{url:uploaded,caption:caption.trim(),is_primary:isPrimary,sort_order:gallery.length,source:'upload'}])
+    if(!uploaded || isFull) return
+    onChange([...gallery,{url:uploaded,caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'upload'}])
     setUploaded(''); setCaption('')
   }
-  const remove   = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
-  const moveUp   = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
-  const moveDown = (i) => { if(i===gallery.length-1) return; const g=[...gallery];[g[i],g[i+1]]=[g[i+1],g[i]];onChange(g) }
+  const remove     = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
+  const moveUp     = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
+  const moveDown   = (i) => { if(i===gallery.length-1) return; const g=[...gallery];[g[i],g[i+1]]=[g[i+1],g[i]];onChange(g) }
   const setPrimary = (i) => onChange(gallery.map((img,idx)=>({...img,is_primary:idx===i})))
-  const saveCaption = (i) => { const g=[...gallery]; g[i]={...g[i],caption:editCap}; onChange(g); setEditIdx(null) }
+  const saveCaption= (i) => { const g=[...gallery]; g[i]={...g[i],caption:editCap}; onChange(g); setEditIdx(null) }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-          <Camera size={11} className="text-emerald-500"/> Gallery ({gallery.length}/{MAX_DESTINATION_IMAGES} photos)
-        </p>
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-          {[['url',Link,'URL'],['upload',Upload,'Upload']].map(([m,Icon,lbl])=>(
-            <button key={m} type="button" onClick={()=>setMode(m)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?'bg-white text-emerald-700 shadow-sm':'text-gray-400 hover:text-gray-600'}`}>
-              <Icon size={10}/> {lbl}
-            </button>
-          ))}
+    <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-white to-green-50/30 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-white border-b-2 border-emerald-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md shadow-emerald-200">
+            <Camera size={18} className="text-white"/>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-900">Destination Gallery</p>
+            <p className="text-[11px] text-emerald-600">Uploaded photos & external URLs — max {MAX_GALLERY_IMAGES}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm ${isFull?'bg-amber-100 text-amber-800 border border-amber-300':'bg-emerald-100 text-emerald-800 border border-emerald-300'}`}>
+            {gallery.length} / {MAX_GALLERY_IMAGES}
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button type="button" onClick={()=>setShowLibrary(value=>!value)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50">
-          <Image size={13}/> {showLibrary ? 'Hide gallery library' : 'Import from gallery'}
-        </button>
-      </div>
-      {showLibrary&&(
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-          {library.map(item=>{
-            const url=item.image_url||item.url||item.imageUrl
-            return <button key={item.id||url} type="button" onClick={()=>importImage(item)} className="aspect-[4/3] overflow-hidden rounded-lg border border-white bg-white hover:border-emerald-400">
-              <img src={url} alt={item.title||'Gallery image'} className="w-full h-full object-cover"/>
-            </button>
-          })}
-          {!library.length&&<p className="col-span-full text-xs text-gray-500 py-3 text-center">No gallery images available.</p>}
+      {/* Capacity bar */}
+      <div className="px-5 pt-3">
+        <div className="h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+          <motion.div
+            initial={false}
+            animate={{ width: `${(gallery.length/MAX_GALLERY_IMAGES)*100}%` }}
+            transition={{ duration: 0.4 }}
+            className={`h-full rounded-full ${isFull?'bg-gradient-to-r from-amber-400 to-amber-500':'bg-gradient-to-r from-emerald-400 to-green-500'}`}
+          />
         </div>
-      )}
+      </div>
 
-      {gallery.length>0&&(
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {gallery.map((img,i)=>(
-            <div key={i} className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-[4/3] ${img.is_primary?'border-emerald-400':'border-gray-200'}`}>
-              <img src={img.url||img.imageUrl} alt={img.caption||`Photo ${i+1}`}
-                className="w-full h-full object-cover"
-                onError={e=>{e.target.src='https://placehold.co/200x150?text=?'}}/>
-              {img.is_primary&&(
-                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase bg-emerald-500 text-white">Primary</div>
-              )}
-              {img.caption&&(
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
-                  <p className="text-[10px] text-white truncate">{img.caption}</p>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
-                <button type="button" onClick={()=>onLightbox(gallery.map(g=>({url:g.url||g.imageUrl,caption:g.caption})),i)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50"><Maximize2 size={10}/>View</button>
-                {!img.is_primary&&(
-                  <button type="button" onClick={()=>setPrimary(i)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600"><Star size={10}/>Set Primary</button>
+      {/* Gallery grid */}
+      <div className="p-5 space-y-4">
+        {gallery.length>0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {gallery.map((img,i)=>(
+              <div key={i} className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-[4/3] transition-all ${img.is_primary?'border-emerald-500 ring-2 ring-emerald-200':'border-gray-200 hover:border-emerald-300'}`}>
+                <img src={img.url} alt={img.caption||`Photo ${i+1}`}
+                  className="w-full h-full object-cover"
+                  onError={e=>{e.target.src='https://placehold.co/200x150?text=?'}}/>
+                {img.is_primary&&(
+                  <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase bg-emerald-500 text-white flex items-center gap-1 shadow"><Star size={9} className="fill-white"/>Primary</div>
                 )}
-                <button type="button" onClick={()=>{setEditIdx(i);setEditCap(img.caption||'')}}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50"><Pencil size={10}/>Caption</button>
-                <div className="flex gap-1">
-                  <button type="button" onClick={()=>moveUp(i)} disabled={i===0}
-                    className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronUp size={11}/></button>
-                  <button type="button" onClick={()=>moveDown(i)} disabled={i===gallery.length-1}
-                    className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronDown size={11}/></button>
-                  <button type="button" onClick={()=>remove(i)}
-                    className="w-6 h-6 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white"><Trash2 size={10}/></button>
+                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-black/60 text-white/90 backdrop-blur-sm">
+                  {img.source==='upload'?'Upload':'URL'}
+                </div>
+                {img.caption&&(
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
+                    <p className="text-[10px] text-white truncate font-medium">{img.caption}</p>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
+                  <button type="button" onClick={()=>onLightbox(gallery.map(g=>({url:g.url,caption:g.caption,source:g.source})),i)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50"><Maximize2 size={10}/>View</button>
+                  {!img.is_primary&&(
+                    <button type="button" onClick={()=>setPrimary(i)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600"><Star size={10}/>Set Primary</button>
+                  )}
+                  <button type="button" onClick={()=>{setEditIdx(i);setEditCap(img.caption||'')}}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50"><Pencil size={10}/>Caption</button>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={()=>moveUp(i)} disabled={i===0}
+                      className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronUp size={11}/></button>
+                    <button type="button" onClick={()=>moveDown(i)} disabled={i===gallery.length-1}
+                      className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"><ChevronDown size={11}/></button>
+                    <button type="button" onClick={()=>remove(i)}
+                      className="w-6 h-6 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white"><Trash2 size={10}/></button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 rounded-xl bg-white border-2 border-dashed border-emerald-200 text-emerald-400">
+            <Camera size={36} className="mx-auto mb-2 opacity-40"/>
+            <p className="text-sm font-medium text-gray-500">No gallery photos yet</p>
+            <p className="text-xs text-gray-400 mt-1">First image added becomes primary</p>
+          </div>
+        )}
+
+        {/* Caption editor */}
+        {editIdx!==null&&(
+          <motion.div initial={{opacity:0,y:-5}} animate={{opacity:1,y:0}}
+            className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
+            <input className="flex-1 px-3 py-1.5 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400"
+              value={editCap} onChange={e=>setEditCap(e.target.value)} placeholder="Add a caption…" autoFocus/>
+            <button type="button" onClick={()=>saveCaption(editIdx)}
+              className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600">Save</button>
+            <button type="button" onClick={()=>setEditIdx(null)}
+              className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-300">Cancel</button>
+          </motion.div>
+        )}
+
+        {/* Add new */}
+        {!isFull ? (
+          <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                <ImagePlus size={13}/>Add new photo
+                <span className="ml-1 text-[10px] text-emerald-500 font-medium">({remaining} slot{remaining!==1?'s':''} left)</span>
+              </p>
+              <div className="flex items-center bg-emerald-50 rounded-lg p-0.5">
+                {[['upload',Upload,'Upload'],['url',Link,'URL']].map(([m,Icon,lbl])=>(
+                  <button key={m} type="button" onClick={()=>setMode(m)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?'bg-white text-emerald-700 shadow-sm':'text-emerald-500 hover:text-emerald-700'}`}>
+                    <Icon size={10}/> {lbl}
+                  </button>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      {editIdx!==null&&(
-        <motion.div initial={{opacity:0,y:-5}} animate={{opacity:1,y:0}}
-          className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
-          <input className="flex-1 px-3 py-1.5 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400"
-            value={editCap} onChange={e=>setEditCap(e.target.value)} placeholder="Add a caption…" autoFocus/>
-          <button type="button" onClick={()=>saveCaption(editIdx)}
-            className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600">Save</button>
-          <button type="button" onClick={()=>setEditIdx(null)}
-            className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-300">Cancel</button>
-        </motion.div>
-      )}
+            <AnimatePresence mode="wait">
+              {mode==='url'
+                ? <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-2">
+                    <div className="relative">
+                      <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
+                      <input type="url"
+                        className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 bg-white transition-all ${!urlValid?'border-red-400':'border-gray-200 focus:border-emerald-400'}`}
+                        value={urlInput} onChange={e=>{setUrlInput(e.target.value);setUrlValid(true)}} placeholder="https://example.com/photo.jpg"/>
+                    </div>
+                    {!urlValid&&<p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>Enter a valid URL</p>}
+                  </motion.div>
+                : <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+                    <ImageUpload label="" value={uploaded} onChange={setUploaded} folder="destinations/gallery"/>
+                  </motion.div>
+              }
+            </AnimatePresence>
 
-      <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 p-4 space-y-3">
-        <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5"><ImagePlus size={13}/>Add photo</p>
-        <AnimatePresence mode="wait">
-          {mode==='url'
-            ? <motion.div key="url" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="space-y-2">
-                <div className="relative">
-                  <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"/>
-                  <input type="url"
-                    className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 bg-white transition-all ${!urlValid?'border-red-400':'border-gray-200 focus:border-emerald-400'}`}
-                    value={urlInput} onChange={e=>{setUrlInput(e.target.value);setUrlValid(true)}} placeholder="https://example.com/photo.jpg"/>
-                </div>
-                {!urlValid&&<p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10}/>Enter a valid URL</p>}
-              </motion.div>
-            : <motion.div key="up" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-                <ImageUpload label="" value={uploaded} onChange={setUploaded} folder="destinations/gallery"/>
-              </motion.div>
-          }
-        </AnimatePresence>
-        <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
-          value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
-        <button type="button"
-          onClick={mode==='url'?addUrl:addUpload}
-          disabled={gallery.length >= MAX_DESTINATION_IMAGES || (mode==='url'?!urlInput.trim():!uploaded)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-          <Plus size={14}/> Add to Gallery
-        </button>
-        {gallery.length >= MAX_DESTINATION_IMAGES && (
-          <p className="text-xs font-semibold text-amber-600">Maximum of {MAX_DESTINATION_IMAGES} destination images reached.</p>
+            <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+              value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
+
+            <button type="button"
+              onClick={mode==='url'?addUrl:addUpload}
+              disabled={mode==='url'?!urlInput.trim():!uploaded}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
+              <Plus size={14}/> Add to Gallery
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5"/>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Gallery full</p>
+              <p className="text-xs text-amber-700 mt-0.5">You've reached the maximum of {MAX_GALLERY_IMAGES} gallery photos. Remove one to add another, or use the Library Import section for unlimited images from your central gallery.</p>
+            </div>
+          </div>
         )}
       </div>
+    </div>
+  )
+}
 
-      {gallery.length===0&&(
-        <div className="text-center py-6 text-gray-400">
-          <Camera size={32} className="mx-auto mb-2 opacity-30"/>
-          <p className="text-sm">No gallery images yet</p>
-          <p className="text-xs">First image added becomes primary</p>
+/* ─── LibraryImportPanel (from central gallery — unlimited) ──────────────── */
+function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
+  const [library,setLibrary]         = useState([])
+  const [loading,setLoading]         = useState(false)
+  const [search,setSearch]           = useState('')
+  const [showBrowser,setShowBrowser] = useState(false)
+
+  useEffect(() => {
+    if (!showBrowser || library.length) return
+    setLoading(true)
+    galleryAPI.getAll({ limit: 200 }).then(({ data }) => {
+      setLibrary(data.data || data.gallery || [])
+    }).catch(() => setLibrary([])).finally(() => setLoading(false))
+  }, [showBrowser, library.length])
+
+  const filtered = library.filter(item => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (item.title||'').toLowerCase().includes(q) || (item.description||'').toLowerCase().includes(q)
+  })
+
+  const toggleImport = (item) => {
+    const url = item.image_url || item.url || item.imageUrl
+    if (!url) return
+    const exists = libraryImages.findIndex(img => img.url === url)
+    if (exists >= 0) {
+      onChange(libraryImages.filter((_,i) => i !== exists))
+    } else {
+      onChange([...libraryImages, {
+        url,
+        caption: item.title || item.description || '',
+        library_id: item.id,
+        source: 'library',
+      }])
+    }
+  }
+
+  const removeImport = (i) => onChange(libraryImages.filter((_,idx) => idx !== i))
+
+  const isImported = (item) => {
+    const url = item.image_url || item.url || item.imageUrl
+    return libraryImages.some(img => img.url === url)
+  }
+
+  return (
+    <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/50 via-white to-purple-50/30 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-white border-b-2 border-violet-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-200">
+            <Library size={18} className="text-white"/>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-violet-900">Gallery Library Imports</p>
+            <p className="text-[11px] text-violet-600">Reuse images from your central gallery — unlimited</p>
+          </div>
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-xl bg-violet-100 text-violet-800 border border-violet-300 font-bold text-xs shadow-sm">
+            {libraryImages.length} imported
+          </div>
+          <button type="button" onClick={()=>setShowBrowser(v=>!v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold hover:from-violet-600 hover:to-purple-700 shadow-md shadow-violet-200 transition-all">
+            <Library size={12}/> {showBrowser?'Hide Library':'Browse Library'}
+          </button>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* Currently imported */}
+        {libraryImages.length>0 ? (
+          <div>
+            <p className="text-xs font-bold text-violet-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <CheckCircle2 size={11}/>Imported from library
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+              {libraryImages.map((img,i)=>(
+                <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-violet-200 bg-white aspect-square">
+                  <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
+                    onError={e=>{e.target.src='https://placehold.co/150x150?text=?'}}/>
+                  <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-violet-500 text-white shadow">
+                    Lib
+                  </div>
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
+                    <button type="button"
+                      onClick={()=>onLightbox(libraryImages.map(li=>({url:li.url,caption:li.caption,source:'library'})),i)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-violet-50"><Maximize2 size={10}/>View</button>
+                    <button type="button" onClick={()=>removeImport(i)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold"><X size={10}/>Remove</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 rounded-xl bg-white border-2 border-dashed border-violet-200 text-violet-400">
+            <Library size={32} className="mx-auto mb-2 opacity-40"/>
+            <p className="text-sm font-medium text-gray-500">No library images imported</p>
+            <p className="text-xs text-gray-400 mt-1">Click "Browse Library" above to select images</p>
+          </div>
+        )}
+
+        {/* Browser */}
+        <AnimatePresence>
+          {showBrowser && (
+            <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
+              className="overflow-hidden">
+              <div className="pt-4 border-t-2 border-violet-100 space-y-3">
+                <div className="relative">
+                  <Sparkles size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400"/>
+                  <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
+                    placeholder="Search library images by title or description…"
+                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border-2 border-violet-200 bg-white text-sm focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"/>
+                </div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"/>
+                  </div>
+                ) : filtered.length ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2 max-h-80 overflow-y-auto p-2 rounded-xl bg-white border border-violet-100">
+                    {filtered.map(item=>{
+                      const url = item.image_url||item.url||item.imageUrl
+                      const imported = isImported(item)
+                      return (
+                        <button key={item.id||url} type="button" onClick={()=>toggleImport(item)}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${imported?'border-violet-500 ring-2 ring-violet-200 scale-95':'border-transparent hover:border-violet-400'}`}>
+                          <img src={url} alt={item.title||'Library image'} className="w-full h-full object-cover"
+                            onError={e=>{e.target.src='https://placehold.co/100x100?text=?'}}/>
+                          {imported && (
+                            <div className="absolute inset-0 bg-violet-500/70 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                                <Check size={16} className="text-violet-600 stroke-[3]"/>
+                              </div>
+                            </div>
+                          )}
+                          {item.title && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1">
+                              <p className="text-[9px] text-white truncate font-medium">{item.title}</p>
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-center text-sm text-gray-500 py-6">
+                    {library.length ? 'No matches for your search.' : 'No library images available.'}
+                  </p>
+                )}
+                <p className="text-[11px] text-violet-500 text-center">
+                  Click images to toggle import. Selected images have a violet ring.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
@@ -547,6 +712,49 @@ function FaqEditor({ faqs=[], onChange }) {
   )
 }
 
+/* ─── Attraction Editor ─────────────────────────────────────────────────── */
+function AttractionEditor({ attractions = [], onChange }) {
+  const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
+  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '' }])
+  const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
+          <Sparkles size={11} className="text-emerald-500"/> Attractions ({attractions.length})
+        </p>
+        <button type="button" onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all">
+          <Plus size={12}/> Add Attraction
+        </button>
+      </div>
+      {attractions.map((item, index) => (
+        <div key={index} className="p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Attraction {index+1}</span>
+            <button type="button" onClick={()=>remove(index)}
+              className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 hover:text-red-600 transition-all">
+              <Trash2 size={12}/>
+            </button>
+          </div>
+          <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+            placeholder="Attraction name" value={item.name || ''} onChange={e => update(index, 'name', e.target.value)} />
+          <textarea className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm resize-none focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 min-h-[70px]"
+            rows={2} placeholder="Short description" value={item.description || ''} onChange={e => update(index, 'description', e.target.value)} />
+          <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+            type="url" placeholder="Image URL (optional)" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
+        </div>
+      ))}
+      {attractions.length===0 && (
+        <div className="text-center py-6 text-gray-400">
+          <Sparkles size={32} className="mx-auto mb-2 opacity-30"/>
+          <p className="text-sm">No attractions yet</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Step Indicator ─────────────────────────────────────────────────────── */
 function StepIndicator({ steps, current, completed, onGoTo }) {
   const currentIdx = steps.findIndex(s=>s.id===current)
@@ -617,7 +825,7 @@ function FlagToggle({ checked, onChange, label, desc, icon:Icon }) {
   )
 }
 
-/* ─── Spinner / Delete Dialog / Success Celebration (same as Countries) ─── */
+/* ─── Spinner / Delete / Success ─────────────────────────────────────────── */
 function Spinner({ size='sm' }) {
   return <span className={`border-2 border-current border-t-transparent rounded-full animate-spin shrink-0 ${size==='sm'?'w-4 h-4':'w-5 h-5'}`}/>
 }
@@ -728,22 +936,22 @@ export default function Destinations() {
 
   const debouncedSearch = useDebounce(search, 400)
 
-  /* ── Load countries for dropdown ─────────────────────────────────── */
   useEffect(() => {
     countriesAPI.getAll({ limit: 200, is_active: true })
       .then(({ data }) => setCountries(data.data || data.countries || []))
       .catch(() => {})
   }, [])
 
-  /* ── All form images for lightbox ────────────────────────────────── */
+  /* ── All form images for global lightbox ─────────────────────────── */
   const getAllFormImages = useCallback(() => {
     const imgs = []
-    if (form.image_url)       imgs.push({ url: form.image_url,       caption: 'Main Image' })
-    if (form.hero_image)      imgs.push({ url: form.hero_image,      caption: 'Hero Image' })
-    if (form.cover_image_url) imgs.push({ url: form.cover_image_url, caption: 'Cover Image' })
-    ;(form.gallery || []).forEach(g => imgs.push({ url: g.url || g.imageUrl, caption: g.caption || 'Gallery' }))
+    if (form.hero_image)      imgs.push({ url: form.hero_image,      caption: 'Hero Image',  source: 'hero'   })
+    if (form.cover_image_url) imgs.push({ url: form.cover_image_url, caption: 'Cover Banner',source: 'cover'  })
+    if (form.image_url)       imgs.push({ url: form.image_url,       caption: 'Main Image',  source: 'main'   })
+    ;(form.gallery || []).forEach(g => imgs.push({ url: g.url, caption: g.caption || 'Gallery', source: 'gallery' }))
+    ;(form.library_images || []).forEach(g => imgs.push({ url: g.url, caption: g.caption || 'Library', source: 'library' }))
     return imgs.filter(i => i.url)
-  }, [form.image_url, form.hero_image, form.cover_image_url, form.gallery])
+  }, [form.image_url, form.hero_image, form.cover_image_url, form.gallery, form.library_images])
 
   const openLightbox = (images, startIndex = 0) => {
     setLightboxImages(images.filter(i => i.url))
@@ -775,31 +983,42 @@ export default function Destinations() {
 
   useEffect(() => { load() }, [load])
 
-  /* ── Normalise gallery from API response ─────────────────────────── */
-  const normaliseGallery = (dest) => {
-    // API returns gallery as [{ id, imageUrl, thumbnailUrl, isPrimary, sortOrder }]
-    // We normalise to [{ url, caption, is_primary, sort_order, source }]
+  /* ── Normalise gallery from API — split gallery vs library ───────── */
+  const normaliseGalleries = (dest) => {
     const raw = dest.gallery || []
+    const gallery = []
+    const library_images = []
+
     if (!raw.length) {
-      // Fall back to images array
-      return (dest.images || []).map((url, i) => ({
+      // Fallback: images array becomes gallery
+      const images = (dest.images || []).map((url, i) => ({
         url, caption: '', is_primary: i === 0, sort_order: i, source: 'url',
       }))
+      return { gallery: images, library_images: [] }
     }
-    return raw.map(g => ({
-      url:        g.imageUrl || g.url || '',
-      caption:    g.caption  || '',
-      is_primary: g.isPrimary ?? g.is_primary ?? false,
-      sort_order: g.sortOrder ?? g.sort_order ?? 0,
-      source:     'url',
-    })).sort((a, b) => a.sort_order - b.sort_order)
+
+    raw.forEach((g, i) => {
+      const url = g.imageUrl || g.url || ''
+      if (!url) return
+      const entry = {
+        url,
+        caption:    g.caption  || '',
+        is_primary: g.isPrimary ?? g.is_primary ?? false,
+        sort_order: g.sortOrder ?? g.sort_order ?? i,
+        library_id: g.libraryId ?? g.library_id ?? null,
+        source:     g.source || (g.libraryId || g.library_id ? 'library' : 'url'),
+      }
+      if (entry.source === 'library') library_images.push(entry)
+      else gallery.push(entry)
+    })
+
+    gallery.sort((a, b) => a.sort_order - b.sort_order)
+    return { gallery: gallery.slice(0, MAX_GALLERY_IMAGES), library_images }
   }
 
-  /* ── Normalise local_tips from API (can be array or weird string) ── */
   const normaliseTips = (dest) => {
     if (Array.isArray(dest.local_tips)) return dest.local_tips
     if (Array.isArray(dest.tips))       return dest.tips
-    // API returns localTips as a stringified set literal: {"tip1","tip2"}
     const raw = dest.localTips || dest.local_tips || ''
     if (typeof raw === 'string' && raw.startsWith('{')) {
       try {
@@ -810,72 +1029,76 @@ export default function Destinations() {
   }
 
   /* ── Build form from API row ─────────────────────────────────────── */
-  const buildForm = (dest) => ({
-    name:               dest.name               || '',
-    slug:               dest.slug               || '',
-    tagline:            dest.tagline            || '',
-    category:           dest.category           || dest.classification || dest.adventureCategory || '',
-    destination_type:   dest.destinationType    || dest.destination_type || '',
-    classification:     dest.classification     || '',
-    adventure_category: dest.adventureCategory  || dest.adventure_category || '',
-    difficulty:         dest.difficulty         || '',
-    status:             dest.status             || 'published',
-    region:             dest.region             || '',
-    nearest_city:       dest.nearestCity        || dest.nearest_city || '',
-    nearest_airport:    dest.nearestAirport     || dest.nearest_airport || '',
-    address:            dest.address            || '',
-    latitude:           dest.latitude           ?? '',
-    longitude:          dest.longitude          ?? '',
-    altitude_meters:    dest.altitudeMeters     ?? dest.altitude_meters ?? '',
-    distance_from_airport_km: dest.distanceFromAirportKm ?? dest.distance_from_airport_km ?? '',
+  const buildForm = (dest) => {
+    const { gallery, library_images } = normaliseGalleries(dest)
+    return {
+      name:               dest.name               || '',
+      slug:               dest.slug               || '',
+      tagline:            dest.tagline            || '',
+      category:           dest.category           || dest.classification || dest.adventureCategory || '',
+      destination_type:   dest.destinationType    || dest.destination_type || '',
+      classification:     dest.classification     || '',
+      adventure_category: dest.adventureCategory  || dest.adventure_category || '',
+      difficulty:         dest.difficulty         || '',
+      status:             dest.status             || 'published',
+      region:             dest.region             || '',
+      nearest_city:       dest.nearestCity        || dest.nearest_city || '',
+      nearest_airport:    dest.nearestAirport     || dest.nearest_airport || '',
+      address:            dest.address            || '',
+      latitude:           dest.latitude           ?? '',
+      longitude:          dest.longitude          ?? '',
+      altitude_meters:    dest.altitudeMeters     ?? dest.altitude_meters ?? '',
+      distance_from_airport_km: dest.distanceFromAirportKm ?? dest.distance_from_airport_km ?? '',
 
-    description:        dest.description        || '',
-    short_description:  dest.shortDescription   || dest.short_description || '',
-    overview:           dest.overview           || '',
-    getting_there:      dest.gettingThere       || dest.getting_there || '',
-    what_to_expect:     dest.whatToExpect       || dest.what_to_expect || '',
-    safety_info:        dest.safetyInfo         || dest.safety_info || '',
-    best_time_to_visit: dest.bestTimeToVisit    || dest.best_time_to_visit || '',
+      description:        dest.description        || '',
+      short_description:  dest.shortDescription   || dest.short_description || '',
+      overview:           dest.overview           || '',
+      getting_there:      dest.gettingThere       || dest.getting_there || '',
+      what_to_expect:     dest.whatToExpect       || dest.what_to_expect || '',
+      safety_info:        dest.safetyInfo         || dest.safety_info || '',
+      best_time_to_visit: dest.bestTimeToVisit    || dest.best_time_to_visit || '',
 
-    country_id:         dest.countryId          ?? dest.country_id ?? dest.country?.id ?? '',
+      country_id:         dest.countryId          ?? dest.country_id ?? dest.country?.id ?? '',
 
-    image_url:          dest.imageUrl           || dest.image_url || '',
-    hero_image:         dest.heroImage          || dest.hero_image || '',
-    cover_image_url:    dest.coverImageUrl      || dest.cover_image_url || '',
-    video_url:          dest.videoUrl           || dest.video_url || '',
-    virtual_tour_url:   dest.virtualTourUrl     || dest.virtual_tour_url || '',
+      image_url:          dest.imageUrl           || dest.image_url || '',
+      hero_image:         dest.heroImage          || dest.hero_image || '',
+      cover_image_url:    dest.coverImageUrl      || dest.cover_image_url || '',
+      video_url:          dest.videoUrl           || dest.video_url || '',
+      virtual_tour_url:   dest.virtualTourUrl     || dest.virtual_tour_url || '',
 
-    highlights:         dest.highlights         || [],
-    activities:         Array.isArray(dest.activities) ? dest.activities : [],
-    attractions:        Array.isArray(dest.attractions) ? dest.attractions : [],
-    wildlife:           Array.isArray(dest.wildlife)   ? dest.wildlife   : [],
-    duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
-    duration_nights:    dest.durationNights     ?? dest.duration_nights ?? '',
-    duration_display:   dest.duration           || dest.durationDisplay || dest.duration_display || '',
-    min_group_size:     dest.minGroupSize       ?? dest.min_group_size ?? '',
-    max_group_size:     dest.maxGroupSize       ?? dest.max_group_size ?? '',
-    min_age:            dest.minAge             ?? dest.min_age ?? '',
-    fitness_level:      dest.fitnessLevel      || dest.fitness_level || '',
-    entrance_fee:       dest.entranceFee       || dest.entrance_fee || '',
-    operating_hours:    dest.operatingHours    || dest.operating_hours || '',
-    local_tips:         normaliseTips(dest),
-    tags:               dest.tags               || [],
+      highlights:         dest.highlights         || [],
+      activities:         Array.isArray(dest.activities) ? dest.activities : [],
+      attractions:        Array.isArray(dest.attractions) ? dest.attractions : [],
+      wildlife:           Array.isArray(dest.wildlife)   ? dest.wildlife   : [],
+      duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
+      duration_nights:    dest.durationNights     ?? dest.duration_nights ?? '',
+      duration_display:   dest.duration           || dest.durationDisplay || dest.duration_display || '',
+      min_group_size:     dest.minGroupSize       ?? dest.min_group_size ?? '',
+      max_group_size:     dest.maxGroupSize       ?? dest.max_group_size ?? '',
+      min_age:            dest.minAge             ?? dest.min_age ?? '',
+      fitness_level:      dest.fitnessLevel      || dest.fitness_level || '',
+      entrance_fee:       dest.entranceFee       || dest.entrance_fee || '',
+      operating_hours:    dest.operatingHours    || dest.operating_hours || '',
+      local_tips:         normaliseTips(dest),
+      tags:               dest.tags               || [],
 
-    gallery:            normaliseGallery(dest),
-    itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
-    faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
+      gallery,
+      library_images,
+      itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
+      faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
 
-    meta_title:         dest.metaTitle          || dest.meta_title || '',
-    meta_description:   dest.metaDescription    || dest.meta_description || '',
+      meta_title:         dest.metaTitle          || dest.meta_title || '',
+      meta_description:   dest.metaDescription    || dest.meta_description || '',
 
-    is_active:          dest.isActive           ?? dest.is_active  ?? true,
-    is_featured:        dest.isFeatured         ?? dest.is_featured ?? false,
-    is_popular:         dest.isPopular          ?? dest.is_popular ?? false,
-    is_new:             dest.isNew              ?? dest.is_new ?? false,
-    is_eco_friendly:    dest.isEcoFriendly      ?? dest.is_eco_friendly ?? false,
-    is_family_friendly: dest.isFamilyFriendly   ?? dest.is_family_friendly ?? false,
-    is_sold_out:        dest.isSoldOut          ?? dest.is_sold_out ?? false,
-  })
+      is_active:          dest.isActive           ?? dest.is_active  ?? true,
+      is_featured:        dest.isFeatured         ?? dest.is_featured ?? false,
+      is_popular:         dest.isPopular          ?? dest.is_popular ?? false,
+      is_new:             dest.isNew              ?? dest.is_new ?? false,
+      is_eco_friendly:    dest.isEcoFriendly      ?? dest.is_eco_friendly ?? false,
+      is_family_friendly: dest.isFamilyFriendly   ?? dest.is_family_friendly ?? false,
+      is_sold_out:        dest.isSoldOut          ?? dest.is_sold_out ?? false,
+    }
+  }
 
   const openCreate = () => {
     setForm(INITIAL_FORM); setEditing(null)
@@ -896,7 +1119,6 @@ export default function Destinations() {
     if (errors[k]) setErrors(p => ({ ...p, [k]: undefined }))
   }
 
-  /* ── Validation ───────────────────────────────────────────────────── */
   const validateStep = (stepId) => {
     const e = {}
     if (stepId === 'identity') {
@@ -908,7 +1130,6 @@ export default function Destinations() {
     return Object.keys(e).length === 0
   }
 
-  /* ── Step nav ─────────────────────────────────────────────────────── */
   const stepIndex = STEP_IDS.indexOf(step)
 
   const goNext = () => {
@@ -928,7 +1149,7 @@ export default function Destinations() {
     if (!validateStep('identity')) { setStep('identity'); return }
     setSaving(true)
     try {
-      const { gallery, itinerary, faqs, tags, local_tips, ...destinationFields } = form
+      const { gallery, library_images, itinerary, faqs, tags, local_tips, ...destinationFields } = form
       const payload = {
         ...destinationFields,
         slug:         form.slug || toSlug(form.name),
@@ -946,10 +1167,27 @@ export default function Destinations() {
         setCelebrationMsg(`"${form.name}" created successfully!`)
       }
 
-      const newGalleryImages = (gallery || []).filter(image => !image.id && (image.url || image.imageUrl))
-      if (savedDestination?.id && newGalleryImages.length) {
+      // Merge gallery + library images for saving
+      const allNewImages = [
+        ...(gallery || []).filter(image => !image.id && image.url).map(image => ({
+          url: image.url,
+          caption: image.caption,
+          is_primary: image.is_primary,
+          sort_order: image.sort_order,
+          source: image.source,
+        })),
+        ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
+          url: image.url,
+          caption: image.caption,
+          library_id: image.library_id,
+          source: 'library',
+        })),
+      ]
+
+      if (savedDestination?.id && allNewImages.length) {
         const formData = new FormData()
-        formData.append('image_urls', JSON.stringify(newGalleryImages.map(image => image.url || image.imageUrl)))
+        formData.append('image_urls', JSON.stringify(allNewImages.map(image => image.url)))
+        formData.append('image_meta', JSON.stringify(allNewImages))
         await destinationsAPI.addImages(savedDestination.id, formData)
       }
 
@@ -988,7 +1226,6 @@ export default function Destinations() {
     }
   }
 
-  /* ── Delete ───────────────────────────────────────────────────────── */
   const openDelete       = (row) => { setDeleteTarget(row); setDeleteOpen(true) }
   const handleDeleteDone = ()    => { setDeleteTarget(null); setDeleteOpen(false); load() }
   const handleSort       = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
@@ -1138,7 +1375,7 @@ export default function Destinations() {
              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Info size={18} className="text-green-600"/></div>
              <div><h3 className="text-sm font-bold text-green-800">Descriptions & Practical Info</h3><p className="text-xs text-green-600">Rich content for travelers</p></div>
            </div>
-           
+
            <Field label="Short Description" icon={FileText}>
              <textarea className={textareaClass} value={form.short_description} onChange={e=>upd('short_description',e.target.value)} />
            </Field>
@@ -1184,8 +1421,6 @@ export default function Destinations() {
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
              <AttractionEditor attractions={form.attractions} onChange={v=>upd('attractions',v)} />
            </div>
-
-           {/* FAQs */}
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
              <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
            </div>
@@ -1198,62 +1433,86 @@ export default function Destinations() {
       /* ─── MEDIA ─────────────────────────────────────────────────── */
       case 'media': return (
         <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-6">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Camera size={18} className="text-green-600"/></div>
-            <div><h3 className="text-sm font-bold text-green-800">Media</h3><p className="text-xs text-green-600">All images and video for this destination</p></div>
+          {/* Header banner */}
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border border-emerald-100">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Camera size={18} className="text-emerald-600"/></div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-emerald-800">Media Library</h3>
+              <p className="text-xs text-emerald-600">Manage hero images, banners, gallery uploads and library imports</p>
+            </div>
+            {allImgs.length>0 && (
+              <button type="button" onClick={()=>openLightbox(allImgs,0)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 transition-all shadow-sm">
+                <Maximize2 size={11}/>View all {allImgs.length}
+              </button>
+            )}
           </div>
 
-           {/* All-images strip */}
-           {allImgs.length>0&&(
-             <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
-               <div className="flex items-center justify-between">
-                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><EyeIcon size={11}/>All Images ({allImgs.length})</p>
-                 <button type="button" onClick={()=>openLightbox(allImgs,0)}
-                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
-                   <Maximize2 size={11}/>View all
-                 </button>
-               </div>
-               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200">
-                 {allImgs.map((img,i)=>(
-                   <button key={i} type="button" onClick={()=>openLightbox(allImgs,i)}
-                     className="shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all group relative">
-                     <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
-                       onError={e=>{e.target.src='https://placehold.co/80x56?text=?'}}/>
-                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                       <ZoomIn size={12} className="text-white"/>
-                     </div>
-                   </button>
-                 ))}
-               </div>
-             </div>
-           )}
+          {/* Section 1: Hero, Cover, Main */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Layers size={14} className="text-gray-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Featured Images</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Primary display images</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <HeroImagePanel
+                label="Hero Image" description="Top banner on destination page"
+                value={form.hero_image} onChange={v=>upd('hero_image',v)}
+                folder="destinations/hero" theme="amber" icon={Sun}
+                allImages={allImgs} onLightbox={openLightbox}/>
+              <HeroImagePanel
+                label="Cover Banner" description="Card thumbnail & listings"
+                value={form.cover_image_url} onChange={v=>upd('cover_image_url',v)}
+                folder="destinations/cover" theme="sky" icon={Palette}
+                allImages={allImgs} onLightbox={openLightbox}/>
+              <HeroImagePanel
+                label="Main Image" description="Default fallback image"
+                value={form.image_url} onChange={v=>upd('image_url',v)}
+                folder="destinations/main" theme="emerald" icon={Image}
+                allImages={allImgs} onLightbox={openLightbox}/>
+            </div>
+          </div>
 
-           {/* Primary images */}
-           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-             <ImageManagerPanel label="Main Image" value={form.image_url}
-               onChange={v=>upd('image_url',v)} folder="destinations"
-               allImages={allImgs} onLightbox={openLightbox}/>
-             <ImageManagerPanel label="Hero Image" value={form.hero_image}
-               onChange={v=>upd('hero_image',v)} folder="destinations"
-               allImages={allImgs} onLightbox={openLightbox}/>
-             <ImageManagerPanel label="Cover / Banner" value={form.cover_image_url}
-               onChange={v=>upd('cover_image_url',v)} folder="destinations"
-               allImages={allImgs} onLightbox={openLightbox}/>
-           </div>
+          {/* Section 2: Destination Gallery (uploaded/URL, max 10) */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Camera size={14} className="text-emerald-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Destination Gallery</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Own photos — max {MAX_GALLERY_IMAGES}</span>
+            </div>
+            <DestinationGallery gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
+          </div>
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             <Field label="Video URL" icon={Video}><input className={inputClass} type="url" value={form.video_url} onChange={e=>upd('video_url',e.target.value)} /></Field>
-             <Field label="Virtual Tour URL" icon={Globe2}><input className={inputClass} type="url" value={form.virtual_tour_url} onChange={e=>upd('virtual_tour_url',e.target.value)} /></Field>
-           </div>
+          {/* Section 3: Library Imports (unlimited) */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Library size={14} className="text-violet-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Library Imports</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Reused from central gallery — unlimited</span>
+            </div>
+            <LibraryImportPanel libraryImages={form.library_images} onChange={v=>upd('library_images',v)} onLightbox={openLightbox}/>
+          </div>
 
-           <p className="text-center text-gray-500 py-8">
-             Add images & videos supplied for this destination.
-           </p>
-
-           {/* Gallery */}
-           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
-             <GalleryManager gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
-           </div>
+          {/* Section 4: Video / Virtual Tour */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Video size={14} className="text-rose-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Video & Virtual Tour</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl border-2 border-rose-100 bg-gradient-to-br from-rose-50/40 via-white to-pink-50/30">
+              <Field label="Video URL" icon={Video} hint="YouTube, Vimeo or direct MP4">
+                <input className={inputClass} type="url" value={form.video_url} onChange={e=>upd('video_url',e.target.value)} placeholder="https://youtube.com/watch?v=…"/>
+              </Field>
+              <Field label="Virtual Tour URL" icon={Globe2} hint="360° tour or Matterport link">
+                <input className={inputClass} type="url" value={form.virtual_tour_url} onChange={e=>upd('virtual_tour_url',e.target.value)} placeholder="https://…"/>
+              </Field>
+            </div>
+          </div>
         </motion.div>
       )
 
@@ -1265,7 +1524,6 @@ export default function Destinations() {
             <div><h3 className="text-sm font-bold text-gray-800">Settings & Visibility</h3><p className="text-xs text-gray-600">SEO, flags and publication status</p></div>
           </div>
 
-          {/* SEO */}
           <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-100 space-y-4">
             <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wider"><Globe size={11} className="text-blue-500"/>SEO</p>
             <Field label="Meta Title" icon={FileText}>
@@ -1279,7 +1537,6 @@ export default function Destinations() {
             </Field>
           </div>
 
-          {/* Flags */}
           <div className="space-y-2">
             <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider"><Flag size={11} className="text-emerald-500"/>Visibility Flags</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1293,7 +1550,6 @@ export default function Destinations() {
             </div>
           </div>
 
-          {/* Summary */}
           <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white">
             <div className="flex items-center gap-2 mb-4">
               <Check size={14} className="text-emerald-200"/>
@@ -1301,13 +1557,15 @@ export default function Destinations() {
             </div>
              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                ['Name',       form.name          || '—'],
-                ['Country',    countries.find(c=>String(c.id)===String(form.country_id))?.name || '—'],
-                ['Category',   form.category      || '—'],
-                ['Difficulty', form.difficulty    || '—'],
-                ['Status',     form.is_active     ? '✓ Active' : '○ Draft'],
-                ['Gallery',    `${(form.gallery||[]).length} photo(s)`],
-                ['Featured',   form.is_featured   ? '⭐ Yes' : 'No'],
+                ['Name',            form.name          || '—'],
+                ['Country',         countries.find(c=>String(c.id)===String(form.country_id))?.name || '—'],
+                ['Category',        form.category      || '—'],
+                ['Difficulty',      form.difficulty    || '—'],
+                ['Status',          form.is_active     ? '✓ Active' : '○ Draft'],
+                ['Gallery',         `${(form.gallery||[]).length} / ${MAX_GALLERY_IMAGES}`],
+                ['Library imports', `${(form.library_images||[]).length}`],
+                ['Hero + Cover',    `${[form.hero_image,form.cover_image_url,form.image_url].filter(Boolean).length}/3`],
+                ['Featured',        form.is_featured   ? '⭐ Yes' : 'No'],
               ].map(([k,v])=>(
                 <div key={k} className="bg-white/10 rounded-xl p-2.5">
                   <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">{k}</p>
@@ -1327,21 +1585,20 @@ export default function Destinations() {
   const getViewImages = (dest) => {
     if (!dest) return []
     const imgs = []
+    if (dest.heroImage || dest.hero_image)
+      imgs.push({ url: dest.heroImage||dest.hero_image, caption: 'Hero Image', source: 'hero' })
+    if (dest.coverImageUrl || dest.cover_image_url)
+      imgs.push({ url: dest.coverImageUrl||dest.cover_image_url, caption: 'Cover Banner', source: 'cover' })
+    if (dest.imageUrl || dest.image_url)
+      imgs.push({ url: dest.imageUrl||dest.image_url, caption: 'Main Image', source: 'main' })
     const galleryRaw = dest.gallery || []
     galleryRaw.forEach(g => {
       const url = g.imageUrl || g.url || ''
-      if (url) imgs.push({ url, caption: g.caption || 'Gallery' })
+      if (url) imgs.push({ url, caption: g.caption || 'Gallery', source: g.source || 'gallery' })
     })
-    if (dest.imageUrl || dest.image_url)
-      imgs.push({ url: dest.imageUrl||dest.image_url, caption: 'Main Image' })
-    if (dest.heroImage || dest.hero_image)
-      imgs.push({ url: dest.heroImage||dest.hero_image, caption: 'Hero Image' })
-    if (dest.coverImageUrl || dest.cover_image_url)
-      imgs.push({ url: dest.coverImageUrl||dest.cover_image_url, caption: 'Cover' })
-    // also images array
     ;(dest.images || []).forEach((url, i) => {
       if (!imgs.find(im => im.url === url))
-        imgs.push({ url, caption: `Image ${i+1}` })
+        imgs.push({ url, caption: `Image ${i+1}`, source: 'gallery' })
     })
     return imgs.filter(i => i.url)
   }
@@ -1358,7 +1615,6 @@ export default function Destinations() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title flex items-center gap-2"><MapPin size={28} className="text-emerald-600"/> Destinations</h1>
@@ -1370,7 +1626,6 @@ export default function Destinations() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="card p-4">
         <FilterBar>
           <SearchBar value={search} onChange={setSearch} placeholder="Search destinations…" className="max-w-sm"/>
@@ -1389,7 +1644,6 @@ export default function Destinations() {
         </FilterBar>
       </div>
 
-      {/* Table */}
       <div className="card">
         <Table
           columns={columns} data={destinations} loading={loading}
@@ -1430,7 +1684,6 @@ export default function Destinations() {
           const tips     = normaliseTips(d)
           return (
             <div className="space-y-5">
-              {/* Images */}
               {viewImgs.length>0&&(
                 <div className="space-y-3">
                   <div className="relative rounded-2xl overflow-hidden group cursor-pointer" onClick={()=>openLightbox(viewImgs,0)}>
@@ -1550,14 +1803,14 @@ export default function Destinations() {
 
               <ModalSection title="Stats & Flags">
                 <ModalGrid>
-                  <ModalField label="Featured"       value={<BooleanBadge value={d.isFeatured||d.is_featured}/>}/>
-                  <ModalField label="Popular"        value={<BooleanBadge value={d.isPopular||d.is_popular}/>}/>
-                  <ModalField label="Eco Friendly"   value={<BooleanBadge value={d.isEcoFriendly||d.is_eco_friendly}/>}/>
+                  <ModalField label="Featured"        value={<BooleanBadge value={d.isFeatured||d.is_featured}/>}/>
+                  <ModalField label="Popular"         value={<BooleanBadge value={d.isPopular||d.is_popular}/>}/>
+                  <ModalField label="Eco Friendly"    value={<BooleanBadge value={d.isEcoFriendly||d.is_eco_friendly}/>}/>
                   <ModalField label="Family Friendly" value={<BooleanBadge value={d.isFamilyFriendly||d.is_family_friendly}/>}/>
-                  <ModalField label="Sold Out"       value={<BooleanBadge value={d.isSoldOut||d.is_sold_out} trueLabel="Yes" falseLabel="No"/>}/>
-                  <ModalField label="Views"          value={formatNumber(d.viewCount||d.view_count)}/>
-                  <ModalField label="Bookings"       value={formatNumber(d.bookingCount||d.booking_count)}/>
-                  <ModalField label="Gallery Photos" value={viewImgs.length}/>
+                  <ModalField label="Sold Out"        value={<BooleanBadge value={d.isSoldOut||d.is_sold_out} trueLabel="Yes" falseLabel="No"/>}/>
+                  <ModalField label="Views"           value={formatNumber(d.viewCount||d.view_count)}/>
+                  <ModalField label="Bookings"        value={formatNumber(d.bookingCount||d.booking_count)}/>
+                  <ModalField label="Total Photos"    value={viewImgs.length}/>
                 </ModalGrid>
               </ModalSection>
             </div>
@@ -1611,7 +1864,6 @@ export default function Destinations() {
         </div>
       </Modal>
 
-      {/* ── Delete Dialog ── */}
       <AnimatePresence>
         {deleteOpen&&(
           <DeleteDialog
@@ -1621,29 +1873,6 @@ export default function Destinations() {
           />
         )}
       </AnimatePresence>
-    </div>
-  )
-}
-
-function AttractionEditor({ attractions = [], onChange }) {
-  const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
-  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '' }])
-  const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div><p className="text-sm font-semibold text-slate-800">Attractions & Experiences</p><p className="text-xs text-slate-500">Each attraction can be booked separately.</p></div>
-        <button type="button" onClick={add} className="btn-secondary flex items-center gap-2"><Plus size={14}/> Add attraction</button>
-      </div>
-      {attractions.map((item, index) => (
-        <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr_1fr_auto] gap-2 items-start rounded-xl border border-slate-200 p-3">
-          <input className={inputClass} placeholder="Attraction name" value={item.name || ''} onChange={e => update(index, 'name', e.target.value)} />
-          <textarea className={textareaClass} rows={2} placeholder="Short description" value={item.description || ''} onChange={e => update(index, 'description', e.target.value)} />
-          <input className={inputClass} type="url" placeholder="Image URL" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
-          <button type="button" aria-label={`Remove attraction ${index + 1}`} onClick={() => remove(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><X size={16}/></button>
-        </div>
-      ))}
     </div>
   )
 }
