@@ -46,7 +46,7 @@ export const getErrorMessage = (error) => {
 export const packagesAPI = {
 
   // Admin listing — returns ALL packages including unpublished drafts
-  getAll:          (params)            => apiClient.get(`${BASE}/admin/all`, { params }),
+  getAll:          (params)            => apiClient.get(BASE, { params }),
   getById:         (id)                => apiClient.get(`${BASE}/${id}`),
   getStats:        ()                  => apiClient.get(`${BASE}/stats`),
   getBookingStats: ()                  => apiClient.get(`${BASE}/bookings/stats`),

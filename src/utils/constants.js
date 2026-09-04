@@ -1,4 +1,4 @@
-export const APP_NAME    = 'Altuvera Travel Admin'
+export const APP_NAME    = 'Altuvera Safaris Admin'
 export const APP_VERSION = '6.2'
 
 export const API_BASE   = import.meta.env.VITE_API_URL   || 'https://backend-jd8f.onrender.com/api'

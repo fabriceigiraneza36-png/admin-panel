@@ -920,6 +920,10 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     try {
       const payload = {
         ...form,
+        hero_images: (form.gallery || []).map(image => ({
+          url: image.url || image.imageUrl,
+          caption: image.caption || '',
+        })).filter(image => image.url),
         population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
         latitude:   form.latitude   ? Number(form.latitude)   : null,

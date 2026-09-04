@@ -46,6 +46,13 @@ const INITIAL_FORM = {
   difficulty:         '',
   status:             'published',
   region:             '',
+  nearest_city:       '',
+  nearest_airport:    '',
+  address:            '',
+  latitude:           '',
+  longitude:          '',
+  altitude_meters:    '',
+  distance_from_airport_km: '',
 
   // Country
   country_id:         '',
@@ -54,11 +61,35 @@ const INITIAL_FORM = {
   image_url:          '',
   hero_image:         '',
   cover_image_url:    '',
+  video_url:          '',
+  virtual_tour_url:   '',
 
   // Arrays / lists
   activities:         [],
+  highlights:         [],
+  wildlife:           [],
+  local_tips:         [],
+  tags:               [],
   faqs:               [],
   gallery:            [],
+
+  // Details
+  description:        '',
+  short_description:  '',
+  overview:           '',
+  getting_there:      '',
+  what_to_expect:     '',
+  best_time_to_visit: '',
+  safety_info:        '',
+  duration_days:      '',
+  duration_nights:    '',
+  duration_display:   '',
+  min_group_size:     '',
+  max_group_size:     '',
+  min_age:            '',
+  fitness_level:      '',
+  entrance_fee:       '',
+  operating_hours:    '',
 
   // SEO / flags
   meta_title:         '',
@@ -748,6 +779,13 @@ export default function Destinations() {
     difficulty:         dest.difficulty         || '',
     status:             dest.status             || 'published',
     region:             dest.region             || '',
+    nearest_city:       dest.nearestCity        || dest.nearest_city || '',
+    nearest_airport:    dest.nearestAirport     || dest.nearest_airport || '',
+    address:            dest.address            || '',
+    latitude:           dest.latitude           ?? '',
+    longitude:          dest.longitude          ?? '',
+    altitude_meters:    dest.altitudeMeters     ?? dest.altitude_meters ?? '',
+    distance_from_airport_km: dest.distanceFromAirportKm ?? dest.distance_from_airport_km ?? '',
 
     description:        dest.description        || '',
     short_description:  dest.shortDescription   || dest.short_description || '',
@@ -768,6 +806,15 @@ export default function Destinations() {
     highlights:         dest.highlights         || [],
     activities:         Array.isArray(dest.activities) ? dest.activities : [],
     wildlife:           Array.isArray(dest.wildlife)   ? dest.wildlife   : [],
+    duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
+    duration_nights:    dest.durationNights     ?? dest.duration_nights ?? '',
+    duration_display:   dest.duration           || dest.durationDisplay || dest.duration_display || '',
+    min_group_size:     dest.minGroupSize       ?? dest.min_group_size ?? '',
+    max_group_size:     dest.maxGroupSize       ?? dest.max_group_size ?? '',
+    min_age:            dest.minAge             ?? dest.min_age ?? '',
+    fitness_level:      dest.fitnessLevel      || dest.fitness_level || '',
+    entrance_fee:       dest.entranceFee       || dest.entrance_fee || '',
+    operating_hours:    dest.operatingHours    || dest.operating_hours || '',
     local_tips:         normaliseTips(dest),
     tags:               dest.tags               || [],
 
@@ -838,18 +885,54 @@ export default function Destinations() {
     if (!validateStep('identity')) { setStep('identity'); return }
     setSaving(true)
     try {
+      const { gallery, itinerary, faqs, tags, local_tips, ...destinationFields } = form
       const payload = {
-        ...form,
+        ...destinationFields,
         slug:         form.slug || toSlug(form.name),
         country_id:   form.country_id ? Number(form.country_id) : null,
       }
 
+      let savedDestination
       if (editing) {
-        await destinationsAPI.update(editing.id, payload)
+        const response = await destinationsAPI.update(editing.id, payload)
+        savedDestination = response.data?.data || response.data
         setCelebrationMsg(`"${form.name}" updated successfully!`)
       } else {
-        await destinationsAPI.create(payload)
+        const response = await destinationsAPI.create(payload)
+        savedDestination = response.data?.data || response.data
         setCelebrationMsg(`"${form.name}" created successfully!`)
+      }
+
+      const newGalleryImages = (gallery || []).filter(image => !image.id && (image.url || image.imageUrl))
+      if (savedDestination?.id && newGalleryImages.length) {
+        const formData = new FormData()
+        formData.append('image_urls', JSON.stringify(newGalleryImages.map(image => image.url || image.imageUrl)))
+        await destinationsAPI.addImages(savedDestination.id, formData)
+      }
+
+      if (savedDestination?.id) {
+        await Promise.all((itinerary || []).filter(item => item.title?.trim()).map(item => {
+          const data = {
+            day_number: item.dayNumber || item.day,
+            title: item.title,
+            description: item.description || null,
+            activities: item.activities || [],
+            highlights: item.highlights || [],
+            meals: item.meals || [],
+            accommodation: item.accommodation || null,
+            distance_km: item.distanceKm || null,
+            image_url: item.imageUrl || null,
+          }
+          return item.id
+            ? destinationsAPI.updateItineraryDay(savedDestination.id, item.id, data)
+            : destinationsAPI.addItineraryDay(savedDestination.id, data)
+        }))
+        await Promise.all((faqs || []).filter(faq => faq.question?.trim() && faq.answer?.trim()).map(faq => {
+          const data = { question: faq.question, answer: faq.answer, category: faq.category || null }
+          return faq.id
+            ? destinationsAPI.updateFaq(savedDestination.id, faq.id, data)
+            : destinationsAPI.addFaq(savedDestination.id, data)
+        }))
       }
 
       setShowConfetti(true); setShowCelebration(true)
@@ -1013,10 +1096,31 @@ export default function Destinations() {
              <div><h3 className="text-sm font-bold text-green-800">Descriptions & Practical Info</h3><p className="text-xs text-green-600">Rich content for travelers</p></div>
            </div>
            
-           <p className="text-center text-gray-500 py-8">
-             Description fields have been removed as per requirements. 
-             Only essential information is collected.
-           </p>
+           <Field label="Short Description" icon={FileText}>
+             <textarea className={textareaClass} value={form.short_description} onChange={e=>upd('short_description',e.target.value)} />
+           </Field>
+           <Field label="Description" icon={BookOpen}>
+             <textarea className={`${textareaClass} min-h-[140px]`} value={form.description} onChange={e=>upd('description',e.target.value)} />
+           </Field>
+           <Field label="Overview" icon={Info}>
+             <textarea className={textareaClass} value={form.overview} onChange={e=>upd('overview',e.target.value)} />
+           </Field>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Field label="Getting There" icon={Plane}><textarea className={textareaClass} value={form.getting_there} onChange={e=>upd('getting_there',e.target.value)} /></Field>
+             <Field label="What to Expect" icon={Compass}><textarea className={textareaClass} value={form.what_to_expect} onChange={e=>upd('what_to_expect',e.target.value)} /></Field>
+             <Field label="Best Time to Visit" icon={Calendar}><textarea className={textareaClass} value={form.best_time_to_visit} onChange={e=>upd('best_time_to_visit',e.target.value)} /></Field>
+             <Field label="Safety Information" icon={Shield}><textarea className={textareaClass} value={form.safety_info} onChange={e=>upd('safety_info',e.target.value)} /></Field>
+           </div>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Field label="Nearest City" icon={MapPin}><input className={inputClass} value={form.nearest_city} onChange={e=>upd('nearest_city',e.target.value)} /></Field>
+             <Field label="Nearest Airport" icon={Plane}><input className={inputClass} value={form.nearest_airport} onChange={e=>upd('nearest_airport',e.target.value)} /></Field>
+             <Field label="Address" icon={MapPin}><input className={inputClass} value={form.address} onChange={e=>upd('address',e.target.value)} /></Field>
+             <Field label="Distance from Airport (km)" icon={Ruler}><input className={inputClass} type="number" step="any" value={form.distance_from_airport_km} onChange={e=>upd('distance_from_airport_km',e.target.value)} /></Field>
+             <Field label="Duration (days)" icon={Calendar}><input className={inputClass} type="number" value={form.duration_days} onChange={e=>upd('duration_days',e.target.value)} /></Field>
+             <Field label="Duration (nights)" icon={Calendar}><input className={inputClass} type="number" value={form.duration_nights} onChange={e=>upd('duration_nights',e.target.value)} /></Field>
+             <Field label="Entrance Fee" icon={DollarSign}><input className={inputClass} value={form.entrance_fee} onChange={e=>upd('entrance_fee',e.target.value)} /></Field>
+             <Field label="Operating Hours" icon={Clock}><input className={inputClass} value={form.operating_hours} onChange={e=>upd('operating_hours',e.target.value)} /></Field>
+           </div>
          </motion.div>
        )
 
@@ -1028,14 +1132,19 @@ export default function Destinations() {
             <div><h3 className="text-sm font-bold text-emerald-800">Content & Lists</h3><p className="text-xs text-emerald-600">Highlights, tags & FAQs</p></div>
           </div>
 
-           <p className="text-center text-gray-500 py-8">
-             Tag arrays (Highlights, Activities, Wildlife, Local Tips, Tags) have been removed as per requirements. 
-             Only FAQs remain in this section.
-           </p>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Field label="Highlights" icon={Star}><TagInput value={form.highlights} onChange={v=>upd('highlights',v)} /></Field>
+             <Field label="Activities" icon={Activity}><TagInput value={form.activities} onChange={v=>upd('activities',v)} /></Field>
+             <Field label="Wildlife" icon={TreePine}><TagInput value={form.wildlife} onChange={v=>upd('wildlife',v)} /></Field>
+             <Field label="Local Tips" icon={Coffee}><TagInput value={form.local_tips} onChange={v=>upd('local_tips',v)} /></Field>
+           </div>
 
            {/* FAQs */}
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
              <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
+           </div>
+           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
+             <ItineraryEditor items={form.itinerary} onChange={v=>upd('itinerary',v)}/>
            </div>
         </motion.div>
       )
@@ -1086,9 +1195,13 @@ export default function Destinations() {
                allImages={allImgs} onLightbox={openLightbox}/>
            </div>
 
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Field label="Video URL" icon={Video}><input className={inputClass} type="url" value={form.video_url} onChange={e=>upd('video_url',e.target.value)} /></Field>
+             <Field label="Virtual Tour URL" icon={Globe2}><input className={inputClass} type="url" value={form.virtual_tour_url} onChange={e=>upd('virtual_tour_url',e.target.value)} /></Field>
+           </div>
+
            <p className="text-center text-gray-500 py-8">
-             Video & Virtual Tour fields have been removed as per requirements.
-             Only image galleries remain in this section.
+             Add images, videos, and virtual tours supplied for this destination.
            </p>
 
            {/* Gallery */}
