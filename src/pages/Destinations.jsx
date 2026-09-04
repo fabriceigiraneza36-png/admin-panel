@@ -67,6 +67,7 @@ const INITIAL_FORM = {
 
   // Arrays / lists
   activities:         [],
+  attractions:        [],
   highlights:         [],
   wildlife:           [],
   local_tips:         [],
@@ -841,6 +842,7 @@ export default function Destinations() {
 
     highlights:         dest.highlights         || [],
     activities:         Array.isArray(dest.activities) ? dest.activities : [],
+    attractions:        Array.isArray(dest.attractions) ? dest.attractions : [],
     wildlife:           Array.isArray(dest.wildlife)   ? dest.wildlife   : [],
     duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
     duration_nights:    dest.durationNights     ?? dest.duration_nights ?? '',
@@ -1173,6 +1175,9 @@ export default function Destinations() {
              <Field label="Activities" icon={Activity}><TagInput value={form.activities} onChange={v=>upd('activities',v)} /></Field>
              <Field label="Wildlife" icon={TreePine}><TagInput value={form.wildlife} onChange={v=>upd('wildlife',v)} /></Field>
              <Field label="Local Tips" icon={Coffee}><TagInput value={form.local_tips} onChange={v=>upd('local_tips',v)} /></Field>
+           </div>
+           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
+             <AttractionEditor attractions={form.attractions} onChange={v=>upd('attractions',v)} />
            </div>
 
            {/* FAQs */}
@@ -1611,6 +1616,29 @@ export default function Destinations() {
           />
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+function AttractionEditor({ attractions = [], onChange }) {
+  const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
+  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '' }])
+  const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="text-sm font-semibold text-slate-800">Attractions & Experiences</p><p className="text-xs text-slate-500">Each attraction can be booked separately.</p></div>
+        <button type="button" onClick={add} className="btn-secondary flex items-center gap-2"><Plus size={14}/> Add attraction</button>
+      </div>
+      {attractions.map((item, index) => (
+        <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr_1fr_auto] gap-2 items-start rounded-xl border border-slate-200 p-3">
+          <input className={inputClass} placeholder="Attraction name" value={item.name || ''} onChange={e => update(index, 'name', e.target.value)} />
+          <textarea className={textareaClass} rows={2} placeholder="Short description" value={item.description || ''} onChange={e => update(index, 'description', e.target.value)} />
+          <input className={inputClass} type="url" placeholder="Image URL" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
+          <button type="button" aria-label={`Remove attraction ${index + 1}`} onClick={() => remove(index)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><X size={16}/></button>
+        </div>
+      ))}
     </div>
   )
 }

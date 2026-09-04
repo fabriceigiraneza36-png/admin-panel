@@ -134,11 +134,11 @@ export default function DestinationForm({ onSubmit, initialData = {} }) {
               required
             >
               <option value="" disabled>Select a main category...</option>
-              <option value="Adventure">🏔️ Adventure & Mountain</option>
-              <option value="Beach">🏖️ Beach & Coastline</option>
-              <option value="Cultural">🏛️ Historical & Culture</option>
-              <option value="Wildlife">🦁 Wildlife & Safari</option>
-              <option value="Urban">🌆 Urban Exploration</option>
+              <option value="Adventure">Adventure & Mountain</option>
+              <option value="Beach">Beach & Coastline</option>
+              <option value="Cultural">Historical & Culture</option>
+              <option value="Wildlife">Wildlife & Safari</option>
+              <option value="Urban">Urban Exploration</option>
             </select>
             {/* Custom select arrow indicator */}
             <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-500">
