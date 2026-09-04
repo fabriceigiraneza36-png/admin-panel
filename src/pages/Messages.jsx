@@ -9,7 +9,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, ChevronDown, Circle, Trash2,
-  AlertTriangle, ShieldCheck, Clock, BookingIcon
+  AlertTriangle, ShieldCheck, Clock
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'

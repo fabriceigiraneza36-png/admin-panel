@@ -1,13 +1,13 @@
 // admin/src/pages/Countries.jsx
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Globe2, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
-  MapPin, DollarSign, Image, Info, Check,
+  MapPin, DollarSign, Image as ImageIcon, Info, Check,
   ChevronRight, ChevronLeft, AlertTriangle, Zap,
   Languages, Lightbulb, Heart, BookOpen, Camera, Shield,
   Clock, Phone, Users, Ruler, Thermometer, Plane,
-  Link, Upload, X, ZoomIn, ExternalLink, CheckCircle2,
-  ImagePlus, Maximize2, ChevronDown, ChevronUp, Eye as EyeIcon,
+  Link as LinkIcon, Upload, X, ZoomIn, ExternalLink, CheckCircle2,
+  ImagePlus, Maximize2, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { countriesAPI } from '@api/countries'
 import { galleryAPI } from '@api/gallery'
@@ -23,7 +23,7 @@ import { useModal } from '@hooks/useModal'
 import { useToast } from '@hooks/useToast'
 import { usePagination } from '@hooks/usePagination'
 import { useDebounce } from '@hooks/useDebounce'
-import { formatDate, formatNumber } from '@utils/formatters'
+import { formatNumber } from '@utils/formatters'
 import { CONTINENTS } from '@utils/constants'
 import { getErrorMessage } from '@api/client'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -37,18 +37,28 @@ const INITIAL_FORM = {
   health_info: '', currency: '', currency_symbol: '', timezone: '',
   calling_code: '', languages: [], official_languages: [], highlights: [],
   experiences: [], travel_tips: [], image_url: '', cover_image_url: '',
-  gallery: [], // array of { url, caption, source:'upload'|'url' },
-  hero_image: '',
+  gallery: [], hero_image: '',
   latitude: '', longitude: '', is_featured: false, is_active: true,
 }
 
 const STEPS = [
-  { id: 'identity',  label: 'Identity',   icon: Globe2,      desc: 'Name, flag & region',           color: 'emerald' },
-  { id: 'geography', label: 'Geography',  icon: MapPin,       desc: 'Location & coordinates',        color: 'green'   },
-  { id: 'practical', label: 'Practical',  icon: DollarSign,   desc: 'Currency, language & travel',   color: 'teal'    },
-  { id: 'content',   label: 'Content',    icon: Info,         desc: 'Descriptions & lists',          color: 'emerald' },
-  { id: 'media',     label: 'Media',      icon: Image,        desc: 'Photos & visibility',           color: 'green'   },
+  { id: 'identity',  label: 'Identity',   icon: Globe2,      desc: 'Name & region' },
+  { id: 'geography', label: 'Geography',  icon: MapPin,      desc: 'Location' },
+  { id: 'practical', label: 'Practical',  icon: DollarSign,  desc: 'Travel info' },
+  { id: 'content',   label: 'Content',    icon: Info,        desc: 'Descriptions' },
+  { id: 'media',     label: 'Media',      icon: ImageIcon,   desc: 'Photos' },
 ]
+const STEP_IDS = STEPS.map(s => s.id)
+
+const CONTINENT_COLORS = {
+  'Africa':        'bg-amber-50 text-amber-700 border-amber-200',
+  'Europe':        'bg-blue-50 text-blue-700 border-blue-200',
+  'Asia':          'bg-red-50 text-red-700 border-red-200',
+  'North America': 'bg-green-50 text-green-700 border-green-200',
+  'South America': 'bg-teal-50 text-teal-700 border-teal-200',
+  'Oceania':       'bg-purple-50 text-purple-700 border-purple-200',
+  'Antarctica':    'bg-slate-100 text-slate-600 border-slate-200',
+}
 
 const parsePopulation = (val) => {
   if (!val) return null
@@ -61,18 +71,6 @@ const parsePopulation = (val) => {
   if (suffix.startsWith('m')) return Math.round(num * 1_000_000)
   if (suffix.startsWith('b')) return Math.round(num * 1_000_000_000)
   return Math.round(num)
-}
-
-const STEP_IDS = STEPS.map(s => s.id)
-
-const CONTINENT_COLORS = {
-  'Africa':        'bg-amber-50 text-amber-700 border-amber-300',
-  'Europe':        'bg-blue-50 text-blue-700 border-blue-300',
-  'Asia':          'bg-red-50 text-red-700 border-red-300',
-  'North America': 'bg-green-50 text-green-700 border-green-300',
-  'South America': 'bg-teal-50 text-teal-700 border-teal-300',
-  'Oceania':       'bg-purple-50 text-purple-700 border-purple-300',
-  'Antarctica':    'bg-slate-100 text-slate-600 border-slate-300',
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────────── */
@@ -91,27 +89,29 @@ function getImageQualityLabel(url) {
   return 'Standard'
 }
 
+const PLACEHOLDER_SVG = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#f3f4f6"/><text x="200" y="150" text-anchor="middle" fill="#9ca3af" font-size="14" font-family="sans-serif">No Image</text></svg>'
+)
+
 /* ─── Confetti ───────────────────────────────────────────────────────────────── */
 
 function Confetti({ active }) {
-  const canvasRef  = useRef(null)
-  const animRef    = useRef(null)
-  const ptRef      = useRef([])
+  const canvasRef = useRef(null)
+  const animRef = useRef(null)
+  const ptRef = useRef([])
 
   useEffect(() => {
     if (!active) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    canvas.width  = window.innerWidth
+    canvas.width = window.innerWidth
     canvas.height = window.innerHeight
-    const colors = ['#10b981','#34d399','#6ee7b7','#a7f3d0','#ffffff','#059669','#d1fae5']
-    const shapes = ['circle','rect','triangle']
-    ptRef.current = Array.from({ length: 120 }, () => ({
+    const colors = ['#10b981','#34d399','#6ee7b7','#a7f3d0','#ffffff','#059669']
+    ptRef.current = Array.from({ length: 100 }, () => ({
       x: Math.random() * canvas.width, y: -20 - Math.random() * 100,
       vx: (Math.random() - 0.5) * 4, vy: 2 + Math.random() * 4,
       color: colors[Math.floor(Math.random() * colors.length)],
-      shape: shapes[Math.floor(Math.random() * shapes.length)],
       size: 4 + Math.random() * 8, rotation: Math.random() * 360,
       rotationSpeed: (Math.random() - 0.5) * 8, opacity: 1, life: 1,
       decay: 0.005 + Math.random() * 0.01,
@@ -125,9 +125,7 @@ function Confetti({ active }) {
         ctx.save(); ctx.globalAlpha = p.opacity
         ctx.translate(p.x, p.y); ctx.rotate((p.rotation * Math.PI) / 180)
         ctx.fillStyle = p.color
-        if (p.shape === 'circle') { ctx.beginPath(); ctx.arc(0,0,p.size/2,0,Math.PI*2); ctx.fill() }
-        else if (p.shape === 'rect') { ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2) }
-        else { ctx.beginPath(); ctx.moveTo(0,-p.size/2); ctx.lineTo(p.size/2,p.size/2); ctx.lineTo(-p.size/2,p.size/2); ctx.closePath(); ctx.fill() }
+        ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill()
         ctx.restore()
       })
       if (ptRef.current.length > 0) animRef.current = requestAnimationFrame(draw)
@@ -140,7 +138,7 @@ function Confetti({ active }) {
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[200]" style={{ mixBlendMode: 'multiply' }} />
 }
 
-/* ─── Image Lightbox ─────────────────────────────────────────────────────────── */
+/* ─── Lightbox ───────────────────────────────────────────────────────────────── */
 
 function Lightbox({ images, startIndex = 0, onClose }) {
   const [idx, setIdx] = useState(startIndex)
@@ -158,31 +156,29 @@ function Lightbox({ images, startIndex = 0, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/60 shrink-0">
-        <span className="text-white/70 text-sm font-medium">
-          {idx + 1} / {images.length}
-          {current?.caption && <span className="ml-3 text-white/50">{current.caption}</span>}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-black/60 shrink-0">
+        <span className="text-white/70 text-sm font-medium truncate">
+          <span className="font-bold">{idx + 1}</span> / {images.length}
+          {current?.caption && <span className="ml-3 text-white/50 hidden sm:inline">{current.caption}</span>}
         </span>
         <div className="flex items-center gap-2">
           {current?.url && (
             <a href={current.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white text-xs transition-all">
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white text-xs transition-all">
               <ExternalLink size={12} /> Open original
             </a>
           )}
           <button onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all">
+            className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all">
             <X size={16} />
           </button>
         </div>
       </div>
 
-      {/* Main image */}
-      <div className="flex-1 flex items-center justify-center p-4 relative min-h-0">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 relative min-h-0">
         {idx > 0 && (
           <button onClick={() => setIdx(i => i - 1)}
-            className="absolute left-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all">
+            className="absolute left-2 sm:left-4 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all">
             <ChevronLeft size={20} />
           </button>
         )}
@@ -190,24 +186,22 @@ function Lightbox({ images, startIndex = 0, onClose }) {
           src={current?.url}
           alt={current?.caption || 'Country image'}
           className="max-h-full max-w-full object-contain rounded-xl shadow-2xl"
-          onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#e5e7eb"/><text x="400" y="250" text-anchor="middle" fill="#9ca3af" font-size="16" font-family="sans-serif">No Image</text></svg>') }}
+          onError={e => { e.target.src = PLACEHOLDER_SVG }}
         />
         {idx < images.length - 1 && (
           <button onClick={() => setIdx(i => i + 1)}
-            className="absolute right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all">
+            className="absolute right-2 sm:right-4 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all">
             <ChevronRight size={20} />
           </button>
         )}
       </div>
 
-      {/* Thumbnails */}
       {images.length > 1 && (
-        <div className="shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/60 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20">
+        <div className="shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/60">
           {images.map((img, i) => (
             <button key={i} onClick={() => setIdx(i)}
               className={`shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${i === idx ? 'border-emerald-400 scale-105' : 'border-white/10 hover:border-white/40'}`}>
-              <img src={img.url} alt="" className="w-full h-full object-cover"
-                onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48"><rect width="64" height="48" fill="#e5e7eb"/><text x="32" y="24" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
+              <img src={img.url} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = PLACEHOLDER_SVG }} />
             </button>
           ))}
         </div>
@@ -216,65 +210,58 @@ function Lightbox({ images, startIndex = 0, onClose }) {
   )
 }
 
-/* ─── Image Manager Panel ────────────────────────────────────────────────────── */
+/* ─── Image Manager ──────────────────────────────────────────────────────────── */
 
-function ImageManagerPanel({ label, fieldKey, value, onChange, folder, allImages, onLightbox }) {
-  const [mode, setMode] = useState('upload') // 'upload' | 'url'
+function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightbox, hint }) {
+  const [mode, setMode] = useState('upload')
   const [urlInput, setUrlInput] = useState(value || '')
   const [urlValid, setUrlValid] = useState(true)
-  const [preview, setPreview] = useState(value || '')
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
   const qualityLabel = getImageQualityLabel(value)
 
-  // keep in sync when parent changes
   useEffect(() => {
     setUrlInput(value || '')
-    setPreview(value || '')
     setImgLoaded(false)
     setImgError(false)
   }, [value])
 
   const handleUrlApply = () => {
-    if (!urlInput.trim()) { onChange(''); setPreview(''); return }
+    if (!urlInput.trim()) { onChange(''); return }
     if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
     setUrlValid(true)
     onChange(urlInput.trim())
-    setPreview(urlInput.trim())
   }
 
   const handleClear = () => {
     onChange('')
     setUrlInput('')
-    setPreview('')
     setImgLoaded(false)
     setImgError(false)
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-          <Image size={11} className="text-emerald-500" /> {label}
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+          <ImageIcon size={11} className="text-emerald-500" /> {label}
         </label>
-        {/* Mode switcher */}
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-          {[['upload', Upload, 'Upload'], ['url', Link, 'URL']].map(([m, Icon, lbl]) => (
+          {[['upload', Upload, 'Upload'], ['url', LinkIcon, 'URL']].map(([m, Icon, lbl]) => (
             <button key={m} type="button" onClick={() => setMode(m)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${mode === m ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${mode === m ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               <Icon size={10} /> {lbl}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Preview */}
-      {preview && (
-        <div className="relative group rounded-2xl overflow-hidden border-2 border-emerald-200 bg-gray-50">
+      {value && (
+        <div className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
           <img
-            src={preview}
+            src={value}
             alt={label}
-            className={`w-full h-44 object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-40 sm:h-44 object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => { setImgLoaded(true); setImgError(false) }}
             onError={() => { setImgError(true); setImgLoaded(true) }}
           />
@@ -286,30 +273,24 @@ function ImageManagerPanel({ label, fieldKey, value, onChange, folder, allImages
           {imgError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-400 gap-2">
               <AlertTriangle size={20} />
-              <p className="text-xs font-medium">Image failed to load</p>
+              <p className="text-xs font-medium">Failed to load</p>
             </div>
           )}
           {imgLoaded && !imgError && (
             <>
-              {/* Quality badge */}
               {qualityLabel && (
-                <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${qualityLabel === 'HD' ? 'bg-emerald-500 text-white' : qualityLabel === 'Low' ? 'bg-amber-500 text-white' : 'bg-gray-700 text-white'}`}>
+                <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${qualityLabel === 'HD' ? 'bg-emerald-500 text-white' : qualityLabel === 'Low' ? 'bg-amber-500 text-white' : 'bg-gray-700 text-white'}`}>
                   {qualityLabel}
                 </div>
               )}
-              {/* Overlay actions */}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                <button type="button" onClick={() => onLightbox(allImages, allImages.findIndex(i => i.url === preview))}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-gray-800 text-xs font-bold shadow-lg hover:bg-emerald-50 transition-all">
-                  <Maximize2 size={12} /> View Full
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button type="button" onClick={() => onLightbox(allImages, allImages.findIndex(i => i.url === value))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-gray-800 text-xs font-bold hover:bg-emerald-50 transition-all">
+                  <Maximize2 size={11} /> View
                 </button>
-                <a href={preview} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-gray-800 text-xs font-bold shadow-lg hover:bg-blue-50 transition-all">
-                  <ExternalLink size={12} /> Original
-                </a>
                 <button type="button" onClick={handleClear}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-red-500 text-xs font-bold shadow-lg hover:bg-red-50 transition-all">
-                  <X size={12} /> Remove
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-red-600 text-xs font-bold hover:bg-red-50 transition-all">
+                  <X size={11} /> Remove
                 </button>
               </div>
             </>
@@ -317,33 +298,30 @@ function ImageManagerPanel({ label, fieldKey, value, onChange, folder, allImages
         </div>
       )}
 
-      {/* Input modes */}
-      <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 overflow-hidden">
-        <AnimatePresence mode="wait">
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
           {mode === 'upload' ? (
             <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <ImageUpload label="" value={value} onChange={v => { onChange(v); setPreview(v) }} folder={folder} />
+              <ImageUpload label="" value={value} onChange={onChange} folder={folder} />
             </motion.div>
           ) : (
-            <motion.div key="url" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="p-4 space-y-2">
-              <p className="text-xs text-gray-500 font-medium">Paste a direct image URL</p>
+            <motion.div key="url" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-3 space-y-2">
               <div className="flex gap-2">
                 <div className="flex-1 relative">
-                  <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                  <LinkIcon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
                   <input
                     type="url"
-                    className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm transition-all
-                      ${!urlValid ? 'border-red-400 focus:border-red-400 focus:ring-red-50' : 'border-gray-200 focus:border-emerald-400 focus:ring-emerald-50'}
-                      focus:outline-none focus:ring-4 bg-white`}
+                    className={`w-full pl-8 pr-3 py-2 rounded-lg border text-sm bg-white transition-all
+                      ${!urlValid ? 'border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100' : 'border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100'}
+                      focus:outline-none`}
                     value={urlInput}
                     onChange={e => { setUrlInput(e.target.value); setUrlValid(true) }}
-                    onKeyDown={e => e.key === 'Enter' && handleUrlApply()}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleUrlApply())}
                     placeholder="https://example.com/photo.jpg"
                   />
                 </div>
                 <button type="button" onClick={handleUrlApply}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all shrink-0">
+                  className="px-3.5 py-2 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-all shrink-0">
                   Apply
                 </button>
               </div>
@@ -353,12 +331,7 @@ function ImageManagerPanel({ label, fieldKey, value, onChange, folder, allImages
         </AnimatePresence>
       </div>
 
-      {value && (
-        <button type="button" onClick={handleClear}
-          className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 font-medium transition-colors">
-          <X size={11} /> Clear image
-        </button>
-      )}
+      {hint && <p className="text-[11px] text-gray-400 italic">{hint}</p>}
     </div>
   )
 }
@@ -366,7 +339,7 @@ function ImageManagerPanel({ label, fieldKey, value, onChange, folder, allImages
 /* ─── Gallery Manager ────────────────────────────────────────────────────────── */
 
 function GalleryManager({ gallery = [], onChange, onLightbox }) {
-  const [addMode, setAddMode] = useState('upload') // 'upload' | 'url'
+  const [addMode, setAddMode] = useState('upload')
   const [urlInput, setUrlInput] = useState('')
   const [captionInput, setCaptionInput] = useState('')
   const [urlValid, setUrlValid] = useState(true)
@@ -375,12 +348,15 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
   const [editCaption, setEditCaption] = useState('')
   const [library, setLibrary] = useState([])
   const [showLibrary, setShowLibrary] = useState(false)
+  const [libLoading, setLibLoading] = useState(false)
 
   useEffect(() => {
     if (!showLibrary || library.length) return
-    galleryAPI.getAll({ limit: 100 }).then(({ data }) => {
-      setLibrary(data.data || data.gallery || [])
-    }).catch(() => setLibrary([]))
+    setLibLoading(true)
+    galleryAPI.getAll({ limit: 100 })
+      .then(({ data }) => setLibrary(data.data || data.gallery || []))
+      .catch(() => setLibrary([]))
+      .finally(() => setLibLoading(false))
   }, [showLibrary, library.length])
 
   const importImage = (item) => {
@@ -394,105 +370,111 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
     if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
     setUrlValid(true)
     onChange([...gallery, { url: urlInput.trim(), caption: captionInput.trim(), source: 'url' }])
-    setUrlInput('')
-    setCaptionInput('')
+    setUrlInput(''); setCaptionInput('')
   }
 
   const addFromUpload = () => {
     if (!uploadedUrl) return
     onChange([...gallery, { url: uploadedUrl, caption: captionInput.trim(), source: 'upload' }])
-    setUploadedUrl('')
-    setCaptionInput('')
+    setUploadedUrl(''); setCaptionInput('')
   }
 
   const remove = (i) => onChange(gallery.filter((_, idx) => idx !== i))
-
-  const moveUp   = (i) => { if (i === 0) return; const g = [...gallery]; [g[i-1], g[i]] = [g[i], g[i-1]]; onChange(g) }
+  const moveUp = (i) => { if (i === 0) return; const g = [...gallery]; [g[i-1], g[i]] = [g[i], g[i-1]]; onChange(g) }
   const moveDown = (i) => { if (i === gallery.length - 1) return; const g = [...gallery]; [g[i], g[i+1]] = [g[i+1], g[i]]; onChange(g) }
-
-  const saveCaption = (i) => {
-    const g = [...gallery]; g[i] = { ...g[i], caption: editCaption }
-    onChange(g); setEditingIdx(null)
-  }
+  const saveCaption = (i) => { const g = [...gallery]; g[i] = { ...g[i], caption: editCaption }; onChange(g); setEditingIdx(null) }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-          <Camera size={11} className="text-emerald-500" /> Gallery ({gallery.length} photos)
-        </p>
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-          {[['upload', Upload, 'Upload'], ['url', Link, 'URL']].map(([m, Icon, lbl]) => (
-            <button key={m} type="button" onClick={() => setAddMode(m)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${addMode === m ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-              <Icon size={10} /> {lbl}
-            </button>
-          ))}
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+            <Camera size={14} className="text-emerald-500" /> Photo Gallery
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photo{gallery.length !== 1 ? 's' : ''}</p>
         </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button type="button" onClick={() => setShowLibrary(value => !value)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50">
-          <Image size={13} /> {showLibrary ? 'Hide gallery library' : 'Import from gallery'}
+        <button type="button" onClick={() => setShowLibrary(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
+          <ImageIcon size={12} /> {showLibrary ? 'Hide library' : 'Import from library'}
         </button>
       </div>
-      {showLibrary && (
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-          {library.map(item => {
-            const url = item.image_url || item.url || item.imageUrl
-            return <button key={item.id || url} type="button" onClick={() => importImage(item)}
-              className="aspect-[4/3] overflow-hidden rounded-lg border border-white bg-white hover:border-emerald-400">
-              <img src={url} alt={item.title || 'Gallery image'} className="w-full h-full object-cover" />
-            </button>
-          })}
-          {!library.length && <p className="col-span-full text-xs text-gray-500 py-3 text-center">No gallery images available.</p>}
-        </div>
-      )}
 
-      {/* Existing gallery grid */}
+      {/* Library */}
+      <AnimatePresence>
+        {showLibrary && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden">
+            <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
+              {libLoading ? (
+                <div className="py-6 text-center text-xs text-gray-500">Loading library…</div>
+              ) : library.length ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                  {library.map(item => {
+                    const url = item.image_url || item.url || item.imageUrl
+                    const inGallery = gallery.some(g => g.url === url)
+                    return (
+                      <button key={item.id || url} type="button" onClick={() => importImage(item)} disabled={inGallery}
+                        className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 transition-all ${inGallery ? 'border-emerald-400 opacity-50' : 'border-white hover:border-emerald-400'}`}>
+                        <img src={url} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = PLACEHOLDER_SVG }} />
+                        {inGallery && (
+                          <div className="absolute inset-0 bg-emerald-500/40 flex items-center justify-center">
+                            <Check size={16} className="text-white stroke-[3]" />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="py-6 text-center text-xs text-gray-500">No gallery images available.</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Existing photos */}
       {gallery.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {gallery.map((img, i) => (
-            <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50 aspect-[4/3]">
-              <img src={img.url} alt={img.caption || `Photo ${i+1}`}
-                className="w-full h-full object-cover"
-                onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#e5e7eb"/><text x="100" y="75" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="sans-serif">?</text></svg>') }}
-              />
-              {/* Source badge */}
-              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${img.source === 'upload' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>
-                {img.source === 'upload' ? 'Uploaded' : 'URL'}
+            <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50 aspect-[4/3]">
+              <img src={img.url} alt={img.caption || `Photo ${i+1}`} className="w-full h-full object-cover"
+                onError={e => { e.target.src = PLACEHOLDER_SVG }} />
+              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
+                img.source === 'upload' ? 'bg-emerald-500 text-white' :
+                img.source === 'gallery' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'
+              }`}>
+                {img.source === 'upload' ? 'Upload' : img.source === 'gallery' ? 'Library' : 'URL'}
               </div>
-              {/* Caption */}
               {img.caption && (
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
                   <p className="text-[10px] text-white truncate">{img.caption}</p>
                 </div>
               )}
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
-                <button type="button" onClick={() => onLightbox(gallery, i)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50">
-                  <Maximize2 size={10} /> View
-                </button>
-                <button type="button" onClick={() => { setEditingIdx(i); setEditCaption(img.caption || '') }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-blue-50">
-                  <Pencil size={10} /> Caption
-                </button>
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
                 <div className="flex gap-1">
-                  <button type="button" onClick={() => moveUp(i)}
-                    className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"
-                    disabled={i === 0}>
-                    <ChevronUp size={11} />
+                  <button type="button" onClick={() => onLightbox(gallery, i)}
+                    className="w-7 h-7 rounded-lg bg-white text-gray-800 flex items-center justify-center hover:bg-emerald-50" title="View">
+                    <Maximize2 size={11} />
                   </button>
-                  <button type="button" onClick={() => moveDown(i)}
-                    className="w-6 h-6 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30"
-                    disabled={i === gallery.length - 1}>
-                    <ChevronDown size={11} />
+                  <button type="button" onClick={() => { setEditingIdx(i); setEditCaption(img.caption || '') }}
+                    className="w-7 h-7 rounded-lg bg-white text-gray-800 flex items-center justify-center hover:bg-blue-50" title="Edit caption">
+                    <Pencil size={11} />
                   </button>
                   <button type="button" onClick={() => remove(i)}
-                    className="w-6 h-6 rounded-lg bg-red-500 hover:bg-red-600 flex items-center justify-center text-white">
-                    <Trash2 size={10} />
+                    className="w-7 h-7 rounded-lg bg-red-500 text-white flex items-center justify-center hover:bg-red-600" title="Remove">
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => moveUp(i)} disabled={i === 0}
+                    className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Move up">
+                    <ChevronUp size={11} />
+                  </button>
+                  <button type="button" onClick={() => moveDown(i)} disabled={i === gallery.length - 1}
+                    className="w-7 h-7 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Move down">
+                    <ChevronDown size={11} />
                   </button>
                 </div>
               </div>
@@ -501,41 +483,48 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
         </div>
       )}
 
-      {/* Caption edit inline */}
-      {editingIdx !== null && (
-        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
-          className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
-          <input
-            className="flex-1 px-3 py-1.5 rounded-lg border border-blue-200 text-sm focus:outline-none focus:border-blue-400"
-            value={editCaption}
-            onChange={e => setEditCaption(e.target.value)}
-            placeholder="Add a caption…"
-            autoFocus
-          />
-          <button type="button" onClick={() => saveCaption(editingIdx)}
-            className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600">Save</button>
-          <button type="button" onClick={() => setEditingIdx(null)}
-            className="px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-300">Cancel</button>
-        </motion.div>
-      )}
+      {/* Caption edit */}
+      <AnimatePresence>
+        {editingIdx !== null && (
+          <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200">
+            <input className="flex-1 px-3 py-2 rounded-lg border border-blue-200 text-sm bg-white focus:outline-none focus:border-blue-400"
+              value={editCaption} onChange={e => setEditCaption(e.target.value)}
+              placeholder="Add a caption…" autoFocus />
+            <button type="button" onClick={() => saveCaption(editingIdx)}
+              className="px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-bold hover:bg-blue-600">Save</button>
+            <button type="button" onClick={() => setEditingIdx(null)}
+              className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50">Cancel</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Add new photo */}
-      <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/30 p-4 space-y-3">
-        <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
-          <ImagePlus size={13} /> Add photo to gallery
-        </p>
+      {/* Add new */}
+      <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50/30 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5">
+            <ImagePlus size={14} /> Add new photo
+          </p>
+          <div className="flex items-center bg-white rounded-lg p-0.5 border border-emerald-200">
+            {[['upload', Upload, 'Upload'], ['url', LinkIcon, 'URL']].map(([m, Icon, lbl]) => (
+              <button key={m} type="button" onClick={() => setAddMode(m)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${addMode === m ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                <Icon size={10} /> {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {addMode === 'url' ? (
             <motion.div key="url-add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
               <div className="relative">
-                <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                <LinkIcon size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
                 <input type="url"
-                  className={`w-full pl-8 pr-3 py-2.5 rounded-xl border-2 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-50 bg-white transition-all ${!urlValid ? 'border-red-400' : 'border-gray-200 focus:border-emerald-400'}`}
+                  className={`w-full pl-8 pr-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-all ${!urlValid ? 'border-red-400' : 'border-gray-200 focus:border-emerald-400'}`}
                   value={urlInput}
                   onChange={e => { setUrlInput(e.target.value); setUrlValid(true) }}
-                  placeholder="https://example.com/photo.jpg"
-                />
+                  placeholder="https://example.com/photo.jpg" />
               </div>
               {!urlValid && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10} /> Enter a valid URL</p>}
             </motion.div>
@@ -547,25 +536,23 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
         </AnimatePresence>
 
         <input
-          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 transition-all"
-          value={captionInput}
-          onChange={e => setCaptionInput(e.target.value)}
-          placeholder="Caption (optional)"
-        />
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
+          value={captionInput} onChange={e => setCaptionInput(e.target.value)}
+          placeholder="Caption (optional)" />
 
         <button type="button"
           onClick={addMode === 'url' ? addFromUrl : addFromUpload}
           disabled={addMode === 'url' ? !urlInput.trim() : !uploadedUrl}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
           <Plus size={14} /> Add to Gallery
         </button>
       </div>
 
       {gallery.length === 0 && (
-        <div className="text-center py-6 text-gray-400">
-          <Camera size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No gallery images yet</p>
-          <p className="text-xs">Upload or link photos above</p>
+        <div className="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-xl">
+          <Camera size={32} className="mx-auto mb-2 opacity-40" />
+          <p className="text-sm font-medium">No gallery images yet</p>
+          <p className="text-xs mt-1">Upload or link photos above</p>
         </div>
       )}
     </div>
@@ -576,31 +563,34 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
 
 function StepIndicator({ steps, current, completed, onGoTo }) {
   const currentIdx = steps.findIndex(s => s.id === current)
+
   return (
-    <div className="relative mb-8">
-      <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-100 mx-8" />
+    <div className="relative mb-6 sm:mb-8">
+      {/* Progress line */}
+      <div className="absolute top-4 sm:top-5 left-5 right-5 h-0.5 bg-gray-100" />
       <div
-        className="absolute top-5 left-8 h-0.5 bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-700 ease-out"
-        style={{ width: currentIdx === 0 ? '0%' : `calc(${(currentIdx / (steps.length - 1)) * 100}% - 1px)` }}
+        className="absolute top-4 sm:top-5 left-5 h-0.5 bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-500 ease-out"
+        style={{ width: `calc((100% - 40px) * ${currentIdx / (steps.length - 1)})` }}
       />
+
       <div className="relative flex items-start justify-between">
         {steps.map((step, idx) => {
-          const isActive     = step.id === current
-          const isDone       = completed.includes(step.id)
+          const isActive = step.id === current
+          const isDone = completed.includes(step.id)
           const isAccessible = isDone || isActive || idx <= currentIdx
-          const Icon         = step.icon
+          const Icon = step.icon
           return (
             <button key={step.id} type="button"
               onClick={() => isAccessible && onGoTo(step.id)}
               disabled={!isAccessible}
-              className="flex flex-col items-center gap-2 group flex-1 disabled:cursor-not-allowed">
-              <div className={`relative w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 shadow-sm
-                ${isDone   ? 'bg-emerald-500 border-emerald-500 text-white shadow-emerald-200 shadow-md'
-                : isActive ? 'bg-white border-emerald-500 text-emerald-600 shadow-emerald-100 shadow-md scale-110'
-                :            'bg-white border-gray-200 text-gray-300 group-hover:border-emerald-300 group-hover:text-emerald-400'}`}>
-                {isDone ? <Check size={15} className="stroke-[2.5]" /> : <Icon size={14} />}
+              className="flex flex-col items-center gap-1.5 sm:gap-2 group flex-1 disabled:cursor-not-allowed">
+              <div className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl border-2 flex items-center justify-center transition-all duration-300
+                ${isDone ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200'
+                : isActive ? 'bg-white border-emerald-500 text-emerald-600 shadow-md shadow-emerald-100 scale-110'
+                : 'bg-white border-gray-200 text-gray-300 group-hover:border-emerald-300 group-hover:text-emerald-400'}`}>
+                {isDone ? <Check size={14} className="stroke-[2.5]" /> : <Icon size={13} />}
                 {isActive && (
-                  <motion.span className="absolute -inset-1.5 rounded-3xl border-2 border-emerald-400/40"
+                  <motion.span className="absolute -inset-1 rounded-2xl border-2 border-emerald-400/40"
                     animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }} />
                 )}
               </div>
@@ -608,10 +598,13 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
                 <p className={`text-[10px] font-bold uppercase tracking-wider leading-tight ${isActive ? 'text-emerald-700' : isDone ? 'text-emerald-500' : 'text-gray-400'}`}>
                   {step.label}
                 </p>
-                <p className={`text-[9px] leading-tight mt-0.5 ${isActive ? 'text-emerald-500' : 'text-gray-300'}`}>
+                <p className={`text-[9px] leading-tight mt-0.5 hidden md:block ${isActive ? 'text-emerald-500' : 'text-gray-300'}`}>
                   {step.desc}
                 </p>
               </div>
+              <p className={`text-[9px] font-bold sm:hidden ${isActive ? 'text-emerald-700' : 'text-gray-400'}`}>
+                {step.label}
+              </p>
             </button>
           )
         })}
@@ -620,74 +613,95 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
   )
 }
 
-/* ─── Field ──────────────────────────────────────────────────────────────────── */
+/* ─── UI Primitives ──────────────────────────────────────────────────────────── */
 
-function Field({ label, required, hint, className = '', icon: Icon, children }) {
+function Field({ label, required, hint, error, icon: Icon, children, className = '' }) {
   return (
     <div className={`space-y-1.5 ${className}`}>
-      <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
+      <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
         {Icon && <Icon size={11} className="text-emerald-500" />}
-        {label}
-        {required && <span className="text-emerald-500 text-sm">*</span>}
+        <span>{label}</span>
+        {required && <span className="text-emerald-500">*</span>}
       </label>
       {children}
-      {hint && <p className="text-[11px] text-gray-400 italic">{hint}</p>}
+      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle size={10} /> {error}</p>}
+      {hint && !error && <p className="text-[11px] text-gray-400">{hint}</p>}
     </div>
   )
 }
 
-/* ─── Input / Textarea styles ────────────────────────────────────────────────── */
-
 const inputClass = `
-  w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white
+  w-full px-3.5 py-2.5 rounded-lg border border-gray-200 bg-white
   text-sm text-gray-800 placeholder-gray-300
-  focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50
-  transition-all duration-200 hover:border-gray-300
-`
+  focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100
+  transition-all duration-150 hover:border-gray-300
+`.trim()
 
 const textareaClass = `
-  w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white
+  w-full px-3.5 py-2.5 rounded-lg border border-gray-200 bg-white
   text-sm text-gray-800 placeholder-gray-300 resize-none
-  focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50
-  transition-all duration-200 hover:border-gray-300
-`
+  focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100
+  transition-all duration-150 hover:border-gray-300
+`.trim()
 
-/* ─── Toggle ─────────────────────────────────────────────────────────────────── */
+const inputErrorClass = 'border-red-400 focus:border-red-400 focus:ring-red-100'
+
+function SectionHeader({ icon: Icon, title, description, tone = 'emerald' }) {
+  const tones = {
+    emerald: 'from-emerald-50 to-green-50 border-emerald-100',
+    green: 'from-green-50 to-teal-50 border-green-100',
+    teal: 'from-teal-50 to-emerald-50 border-teal-100',
+    blue: 'from-blue-50 to-cyan-50 border-blue-100',
+  }
+  const iconBg = {
+    emerald: 'bg-emerald-100 text-emerald-600',
+    green: 'bg-green-100 text-green-600',
+    teal: 'bg-teal-100 text-teal-600',
+    blue: 'bg-blue-100 text-blue-600',
+  }
+  return (
+    <div className={`flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r border ${tones[tone]}`}>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconBg[tone]}`}>
+        <Icon size={17} />
+      </div>
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-gray-800">{title}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+      </div>
+    </div>
+  )
+}
 
 function FlagToggle({ checked, onChange, label, desc, icon: Icon }) {
   return (
-    <label className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200
+    <label className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all
       ${checked
-        ? 'border-emerald-400 bg-gradient-to-br from-emerald-50 to-green-50 shadow-sm shadow-emerald-100'
+        ? 'border-emerald-400 bg-gradient-to-br from-emerald-50 to-green-50 shadow-sm'
         : 'border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/30'}`}>
       <input type="checkbox" className="sr-only" checked={checked} onChange={e => onChange(e.target.checked)} />
-      <div className={`relative w-12 h-6 rounded-full transition-all duration-300 shrink-0 ${checked ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${checked ? 'left-7' : 'left-1'}`} />
+      <div className={`relative w-11 h-6 rounded-full transition-all shrink-0 ${checked ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${checked ? 'left-6' : 'left-1'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           {Icon && <Icon size={13} className={checked ? 'text-emerald-600' : 'text-gray-400'} />}
           <p className={`text-sm font-semibold ${checked ? 'text-emerald-800' : 'text-gray-700'}`}>{label}</p>
         </div>
-        {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
+        {desc && <p className="text-[11px] text-gray-500 mt-0.5">{desc}</p>}
       </div>
     </label>
   )
 }
 
-/* ─── Spinner ────────────────────────────────────────────────────────────────── */
-
 function Spinner({ size = 'sm' }) {
-  return (
-    <span className={`border-2 border-current border-t-transparent rounded-full animate-spin shrink-0 ${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />
-  )
+  return <span className={`border-2 border-current border-t-transparent rounded-full animate-spin shrink-0 ${size === 'sm' ? 'w-4 h-4' : 'w-5 h-5'}`} />
 }
 
 /* ─── Delete Dialog ──────────────────────────────────────────────────────────── */
 
 function DeleteDialog({ isOpen, onClose, target, onDeleted }) {
   const toast = useToast()
-  const [stage, setStage]     = useState('confirm')
+  const [stage, setStage] = useState('confirm')
   const [destCount, setDestCount] = useState(0)
 
   useEffect(() => {
@@ -704,8 +718,8 @@ function DeleteDialog({ isOpen, onClose, target, onDeleted }) {
       onDeleted(); onClose()
     } catch (err) {
       const status = err?.response?.status
-      const body   = err?.response?.data || {}
-      const count  = body?.destination_count ?? 0
+      const body = err?.response?.data || {}
+      const count = body?.destination_count ?? 0
       if (status === 409 && body?.code === 'HAS_DESTINATIONS' && !force) {
         setDestCount(count); setStage('conflict')
       } else {
@@ -721,71 +735,72 @@ function DeleteDialog({ isOpen, onClose, target, onDeleted }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={isDeleting ? undefined : onClose} />
       <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
-        {stage !== 'conflict'
-          ? <>
-              <div className="h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-red-400" />
-              <div className="p-7">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-red-50 border-2 border-red-100 flex items-center justify-center shrink-0">
-                    <Trash2 size={24} className="text-red-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Delete Country</h3>
-                    <p className="text-sm text-gray-500 mt-1">You're about to delete <strong className="text-gray-800">"{target.name}"</strong></p>
-                  </div>
+        className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {stage !== 'conflict' ? (
+          <>
+            <div className="h-1 bg-gradient-to-r from-red-500 to-rose-500" />
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 size={22} className="text-red-500" />
                 </div>
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
-                  <p className="text-sm text-red-700">This will permanently remove the country and all associated data. This action <strong>cannot be undone</strong>.</p>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
-                  <button onClick={() => doDelete(false)} disabled={isDeleting}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 transition-all shadow-lg shadow-red-200">
-                    {isDeleting ? <><Spinner /> Deleting…</> : <><Trash2 size={15} /> Delete</>}
-                  </button>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Delete Country</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">Delete <strong className="text-gray-800">"{target.name}"</strong>?</p>
                 </div>
               </div>
-            </>
-          : <>
-              <div className="h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400" />
-              <div className="p-7">
-                <div className="flex items-start gap-4 mb-5">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-50 border-2 border-amber-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle size={24} className="text-amber-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Linked Destinations Found</h3>
-                    <p className="text-sm text-gray-500 mt-1"><strong>"{target.name}"</strong> has <strong className="text-amber-600">{destCount} destination(s)</strong> attached</p>
-                  </div>
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-5">
+                <p className="text-xs text-red-700">This permanently removes the country and all associated data. This action <strong>cannot be undone</strong>.</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+                <button onClick={() => doDelete(false)} disabled={isDeleting}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm shadow-red-200">
+                  {isDeleting ? <><Spinner /> Deleting…</> : <><Trash2 size={14} /> Delete</>}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={22} className="text-amber-500" />
                 </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
-                  <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-1.5"><AlertTriangle size={12} /> Force delete will also remove:</p>
-                  <ul className="space-y-2">
-                    {[`All ${destCount} destination(s) in "${target.name}"`, 'All bookings linked to those destinations', 'Any other data referencing these records'].map((item, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm text-amber-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /> {item}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-amber-600 font-bold mt-3 pt-3 border-t border-amber-200">⚠ This cannot be undone. Proceed only if you are certain.</p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button onClick={onClose} disabled={isDeleting} className="flex-1 px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50">Cancel</button>
-                  <button onClick={() => doDelete(true)} disabled={isDeleting}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-bold hover:from-red-700 hover:to-rose-700 disabled:opacity-50 transition-all shadow-lg shadow-red-200">
-                    {isDeleting ? <><Spinner /> Deleting everything…</> : <><Zap size={15} /> Force Delete Everything</>}
-                  </button>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Linked Destinations</h3>
+                  <p className="text-sm text-gray-500 mt-0.5"><strong>"{target.name}"</strong> has <strong className="text-amber-600">{destCount} destination(s)</strong></p>
                 </div>
               </div>
-            </>
-        }
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 mb-4">
+                <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertTriangle size={11} /> Force delete will remove:</p>
+                <ul className="space-y-1.5">
+                  {[`All ${destCount} destination(s)`, 'All bookings linked to them', 'Any other referencing data'].map((item, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-amber-700">
+                      <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" /> {item}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-amber-600 font-bold mt-2 pt-2 border-t border-amber-200">⚠ Cannot be undone.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button onClick={onClose} disabled={isDeleting} className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50">Cancel</button>
+                <button onClick={() => doDelete(true)} disabled={isDeleting}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white text-sm font-bold hover:from-red-700 hover:to-rose-700 disabled:opacity-50 transition-all shadow-sm shadow-red-200">
+                  {isDeleting ? <><Spinner /> Deleting…</> : <><Zap size={14} /> Force Delete</>}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </motion.div>
     </div>
   )
 }
 
-/* ─── Success Celebration ────────────────────────────────────────────────────── */
+/* ─── Success ────────────────────────────────────────────────────────────────── */
 
 function SuccessCelebration({ show, message, onDone }) {
   useEffect(() => {
@@ -798,13 +813,13 @@ function SuccessCelebration({ show, message, onDone }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.5, y: 50 }} animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -30 }} transition={{ type: 'spring', damping: 15 }}
-          className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none">
-          <div className="bg-white rounded-3xl shadow-2xl border-2 border-emerald-200 p-8 text-center max-w-sm mx-4">
+          className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none px-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-emerald-200 p-6 sm:p-8 text-center max-w-sm">
             <motion.div animate={{ rotate: [0,-10,10,-10,10,0], scale: [1,1.2,1] }} transition={{ duration: 0.6 }}
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200">
-              <Check size={36} className="text-white stroke-[3]" />
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200">
+              <Check size={32} className="text-white stroke-[3]" />
             </motion.div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">Success! 🎉</h3>
+            <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-2">Success! 🎉</h3>
             <p className="text-gray-500 text-sm">{message}</p>
           </div>
         </motion.div>
@@ -813,54 +828,51 @@ function SuccessCelebration({ show, message, onDone }) {
   )
 }
 
-/* ─── Main Component ─────────────────────────────────────────────────────────── */
+/* ─── Main ───────────────────────────────────────────────────────────────────── */
 
 export default function Countries() {
-  const toast     = useToast()
-  const pag       = usePagination()
+  const toast = useToast()
+  const pag = usePagination()
   const viewModal = useModal()
   const formModal = useModal()
 
-  const [countries, setCountries]           = useState([])
-  const [loading, setLoading]               = useState(true)
-  const [saving, setSaving]                 = useState(false)
-  const [search, setSearch]                 = useState('')
-  const [continent, setContinent]           = useState('')
-  const [featured, setFeatured]             = useState('')
-  const [sortBy, setSortBy]                 = useState('name')
-  const [sortOrder, setSortOrder]           = useState('asc')
-  const [form, setForm]                     = useState(INITIAL_FORM)
-  const [editing, setEditing]               = useState(null)
-  const [step, setStep]                     = useState('identity')
-  const [completed, setCompleted]           = useState([])
-  const [errors, setErrors]                 = useState({})
-  const [showConfetti, setShowConfetti]     = useState(false)
+  const [countries, setCountries] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
+  const [continent, setContinent] = useState('')
+  const [featured, setFeatured] = useState('')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [form, setForm] = useState(INITIAL_FORM)
+  const [editing, setEditing] = useState(null)
+  const [step, setStep] = useState('identity')
+  const [completed, setCompleted] = useState([])
+  const [errors, setErrors] = useState({})
+  const [showConfetti, setShowConfetti] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [celebrationMsg, setCelebrationMsg] = useState('')
-  const [deleteTarget, setDeleteTarget]     = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [lightboxImages, setLightboxImages] = useState(null)
-  const [lightboxStart, setLightboxStart]   = useState(0)
+  const [lightboxStart, setLightboxStart] = useState(0)
 
   const debouncedSearch = useDebounce(search, 400)
 
-  /* ── all images helper for lightbox ─────────────────────────────────── */
-
-  const getAllFormImages = useCallback(() => {
+  const allFormImages = useMemo(() => {
     const imgs = []
     if (form.image_url)       imgs.push({ url: form.image_url, caption: 'Country Photo' })
     if (form.cover_image_url) imgs.push({ url: form.cover_image_url, caption: 'Cover / Banner' })
-    if (form.flag_url)        imgs.push({ url: form.flag_url, caption: 'Flag Image' })
+    if (form.hero_image)      imgs.push({ url: form.hero_image, caption: 'Hero Image' })
+    if (form.flag_url)        imgs.push({ url: form.flag_url, caption: 'Flag' })
     ;(form.gallery || []).forEach(g => imgs.push(g))
     return imgs
-  }, [form.image_url, form.cover_image_url, form.flag_url, form.gallery])
+  }, [form.image_url, form.cover_image_url, form.hero_image, form.flag_url, form.gallery])
 
   const openLightbox = (images, startIndex = 0) => {
     setLightboxImages(images)
     setLightboxStart(startIndex)
   }
-
-  /* ── Load ─────────────────────────────────────────────────────────── */
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -869,7 +881,7 @@ export default function Countries() {
         page: pag.page, limit: pag.limit, sortBy, order: sortOrder,
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(continent && { continent }),
-        ...(featured   && { featured: featured === 'true' }),
+        ...(featured && { featured: featured === 'true' }),
       }
       const { data } = await countriesAPI.getAll(params)
       setCountries(data.data || data.countries || [])
@@ -883,38 +895,37 @@ export default function Countries() {
 
   useEffect(() => { load() }, [load])
 
-  /* ── Form helpers ─────────────────────────────────────────────────── */
+  const buildForm = (c) => {
+    let heroImages = c.hero_images
+    if (typeof heroImages === 'string') {
+      try { heroImages = JSON.parse(heroImages) } catch { heroImages = [] }
+    }
+    if (!Array.isArray(heroImages)) heroImages = []
+    const gallery = heroImages.map(image => ({
+      url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
+      caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
+      source: 'upload',
+    })).filter(image => image.url)
 
-  const buildForm = (c) => ({
-    ...(() => {
-      let heroImages = c.hero_images
-      if (typeof heroImages === 'string') {
-        try { heroImages = JSON.parse(heroImages) } catch { heroImages = [] }
-      }
-      if (!Array.isArray(heroImages)) heroImages = []
-      return {
-        gallery: heroImages.map(image => ({
-          url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
-          caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
-        })).filter(image => image.url),
-      }
-    })(),
-    name: c.name || '', slug: c.slug || '', official_name: c.official_name || '',
-    capital: c.capital || '', flag: c.flag || '', flag_url: c.flag_url || '',
-    continent: c.continent || '', region: c.region || '', sub_region: c.sub_region || '',
-    description: c.description || '', tagline: c.tagline || '',
-    population: c.population || '', area: c.area || '', climate: c.climate || '',
-    best_time_to_visit: c.best_time_to_visit || '', visa_info: c.visa_info || '',
-    health_info: c.health_info || '', currency: c.currency || '',
-    currency_symbol: c.currency_symbol || '', timezone: c.timezone || '',
-    calling_code: c.calling_code || '', languages: c.languages || [],
-    official_languages: c.official_languages || [], highlights: c.highlights || [],
-    experiences: c.experiences || [], travel_tips: c.travel_tips || [],
-image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
-    hero_image: c.hero_image || '',
-     latitude: c.latitude || '', longitude: c.longitude || '',
-     is_featured: !!c.is_featured, is_active: c.is_active !== false,
-  })
+    return {
+      gallery,
+      name: c.name || '', slug: c.slug || '', official_name: c.official_name || '',
+      capital: c.capital || '', flag: c.flag || '', flag_url: c.flag_url || '',
+      continent: c.continent || '', region: c.region || '', sub_region: c.sub_region || '',
+      description: c.description || '', tagline: c.tagline || '',
+      population: c.population || '', area: c.area || '', climate: c.climate || '',
+      best_time_to_visit: c.best_time_to_visit || '', visa_info: c.visa_info || '',
+      health_info: c.health_info || '', currency: c.currency || '',
+      currency_symbol: c.currency_symbol || '', timezone: c.timezone || '',
+      calling_code: c.calling_code || '', languages: c.languages || [],
+      official_languages: c.official_languages || [], highlights: c.highlights || [],
+      experiences: c.experiences || [], travel_tips: c.travel_tips || [],
+      image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
+      hero_image: c.hero_image || '',
+      latitude: c.latitude || '', longitude: c.longitude || '',
+      is_featured: !!c.is_featured, is_active: c.is_active !== false,
+    }
+  }
 
   const openCreate = () => {
     setForm(INITIAL_FORM); setEditing(null)
@@ -933,8 +944,6 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     if (errors[k]) setErrors(p => ({ ...p, [k]: undefined }))
   }
 
-  /* ── Validation ───────────────────────────────────────────────────── */
-
   const validateStep = (stepId) => {
     const e = {}
     if (stepId === 'identity') {
@@ -944,8 +953,6 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     setErrors(e)
     return Object.keys(e).length === 0
   }
-
-  /* ── Step nav ─────────────────────────────────────────────────────── */
 
   const stepIndex = STEP_IDS.indexOf(step)
 
@@ -961,8 +968,6 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     if (prev) setStep(prev)
   }
 
-  /* ── Save ─────────────────────────────────────────────────────────── */
-
   const handleSave = async () => {
     if (!validateStep('identity')) { setStep('identity'); return }
     setSaving(true)
@@ -971,8 +976,8 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         ...form,
         hero_images: [
           ...(form.gallery || []).map(image => ({
-          url: image.url || image.imageUrl,
-          caption: image.caption || '',
+            url: image.url || image.imageUrl,
+            caption: image.caption || '',
           })).filter(image => image.url),
           ...(form.hero_image ? [{ url: form.hero_image, caption: 'Hero Image' }] : []),
         ],
@@ -999,17 +1004,9 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     }
   }
 
-  /* ── Delete ───────────────────────────────────────────────────────── */
-
   const openDelete = (row) => { setDeleteTarget(row); setDeleteDialogOpen(true) }
-
-  const handleDeleteDone = () => {
-    setDeleteTarget(null); setDeleteDialogOpen(false); load()
-  }
-
+  const handleDeleteDone = () => { setDeleteTarget(null); setDeleteDialogOpen(false); load() }
   const handleSort = (k, o) => { setSortBy(k); setSortOrder(o); pag.reset() }
-
-  /* ── Table columns ────────────────────────────────────────────────── */
 
   const columns = [
     {
@@ -1029,7 +1026,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     {
       key: 'continent', label: 'Continent', sortable: true,
       render: v => v ? (
-        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${CONTINENT_COLORS[v] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{v}</span>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${CONTINENT_COLORS[v] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{v}</span>
       ) : '—',
     },
     {
@@ -1039,7 +1036,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     {
       key: 'destination_count', label: 'Destinations', align: 'center',
       render: v => (
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm border border-emerald-200">{v || 0}</span>
+        <span className="inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-sm border border-emerald-200">{v || 0}</span>
       ),
     },
     {
@@ -1054,8 +1051,6 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     },
   ]
 
-  /* ── Step render ──────────────────────────────────────────────────── */
-
   const slideVariants = {
     enter: (dir) => ({ opacity: 0, x: dir > 0 ? 30 : -30 }),
     center: { opacity: 1, x: 0 },
@@ -1064,26 +1059,19 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
 
   const renderStep = () => {
     const tr = { duration: 0.22, ease: 'easeInOut' }
-    const allImgs = getAllFormImages()
 
     switch (step) {
-
-      /* ── IDENTITY ── */
       case 'identity': return (
         <motion.div key="identity" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Globe2 size={18} className="text-emerald-600" /></div>
-            <div><h3 className="text-sm font-bold text-emerald-800">Country Identity</h3><p className="text-xs text-emerald-600">Basic information and regional classification</p></div>
-          </div>
+          <SectionHeader icon={Globe2} title="Country Identity" description="Basic information and regional classification" tone="emerald" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Country Name" required icon={Globe2}>
-              <input className={`${inputClass} ${errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-50' : ''}`}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Country Name" required icon={Globe2} error={errors.name}>
+              <input className={`${inputClass} ${errors.name ? inputErrorClass : ''}`}
                 value={form.name} onChange={e => upd('name', e.target.value)} placeholder="e.g., Rwanda" />
-              {errors.name && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertTriangle size={10} /> {errors.name}</p>}
             </Field>
 
-            <Field label="URL Slug" hint="Auto-generated if blank" icon={Globe2}>
+            <Field label="URL Slug" hint="Auto-generated if left blank" icon={Globe2}>
               <input className={`${inputClass} font-mono text-xs`} value={form.slug}
                 onChange={e => upd('slug', e.target.value)} placeholder="rwanda" />
             </Field>
@@ -1098,11 +1086,11 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                 onChange={e => upd('capital', e.target.value)} placeholder="Kigali" />
             </Field>
 
-            <Field label="Flag Emoji" hint="Paste the country flag emoji" icon={Globe2}>
-              <div className="flex gap-2.5">
+            <Field label="Flag Emoji" hint="Paste country flag emoji" icon={Globe2}>
+              <div className="flex gap-2">
                 <input className={`${inputClass} flex-1 text-xl`} value={form.flag}
-                  onChange={e => upd('flag', e.target.value)} placeholder="🇷🇼" />
-                <div className={`w-12 h-11 rounded-xl border-2 flex items-center justify-center text-2xl shrink-0 transition-all ${form.flag ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}>
+                  onChange={e => upd('flag', e.target.value)} placeholder="🇷🇼" maxLength={4} />
+                <div className={`w-12 h-11 rounded-lg border flex items-center justify-center text-2xl shrink-0 transition-all ${form.flag ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}>
                   {form.flag || <Globe2 size={16} className="text-gray-300" />}
                 </div>
               </div>
@@ -1114,56 +1102,50 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
             </Field>
           </div>
 
-          {/* Flag image URL/upload */}
           <ImageManagerPanel
             label="Flag Image (optional)"
-            fieldKey="flag_url"
             value={form.flag_url}
             onChange={v => upd('flag_url', v)}
             folder="countries/flags"
-            allImages={allImgs}
+            allImages={allFormImages}
             onLightbox={openLightbox}
+            hint="Use an SVG or PNG for best quality"
           />
 
-          <Field label="Continent" required icon={Globe2}>
-            <div className={`p-4 rounded-2xl border-2 transition-all ${errors.continent ? 'border-red-200 bg-red-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <Field label="Continent" required icon={Globe2} error={errors.continent}>
+            <div className={`p-3 rounded-xl border transition-all ${errors.continent ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'}`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {CONTINENTS.map(c => (
-                  <motion.button key={c} type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  <motion.button key={c} type="button" whileTap={{ scale: 0.98 }}
                     onClick={() => { upd('continent', c); setErrors(p => ({ ...p, continent: undefined })) }}
-                    className={`px-2.5 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all duration-200 text-center leading-tight
+                    className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center
                       ${form.continent === c
-                        ? (CONTINENT_COLORS[c] || 'border-emerald-400 bg-emerald-50 text-emerald-700') + ' shadow-sm'
+                        ? (CONTINENT_COLORS[c] || 'border-emerald-400 bg-emerald-50 text-emerald-700') + ' shadow-sm ring-2 ring-emerald-100'
                         : 'border-gray-200 bg-white text-gray-500 hover:border-emerald-300 hover:text-emerald-600'}`}>
                     {c}
                   </motion.button>
                 ))}
               </div>
-              {errors.continent && <p className="text-xs text-red-500 mt-2 flex items-center gap-1"><AlertTriangle size={10} /> {errors.continent}</p>}
             </div>
           </Field>
         </motion.div>
       )
 
-      /* ── GEOGRAPHY ── */
       case 'geography': return (
         <motion.div key="geography" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-teal-50 border border-green-100">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><MapPin size={18} className="text-green-600" /></div>
-            <div><h3 className="text-sm font-bold text-green-800">Geographic Details</h3><p className="text-xs text-green-600">Location, size, and coordinates</p></div>
-          </div>
+          <SectionHeader icon={MapPin} title="Geographic Details" description="Location, size, and coordinates" tone="green" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Region" icon={MapPin}>
               <input className={inputClass} value={form.region} onChange={e => upd('region', e.target.value)} placeholder="East Africa" />
             </Field>
             <Field label="Sub-Region" icon={MapPin}>
               <input className={inputClass} value={form.sub_region} onChange={e => upd('sub_region', e.target.value)} placeholder="Great Lakes" />
             </Field>
-            <Field label="Population" icon={Users}>
+            <Field label="Population" icon={Users} hint="e.g., 13 million or 13000000">
               <div className="relative">
                 <Users size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-                <input className={`${inputClass} pl-9`} type="text" value={form.population}
+                <input className={`${inputClass} pl-9`} value={form.population}
                   onChange={e => upd('population', e.target.value)} placeholder="13 million" />
               </div>
             </Field>
@@ -1171,36 +1153,36 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
               <div className="relative">
                 <Ruler size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
                 <input className={`${inputClass} pl-9`} type="number" value={form.area}
-                  onChange={e => upd('area', e.target.value)} placeholder="26,338" />
+                  onChange={e => upd('area', e.target.value)} placeholder="26338" />
               </div>
             </Field>
           </div>
 
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/60 to-cyan-50/40 border-2 border-blue-100">
+          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-br from-blue-50/60 to-cyan-50/40 border border-blue-100">
             <div className="flex items-center gap-2 mb-4">
               <MapPin size={14} className="text-blue-500" />
-              <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">GPS Coordinates</p>
+              <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">GPS Coordinates</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Latitude" icon={MapPin}>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-gray-400">LAT</span>
-                  <input className={`${inputClass} pl-10`} type="number" step="any" min="-90" max="90" value={form.latitude}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-gray-400">LAT</span>
+                  <input className={`${inputClass} pl-11`} type="number" step="any" min="-90" max="90" value={form.latitude}
                     onChange={e => upd('latitude', e.target.value)} placeholder="-1.9403" />
                 </div>
               </Field>
               <Field label="Longitude" icon={MapPin}>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-gray-400">LNG</span>
-                  <input className={`${inputClass} pl-10`} type="number" step="any" value={form.longitude}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-gray-400">LNG</span>
+                  <input className={`${inputClass} pl-11`} type="number" step="any" value={form.longitude}
                     onChange={e => upd('longitude', e.target.value)} placeholder="29.8739" />
                 </div>
               </Field>
             </div>
             {form.latitude && form.longitude && (
               <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                className="mt-3 p-2.5 rounded-xl bg-blue-100/60 border border-blue-200">
-                <p className="text-xs text-blue-600 font-medium text-center">
+                className="mt-3 p-2.5 rounded-lg bg-blue-100/60 border border-blue-200 text-center">
+                <p className="text-xs text-blue-700 font-semibold">
                   📍 {Number(form.latitude).toFixed(4)}°, {Number(form.longitude).toFixed(4)}°
                 </p>
               </motion.div>
@@ -1209,15 +1191,11 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         </motion.div>
       )
 
-      /* ── PRACTICAL ── */
       case 'practical': return (
         <motion.div key="practical" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-100">
-            <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center"><DollarSign size={18} className="text-teal-600" /></div>
-            <div><h3 className="text-sm font-bold text-teal-800">Practical Information</h3><p className="text-xs text-teal-600">Currency, travel requirements & climate</p></div>
-          </div>
+          <SectionHeader icon={DollarSign} title="Practical Information" description="Currency, travel requirements & climate" tone="teal" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Currency" icon={DollarSign}>
               <input className={inputClass} value={form.currency} onChange={e => upd('currency', e.target.value)} placeholder="Rwandan Franc" />
             </Field>
@@ -1244,7 +1222,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Visa Information" icon={Shield}>
               <textarea className={`${textareaClass} min-h-[100px]`} value={form.visa_info}
                 onChange={e => upd('visa_info', e.target.value)} placeholder="Visa requirements and entry details…" />
@@ -1257,140 +1235,84 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         </motion.div>
       )
 
-      /* ── CONTENT ── */
       case 'content': return (
         <motion.div key="content" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Info size={18} className="text-emerald-600" /></div>
-            <div><h3 className="text-sm font-bold text-emerald-800">Content & Descriptions</h3><p className="text-xs text-emerald-600">Rich content for travelers</p></div>
-          </div>
+          <SectionHeader icon={Info} title="Content & Descriptions" description="Rich content for travelers" tone="emerald" />
 
           <Field label="Description" icon={BookOpen}>
-            <textarea className={`${textareaClass} min-h-[100px]`} value={form.description}
+            <textarea className={`${textareaClass} min-h-[120px]`} value={form.description}
               onChange={e => upd('description', e.target.value)}
               placeholder="Describe this country for travelers — its character, culture, and what makes it special…" />
           </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Languages size={11} className="text-emerald-500" /> Languages
-              </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Languages" icon={Languages}>
               <TagInput value={form.languages} onChange={v => upd('languages', v)} placeholder="Add language…" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Languages size={11} className="text-emerald-500" /> Official Languages
-              </label>
+            </Field>
+            <Field label="Official Languages" icon={Languages}>
               <TagInput value={form.official_languages} onChange={v => upd('official_languages', v)} placeholder="Add official language…" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Star size={11} className="text-emerald-500" /> Highlights
-              </label>
+            </Field>
+            <Field label="Highlights" icon={Star}>
               <TagInput value={form.highlights} onChange={v => upd('highlights', v)} placeholder="Add highlight…" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Heart size={11} className="text-emerald-500" /> Experiences
-              </label>
+            </Field>
+            <Field label="Experiences" icon={Heart}>
               <TagInput value={form.experiences} onChange={v => upd('experiences', v)} placeholder="Add experience…" />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-                <Lightbulb size={11} className="text-emerald-500" /> Travel Tips
-              </label>
+            </Field>
+            <Field label="Travel Tips" icon={Lightbulb} className="md:col-span-2">
               <TagInput value={form.travel_tips} onChange={v => upd('travel_tips', v)} placeholder="Add tip…" />
-            </div>
+            </Field>
           </div>
         </motion.div>
       )
 
-      /* ── MEDIA ── */
       case 'media': return (
-        <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-6">
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center"><Camera size={18} className="text-green-600" /></div>
-            <div>
-              <h3 className="text-sm font-bold text-green-800">Media & Visibility</h3>
-              <p className="text-xs text-green-600">Manage all photos and publication settings</p>
-            </div>
-          </div>
+        <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
+          <SectionHeader icon={Camera} title="Media & Visibility" description="Manage all photos and publication settings" tone="green" />
 
-          {/* Quick all-images strip if editing */}
-          {allImgs.length > 0 && (
-            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <EyeIcon size={11} /> All Images ({allImgs.length})
+          {/* All images strip */}
+          {allFormImages.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <Eye size={11} /> All Images ({allFormImages.length})
                 </p>
-                <button type="button" onClick={() => openLightbox(allImgs, 0)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-semibold text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
-                  <Maximize2 size={11} /> View all
+                <button type="button" onClick={() => openLightbox(allFormImages, 0)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-gray-200 text-[11px] font-semibold text-gray-600 hover:border-emerald-300 hover:text-emerald-700 transition-all">
+                  <Maximize2 size={10} /> View all
                 </button>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200">
-                {allImgs.map((img, i) => (
-                  <button key={i} type="button" onClick={() => openLightbox(allImgs, i)}
-                    className="shrink-0 w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all group relative">
-                    <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="56"><rect width="80" height="56" fill="#e5e7eb"/><text x="40" y="28" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {allFormImages.map((img, i) => (
+                  <button key={i} type="button" onClick={() => openLightbox(allFormImages, i)}
+                    className="shrink-0 w-20 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-all group relative">
+                    <img src={img.url} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = PLACEHOLDER_SVG }} />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                       <ZoomIn size={12} className="text-white" />
                     </div>
-                    {img.caption && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-                        <p className="text-[8px] text-white truncate">{img.caption}</p>
-                      </div>
-                    )}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Primary images */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <ImageManagerPanel
-              label="Country Photo"
-              fieldKey="image_url"
-              value={form.image_url}
-              onChange={v => upd('image_url', v)}
-              folder="countries"
-              allImages={allImgs}
-              onLightbox={openLightbox}
-            />
-            <ImageManagerPanel
-              label="Cover / Banner"
-              fieldKey="cover_image_url"
-              value={form.cover_image_url}
-              onChange={v => upd('cover_image_url', v)}
-              folder="countries"
-              allImages={allImgs}
-              onLightbox={openLightbox}
-            />
-            <ImageManagerPanel
-              label="Hero Image"
-              fieldKey="hero_image"
-              value={form.hero_image}
-              onChange={v => upd('hero_image', v)}
-              folder="countries"
-              allImages={allImgs}
-              onLightbox={openLightbox}
-            />
+          {/* Primary images grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <ImageManagerPanel label="Country Photo" value={form.image_url} onChange={v => upd('image_url', v)}
+              folder="countries" allImages={allFormImages} onLightbox={openLightbox} />
+            <ImageManagerPanel label="Cover / Banner" value={form.cover_image_url} onChange={v => upd('cover_image_url', v)}
+              folder="countries" allImages={allFormImages} onLightbox={openLightbox} />
+            <ImageManagerPanel label="Hero Image" value={form.hero_image} onChange={v => upd('hero_image', v)}
+              folder="countries" allImages={allFormImages} onLightbox={openLightbox} />
           </div>
 
-{/* Gallery */}
-           <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white space-y-4">
-             <GalleryManager
-               gallery={form.gallery || []}
-               onChange={v => upd('gallery', v)}
-               onLightbox={openLightbox}
-             />
-           </div>
+          {/* Gallery */}
+          <div className="p-4 sm:p-5 rounded-xl border border-gray-200 bg-white">
+            <GalleryManager gallery={form.gallery || []} onChange={v => upd('gallery', v)} onLightbox={openLightbox} />
+          </div>
 
           {/* Visibility */}
           <div className="space-y-2">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
               <Shield size={11} className="text-emerald-500" /> Visibility Settings
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1402,24 +1324,24 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
           </div>
 
           {/* Summary */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white">
+          <div className="p-5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white">
             <div className="flex items-center gap-2 mb-4">
-              <Check size={14} className="text-emerald-200" />
-              <p className="text-xs font-bold uppercase tracking-wider text-emerald-100">Ready to Save — Summary</p>
+              <CheckCircle2 size={14} className="text-emerald-100" />
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">Ready to Save</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
               {[
-                ['Country',  form.name        || '—'],
-                ['Capital',  form.capital      || '—'],
-                ['Continent',form.continent    || '—'],
-                ['Region',   form.region       || '—'],
-                ['Currency', form.currency ? `${form.currency} ${form.currency_symbol || ''}`.trim() : '—'],
-                ['Status',   form.is_active ? '✓ Active' : '○ Draft'],
-                ['Photos',   `${allImgs.length} image${allImgs.length !== 1 ? 's' : ''}`],
-                ['Featured', form.is_featured ? '⭐ Yes' : 'No'],
+                ['Country',   form.name || '—'],
+                ['Capital',   form.capital || '—'],
+                ['Continent', form.continent || '—'],
+                ['Region',    form.region || '—'],
+                ['Currency',  form.currency ? `${form.currency} ${form.currency_symbol || ''}`.trim() : '—'],
+                ['Status',    form.is_active ? '✓ Active' : '○ Draft'],
+                ['Photos',    `${allFormImages.length} image${allFormImages.length !== 1 ? 's' : ''}`],
+                ['Featured',  form.is_featured ? '⭐ Yes' : 'No'],
               ].map(([k, v]) => (
-                <div key={k} className="bg-white/10 rounded-xl p-2.5">
-                  <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">{k}</p>
+                <div key={k} className="bg-white/10 backdrop-blur-sm rounded-lg p-2.5">
+                  <p className="text-[9px] text-emerald-100 font-semibold uppercase tracking-wider">{k}</p>
                   <p className="text-sm font-bold text-white truncate mt-0.5">{v}</p>
                 </div>
               ))}
@@ -1432,28 +1354,22 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     }
   }
 
-  /* ── View Modal all-images helper ────────────────────────────────── */
-
   const getViewImages = (c) => {
     if (!c) return []
     const imgs = []
     if (c.cover_image_url) imgs.push({ url: c.cover_image_url, caption: 'Cover / Banner' })
     if (c.image_url)       imgs.push({ url: c.image_url,       caption: 'Country Photo'  })
-    if (c.hero_image)      imgs.push({ url: c.hero_image,      caption: 'Hero Image'      })
-    if (c.flag_url)        imgs.push({ url: c.flag_url,        caption: 'Flag Image'      })
+    if (c.hero_image)      imgs.push({ url: c.hero_image,      caption: 'Hero Image'     })
+    if (c.flag_url)        imgs.push({ url: c.flag_url,        caption: 'Flag'           })
     ;(c.gallery || []).forEach(g => imgs.push(g))
     return imgs
   }
 
-  /* ── Render ───────────────────────────────────────────────────────── */
-
   return (
     <div className="space-y-5 page-enter">
       <Confetti active={showConfetti} />
-
       <SuccessCelebration show={showCelebration} message={celebrationMsg} onDone={() => setShowCelebration(false)} />
 
-      {/* Lightbox */}
       <AnimatePresence>
         {lightboxImages && (
           <Lightbox images={lightboxImages} startIndex={lightboxStart} onClose={() => setLightboxImages(null)} />
@@ -1510,7 +1426,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         />
       </div>
 
-      {/* ── View Modal ── */}
+      {/* View Modal */}
       <Modal
         isOpen={viewModal.isOpen} onClose={viewModal.close}
         title={viewModal.data?.name} subtitle={viewModal.data?.official_name}
@@ -1529,38 +1445,32 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
           const viewImgs = getViewImages(viewModal.data)
           return (
             <div className="space-y-5">
-              {/* Image gallery strip */}
               {viewImgs.length > 0 && (
                 <div className="space-y-3">
-                  {/* Hero */}
-                  <div className="relative rounded-2xl overflow-hidden group cursor-pointer"
+                  <div className="relative rounded-xl overflow-hidden group cursor-pointer"
                     onClick={() => openLightbox(viewImgs, 0)}>
                     <img
                       src={viewImgs[0].url} alt={viewModal.data.name}
-                      className="w-full h-52 object-cover"
-                      onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#e5e7eb"/><text x="400" y="200" text-anchor="middle" fill="#9ca3af" font-size="16" font-family="sans-serif">No Image</text></svg>') }}
+                      className="w-full h-48 sm:h-56 object-cover"
+                      onError={e => { e.target.src = PLACEHOLDER_SVG }}
                     />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-gray-800 text-sm font-bold shadow-lg">
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-gray-800 text-sm font-bold shadow-lg">
                         <Maximize2 size={14} /> View Full Size
                       </div>
                     </div>
-                    <div className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/60 text-white text-xs font-medium">
+                    <div className="absolute bottom-2 right-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium">
                       {viewImgs[0].caption}
                     </div>
                   </div>
 
-                  {/* Thumbnail strip */}
                   {viewImgs.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
                       {viewImgs.map((img, i) => (
                         <button key={i} type="button" onClick={() => openLightbox(viewImgs, i)}
-                          className="shrink-0 relative group w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all">
-                          <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover"
-                            onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="56"><rect width="80" height="56" fill="#e5e7eb"/><text x="40" y="28" text-anchor="middle" fill="#9ca3af" font-size="10" font-family="sans-serif">?</text></svg>') }} />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                            <ZoomIn size={12} className="text-white" />
-                          </div>
+                          className="shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all">
+                          <img src={img.url} alt="" className="w-full h-full object-cover"
+                            onError={e => { e.target.src = PLACEHOLDER_SVG }} />
                         </button>
                       ))}
                     </div>
@@ -1588,18 +1498,18 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                   <ModalField label="Best Time" value={viewModal.data.best_time_to_visit} />
                   <ModalField label="Climate"   value={viewModal.data.climate} />
                 </ModalGrid>
-                <ModalField label="Languages"         value={viewModal.data.languages?.join(', ')} />
+                <ModalField label="Languages"          value={viewModal.data.languages?.join(', ')} />
                 <ModalField label="Official Languages" value={viewModal.data.official_languages?.join(', ')} />
-                <ModalField label="Visa Info"         value={viewModal.data.visa_info} />
-                <ModalField label="Health & Safety"   value={viewModal.data.health_info} />
-                <ModalField label="Description"       value={viewModal.data.description} />
+                <ModalField label="Visa Info"          value={viewModal.data.visa_info} />
+                <ModalField label="Health & Safety"    value={viewModal.data.health_info} />
+                <ModalField label="Description"        value={viewModal.data.description} />
               </ModalSection>
 
               {viewModal.data.highlights?.length > 0 && (
                 <ModalSection title="Highlights">
                   <div className="flex flex-wrap gap-2">
                     {viewModal.data.highlights.map((h, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{h}</span>
+                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{h}</span>
                     ))}
                   </div>
                 </ModalSection>
@@ -1609,7 +1519,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
                 <ModalSection title="Experiences">
                   <div className="flex flex-wrap gap-2">
                     {viewModal.data.experiences.map((e, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">{e}</span>
+                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">{e}</span>
                     ))}
                   </div>
                 </ModalSection>
@@ -1630,10 +1540,10 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
               <ModalSection title="Status">
                 <ModalGrid>
                   <ModalField label="Featured"     value={<BooleanBadge value={viewModal.data.is_featured} />} />
-                  <ModalField label="Active"        value={<BooleanBadge value={viewModal.data.is_active} trueLabel="Active" falseLabel="Inactive" />} />
+                  <ModalField label="Active"       value={<BooleanBadge value={viewModal.data.is_active} trueLabel="Active" falseLabel="Inactive" />} />
                   <ModalField label="Destinations" value={viewModal.data.destination_count} />
-                  <ModalField label="Views"         value={formatNumber(viewModal.data.view_count)} />
-                  <ModalField label="Gallery"       value={`${(viewModal.data.gallery || []).length} photo(s)`} />
+                  <ModalField label="Views"        value={formatNumber(viewModal.data.view_count)} />
+                  <ModalField label="Gallery"      value={`${(viewModal.data.gallery || []).length} photo(s)`} />
                 </ModalGrid>
               </ModalSection>
             </div>
@@ -1641,39 +1551,35 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         })()}
       </Modal>
 
-      {/* ── Form Modal ── */}
+      {/* Form Modal */}
       <Modal
         isOpen={formModal.isOpen} onClose={formModal.close}
         title={editing ? `Edit: ${editing.name}` : 'Add New Country'}
         size="xl" icon={<Globe2 size={20} />}
         footer={
           <div className="flex items-center justify-between gap-3 w-full">
-            {/* Step dots */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {STEP_IDS.map((id) => (
                 <div key={id} className={`h-1.5 rounded-full transition-all duration-300
                   ${id === step ? 'w-8 bg-emerald-500' : completed.includes(id) ? 'w-4 bg-emerald-300' : 'w-4 bg-gray-200'}`} />
               ))}
-              <span className="text-xs text-gray-400 ml-1">{stepIndex + 1}/{STEPS.length}</span>
+              <span className="text-xs text-gray-400 ml-1.5 hidden sm:inline">{stepIndex + 1}/{STEPS.length}</span>
             </div>
-            {/* Nav buttons */}
             <div className="flex gap-2">
               {stepIndex > 0 && (
                 <button onClick={goPrev} className="btn-secondary btn-sm" disabled={saving}>
-                  <ChevronLeft size={15} /> Back
+                  <ChevronLeft size={15} /> <span className="hidden sm:inline">Back</span>
                 </button>
               )}
               {stepIndex < STEPS.length - 1 ? (
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={goNext} className="btn-primary btn-sm">
-                  Continue <ChevronRight size={15} />
+                <motion.button whileTap={{ scale: 0.98 }} onClick={goNext} className="btn-primary btn-sm">
+                  <span className="hidden sm:inline">Continue</span> <ChevronRight size={15} />
                 </motion.button>
               ) : (
-                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={handleSave} className="btn-primary" disabled={saving}>
+                <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} className="btn-primary" disabled={saving}>
                   {saving ? <><Spinner /> Saving…</>
-                  : editing ? <><Check size={15} /> Update Country</>
-                  : <><Check size={15} /> Create Country</>}
+                  : editing ? <><Check size={15} /> Update</>
+                  : <><Check size={15} /> Create</>}
                 </motion.button>
               )}
             </div>
@@ -1682,7 +1588,7 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
       >
         <div>
           <StepIndicator steps={STEPS} current={step} completed={completed} onGoTo={id => setStep(id)} />
-          <div className="min-h-[400px]">
+          <div className="min-h-[420px]">
             <AnimatePresence mode="wait">
               {renderStep()}
             </AnimatePresence>
@@ -1690,7 +1596,6 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
         </div>
       </Modal>
 
-      {/* ── Delete Dialog ── */}
       <AnimatePresence>
         {deleteDialogOpen && (
           <DeleteDialog
@@ -1703,4 +1608,3 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     </div>
   )
 }
-
