@@ -812,20 +812,17 @@ export default function Packages() {
   // ── Save ───────────────────────────────────────────────────────────────────
 
    const handleSave = async () => {
-     // Simplified validation - only require title and at least one image
-     if (!form.title?.trim()) { toast.error('Title is required'); return }
-     if (!form.cover_image_url && !form.thumbnail_url) { 
-       toast.error('Please upload at least one image (cover or thumbnail) to represent your package'); 
-       return 
+     if (!form.cover_image_url) {
+       toast.error('Please upload a package poster image')
+       return
      }
      
      setSaving(true)
      try {
        const payload = {
-         ...form,
-         slug:  form.slug || form.title.toLowerCase()
-           .replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-         price: parseFloat(form.price) || 0,
+         cover_image_url: form.cover_image_url,
+         is_published: form.is_published,
+         is_featured: form.is_featured,
        }
        if (editing) {
          await packagesAPI.update(editing.id, payload)
@@ -1589,29 +1586,16 @@ export default function Packages() {
                  visual displayed to users.
                </p>
              </div>
-             <ModalGrid>
-               <ImageUpload
-                 label="Cover Image (Recommended)"
-                 value={form.cover_image_url}
-                 onChange={v => upd('cover_image_url', v)}
-                 folder="packages"
-               />
-               <ImageUpload
-                 label="Thumbnail Image"
-                 value={form.thumbnail_url}
-                 onChange={v => upd('thumbnail_url', v)}
-                 folder="packages"
-               />
-             </ModalGrid>
-             <div className="input-group">
-               <label className="input-label">Video URL (Optional)</label>
-               <input className="input" value={form.video_url}
-                 onChange={e => upd('video_url', e.target.value)}
-                 placeholder="YouTube or Vimeo URL" />
-             </div>
+             <ImageUpload
+               label="Package Poster Image"
+               value={form.cover_image_url}
+               onChange={v => upd('cover_image_url', v)}
+               folder="packages"
+             />
            </Section>
 
            {/* Basic Info */}
+           {false && (
            <Section id="basic" title="Basic Information"
              icon={Package} open={openSecs.basic} onToggle={toggleSec}>
              <ModalGrid>
@@ -1665,7 +1649,9 @@ export default function Packages() {
                  placeholder="Detailed description (HTML supported)…" />
              </div>
            </Section>
+           )}
 
+          {false && (<>
           {/* Package Details */}
           <Section id="pkgdetails" title="Package Details"
             icon={FileText} open={openSecs.pkgdetails} onToggle={toggleSec}>
@@ -1793,6 +1779,7 @@ export default function Packages() {
               ))}
             </div>
           </Section>
+          </>)}
 
         </div>
       </Modal>

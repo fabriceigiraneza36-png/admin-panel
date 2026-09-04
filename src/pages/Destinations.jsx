@@ -1201,7 +1201,7 @@ export default function Destinations() {
            </div>
 
            <p className="text-center text-gray-500 py-8">
-             Add images, videos, and virtual tours supplied for this destination.
+             Add images & videos supplied for this destination.
            </p>
 
            {/* Gallery */}

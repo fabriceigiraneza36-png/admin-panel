@@ -849,6 +849,19 @@ export default function Countries() {
   /* ── Form helpers ─────────────────────────────────────────────────── */
 
   const buildForm = (c) => ({
+    ...(() => {
+      let heroImages = c.hero_images
+      if (typeof heroImages === 'string') {
+        try { heroImages = JSON.parse(heroImages) } catch { heroImages = [] }
+      }
+      if (!Array.isArray(heroImages)) heroImages = []
+      return {
+        gallery: heroImages.map(image => ({
+          url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
+          caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
+        })).filter(image => image.url),
+      }
+    })(),
     name: c.name || '', slug: c.slug || '', official_name: c.official_name || '',
     capital: c.capital || '', flag: c.flag || '', flag_url: c.flag_url || '',
     continent: c.continent || '', region: c.region || '', sub_region: c.sub_region || '',
@@ -861,8 +874,7 @@ export default function Countries() {
     official_languages: c.official_languages || [], highlights: c.highlights || [],
     experiences: c.experiences || [], travel_tips: c.travel_tips || [],
 image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
-     gallery: c.gallery || [],
-   hero_image: c.hero_image || '',
+    hero_image: c.hero_image || '',
      latitude: c.latitude || '', longitude: c.longitude || '',
      is_featured: !!c.is_featured, is_active: c.is_active !== false,
   })
@@ -920,10 +932,13 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
     try {
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).map(image => ({
+        hero_images: [
+          ...(form.gallery || []).map(image => ({
           url: image.url || image.imageUrl,
           caption: image.caption || '',
-        })).filter(image => image.url),
+          })).filter(image => image.url),
+          ...(form.hero_image ? [{ url: form.hero_image, caption: 'Hero Image' }] : []),
+        ],
         population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
         latitude:   form.latitude   ? Number(form.latitude)   : null,
@@ -1312,6 +1327,15 @@ image_url: c.image_url || '', cover_image_url: c.cover_image_url || '',
               fieldKey="cover_image_url"
               value={form.cover_image_url}
               onChange={v => upd('cover_image_url', v)}
+              folder="countries"
+              allImages={allImgs}
+              onLightbox={openLightbox}
+            />
+            <ImageManagerPanel
+              label="Hero Image"
+              fieldKey="hero_image"
+              value={form.hero_image}
+              onChange={v => upd('hero_image', v)}
               folder="countries"
               allImages={allImgs}
               onLightbox={openLightbox}
