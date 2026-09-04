@@ -287,6 +287,8 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 }
 
 /* ─── Gallery Manager ────────────────────────────────────────────────────── */
+const MAX_DESTINATION_IMAGES = 10
+
 function GalleryManager({ gallery=[], onChange, onLightbox }) {
   const [mode,setMode]           = useState('url')
   const [urlInput,setUrlInput]   = useState('')
@@ -307,12 +309,12 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
 
   const importImage = (item) => {
     const url = item.image_url || item.url || item.imageUrl
-    if (!url || gallery.some(image => (image.url || image.imageUrl) === url)) return
+    if (!url || gallery.length >= MAX_DESTINATION_IMAGES || gallery.some(image => (image.url || image.imageUrl) === url)) return
     onChange([...gallery, { url, caption: item.title || item.description || '', is_primary: gallery.length === 0, sort_order: gallery.length, source: 'gallery' }])
   }
 
   const addUrl = () => {
-    if(!urlInput.trim()) return
+    if(!urlInput.trim() || gallery.length >= MAX_DESTINATION_IMAGES) return
     if(!isValidUrl(urlInput.trim())){setUrlValid(false);return}
     setUrlValid(true)
     const isPrimary = gallery.length===0
@@ -320,7 +322,7 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
     setUrlInput(''); setCaption('')
   }
   const addUpload = () => {
-    if(!uploaded) return
+    if(!uploaded || gallery.length >= MAX_DESTINATION_IMAGES) return
     const isPrimary = gallery.length===0
     onChange([...gallery,{url:uploaded,caption:caption.trim(),is_primary:isPrimary,sort_order:gallery.length,source:'upload'}])
     setUploaded(''); setCaption('')
@@ -335,7 +337,7 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-xs font-bold text-gray-600 uppercase tracking-wider">
-          <Camera size={11} className="text-emerald-500"/> Gallery ({gallery.length} photos)
+          <Camera size={11} className="text-emerald-500"/> Gallery ({gallery.length}/{MAX_DESTINATION_IMAGES} photos)
         </p>
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
           {[['url',Link,'URL'],['upload',Upload,'Upload']].map(([m,Icon,lbl])=>(
@@ -437,10 +439,13 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
           value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
         <button type="button"
           onClick={mode==='url'?addUrl:addUpload}
-          disabled={mode==='url'?!urlInput.trim():!uploaded}
+          disabled={gallery.length >= MAX_DESTINATION_IMAGES || (mode==='url'?!urlInput.trim():!uploaded)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
           <Plus size={14}/> Add to Gallery
         </button>
+        {gallery.length >= MAX_DESTINATION_IMAGES && (
+          <p className="text-xs font-semibold text-amber-600">Maximum of {MAX_DESTINATION_IMAGES} destination images reached.</p>
+        )}
       </div>
 
       {gallery.length===0&&(

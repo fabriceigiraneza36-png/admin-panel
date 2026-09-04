@@ -338,6 +338,8 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 
 /* ─── Gallery Manager ────────────────────────────────────────────────────────── */
 
+const MAX_COUNTRY_IMAGES = 10
+
 function GalleryManager({ gallery = [], onChange, onLightbox }) {
   const [addMode, setAddMode] = useState('upload')
   const [urlInput, setUrlInput] = useState('')
@@ -361,12 +363,12 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
 
   const importImage = (item) => {
     const url = item.image_url || item.url || item.imageUrl
-    if (!url || gallery.some(image => image.url === url)) return
+    if (!url || gallery.length >= MAX_COUNTRY_IMAGES || gallery.some(image => image.url === url)) return
     onChange([...gallery, { url, caption: item.title || item.description || '', source: 'gallery' }])
   }
 
   const addFromUrl = () => {
-    if (!urlInput.trim()) return
+    if (!urlInput.trim() || gallery.length >= MAX_COUNTRY_IMAGES) return
     if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
     setUrlValid(true)
     onChange([...gallery, { url: urlInput.trim(), caption: captionInput.trim(), source: 'url' }])
@@ -374,7 +376,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
   }
 
   const addFromUpload = () => {
-    if (!uploadedUrl) return
+    if (!uploadedUrl || gallery.length >= MAX_COUNTRY_IMAGES) return
     onChange([...gallery, { url: uploadedUrl, caption: captionInput.trim(), source: 'upload' }])
     setUploadedUrl(''); setCaptionInput('')
   }
@@ -392,7 +394,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
             <Camera size={14} className="text-emerald-500" /> Photo Gallery
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photo{gallery.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length}/{MAX_COUNTRY_IMAGES} photos</p>
         </div>
         <button type="button" onClick={() => setShowLibrary(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
@@ -542,10 +544,13 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
 
         <button type="button"
           onClick={addMode === 'url' ? addFromUrl : addFromUpload}
-          disabled={addMode === 'url' ? !urlInput.trim() : !uploadedUrl}
+          disabled={gallery.length >= MAX_COUNTRY_IMAGES || (addMode === 'url' ? !urlInput.trim() : !uploadedUrl)}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
           <Plus size={14} /> Add to Gallery
         </button>
+        {gallery.length >= MAX_COUNTRY_IMAGES && (
+          <p className="text-xs font-semibold text-amber-600">Maximum of {MAX_COUNTRY_IMAGES} country images reached.</p>
+        )}
       </div>
 
       {gallery.length === 0 && (

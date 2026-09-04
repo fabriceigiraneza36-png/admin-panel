@@ -872,9 +872,12 @@ export default function Bookings() {
     {
       key: 'destination_name', label: 'Destination',
       render: (v, r) => (
-        <span className="text-sm text-slate-600">
-          {v || r.service_name || r.package_name || '—'}
-        </span>
+        <div className="min-w-0">
+          <span className="text-sm text-slate-600 block truncate">
+            {v || r.service_name || r.package_name || '—'}
+          </span>
+          {r.attraction_name && <span className="text-xs text-emerald-700 block truncate">Attraction: {r.attraction_name}</span>}
+        </div>
       ),
     },
     {
@@ -1413,6 +1416,7 @@ export default function Bookings() {
                   <InfoItem label="Children"      value={selected.number_of_children} />
                   <InfoItem label="Accommodation" value={selected.accommodation_type} />
                   <InfoItem label="Destination"   value={selected.destination_name} />
+                  <InfoItem label="Booked Attraction" value={selected.attraction_name} />
                   <InfoItem label="Country"       value={selected.country_name} />
                   <InfoItem label="Service"       value={selected.service_name} />
                   <InfoItem label="Package"       value={selected.package_name} />
