@@ -41,6 +41,7 @@ export const destinationsAPI = {
   getImages:      (id) => apiClient.get(`${BASE}/${id}/images`),
   addImages:      (id, formData) => apiClient.post(`${BASE}/${id}/images`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60_000, // 60 seconds for uploads
   }),
   updateImage:    (id, imageId, data) => apiClient.put(`${BASE}/${id}/images/${imageId}`, data),
   removeImage:    (id, imageId) => apiClient.delete(`${BASE}/${id}/images/${imageId}`),

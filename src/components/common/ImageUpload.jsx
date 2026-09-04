@@ -42,6 +42,7 @@ export default function ImageUpload({
 
       const { data } = await apiClient.post('/uploads/image', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120_000,
       })
 
       const url = data.data?.url || data.url || data.secure_url
