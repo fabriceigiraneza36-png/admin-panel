@@ -24,6 +24,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "@context/NotificationContext";
 import { usePush } from "@context/PushNotificationContext";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
+import { getNotificationTarget } from "@utils/notificationTarget";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 
@@ -70,13 +71,22 @@ function TypePill({ type }) {
 const NotificationRow = React.memo(function NotificationRow({
   notif, busy, onMarkRead, onDelete,
 }) {
+  const target = getNotificationTarget(notif);
+  const openTarget = () => {
+    if (!notif.is_read) onMarkRead(notif.id)
+    if (target) window.location.href = target;
+  };
   return (
     <div
+      onClick={openTarget}
+      role={target ? "link" : undefined}
+      tabIndex={target ? 0 : undefined}
+      onKeyDown={(event) => event.key === "Enter" && openTarget()}
       className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border transition-colors
         ${notif.is_read
           ? "bg-white border-slate-200"
           : "bg-blue-50/60 border-blue-200"
-        }`}
+        } ${target ? "cursor-pointer hover:shadow-sm" : ""}`}
     >
       {/* Read/unread dot */}
       <div className="mt-1.5 flex-shrink-0">

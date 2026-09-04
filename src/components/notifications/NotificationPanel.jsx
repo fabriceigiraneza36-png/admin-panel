@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNotifications } from "../../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
+import { getNotificationTarget } from "../../utils/notificationTarget";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
     if (!notif.is_read && notifId && typeof onMarkRead === "function") {
       onMarkRead(notifId);
     }
-    const redirectUrl = notif.link || notif.url;
+    const redirectUrl = getNotificationTarget(notif);
     if (redirectUrl) {
       // Standard fallback redirection (SPA routers can hook into this easily)
       window.location.href = redirectUrl;

@@ -11,6 +11,7 @@ import {
   MessageSquare, RefreshCw, Search, Plus, User, ChevronDown, Circle, Trash2,
   AlertTriangle, ShieldCheck, Clock, BookingIcon
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
 import { useSocket } from '@context/SocketContext'
 import { API_BASE }  from '@utils/constants'
@@ -601,6 +602,8 @@ function NewChatModal({ onClose, onCreated }) {
 /* ─── Main Messages Component ──────────────────────────────────────────────── */
 
 export default function Messages() {
+    const [searchParams] = useSearchParams()
+    const requestedConversationId = searchParams.get('conversationId')
   const { user } = useAuth()
   const { connected, on, off, emit } = useSocket()
   const toast = useToast()
@@ -708,6 +711,12 @@ export default function Messages() {
       setLoadingMsgs(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (requestedConversationId && conversations.some(c => String(c.id) === String(requestedConversationId))) {
+      openConversation(requestedConversationId)
+    }
+  }, [requestedConversationId, conversations, openConversation])
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current

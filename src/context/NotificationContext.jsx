@@ -310,6 +310,25 @@ export function NotificationProvider({ children }) {
       if (mountedRef.current) setUnreadCount(count ?? 0);
     };
 
+    const onMessage = (payload = {}) => {
+      const message = payload.message || {};
+      const conversationId = payload.conversationId || message.conversationId;
+      if (!conversationId || !mountedRef.current) return;
+      const notification = {
+        id: `message-${message.id || conversationId}`,
+        type: "message_new",
+        category: "message",
+        title: `New message from ${payload.senderName || message.senderName || "User"}`,
+        message: message.body || "A new conversation message arrived.",
+        action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      };
+      setNotifications((prev) => [notification, ...prev.filter((n) => n.id !== notification.id)]);
+      setUnreadCount((count) => count + 1);
+      setTotal((count) => count + 1);
+    };
+
     const onUserReplied = ({ notificationId, replyText }) => {
       if (!mountedRef.current) return;
       setNotifications((prev) =>
@@ -323,12 +342,14 @@ export function NotificationProvider({ children }) {
     socketOn("notification:updated",      onUpdated);
     socketOn("notification:unread-count", onUnreadCount);
     socketOn("notification:user-replied", onUserReplied);
+    socketOn("msg:new-from-user", onMessage);
 
     return () => {
       socketOff("notification:new",          onNew);
       socketOff("notification:updated",      onUpdated);
       socketOff("notification:unread-count", onUnreadCount);
       socketOff("notification:user-replied", onUserReplied);
+      socketOff("msg:new-from-user", onMessage);
     };
   }, [socketOn, socketOff]);
 

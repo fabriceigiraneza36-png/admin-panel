@@ -4,6 +4,12 @@ import { Upload, X, Image, Link2, Loader2, CheckCircle, Replace, Check, ImageOff
 import { motion, AnimatePresence } from 'framer-motion'
 import apiClient from '@api/client'
 
+const isSafeImageUrl = (value) => {
+  if (typeof value !== 'string' || !value.trim()) return false
+  if (value.trim().startsWith('/')) return value.trim().startsWith('/uploads/') || value.trim().startsWith('/media/')
+  try { return ['http:', 'https:'].includes(new URL(value.trim()).protocol) } catch { return false }
+}
+
 export default function ImageUpload({
   value,
   onChange,
@@ -62,10 +68,12 @@ export default function ImageUpload({
   })
 
   const handleUrlSubmit = () => {
-    if (urlInput.trim()) {
+    if (isSafeImageUrl(urlInput)) {
       onChange(urlInput.trim())
       setUrlInput('')
       setMode('upload')
+    } else {
+      setError('Use an http(s) image link or an uploaded media path')
     }
   }
 
@@ -77,6 +85,10 @@ export default function ImageUpload({
   }
 
   const saveLink = () => {
+    if (!isSafeImageUrl(linkDraft)) {
+      setError('Use an http(s) image link or an uploaded media path')
+      return
+    }
     onChange((linkDraft || '').trim())
     setEditingLink(false)
     setError('')

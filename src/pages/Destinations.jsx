@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { destinationsAPI } from '@api/destinations'
 import { countriesAPI }    from '@api/countries'
+import { galleryAPI }      from '@api/gallery'
 import Table               from '@components/common/Table'
 import Pagination          from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
@@ -110,7 +111,9 @@ const STEP_IDS = STEPS.map(s => s.id)
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
 const isValidUrl = (str) => {
-  try { new URL(str); return true } catch { return false }
+  if (typeof str !== 'string' || !str.trim()) return false
+  if (str.startsWith('/')) return str.startsWith('/uploads/') || str.startsWith('/media/')
+  try { return ['http:', 'https:'].includes(new URL(str).protocol) } catch { return false }
 }
 
 const toSlug = (str = '') =>
@@ -291,6 +294,21 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
   const [uploaded,setUploaded]   = useState('')
   const [editIdx,setEditIdx]     = useState(null)
   const [editCap,setEditCap]     = useState('')
+  const [library,setLibrary]     = useState([])
+  const [showLibrary,setShowLibrary] = useState(false)
+
+  useEffect(() => {
+    if (!showLibrary || library.length) return
+    galleryAPI.getAll({ limit: 100 }).then(({ data }) => {
+      setLibrary(data.data || data.gallery || [])
+    }).catch(() => setLibrary([]))
+  }, [showLibrary, library.length])
+
+  const importImage = (item) => {
+    const url = item.image_url || item.url || item.imageUrl
+    if (!url || gallery.some(image => (image.url || image.imageUrl) === url)) return
+    onChange([...gallery, { url, caption: item.title || item.description || '', is_primary: gallery.length === 0, sort_order: gallery.length, source: 'gallery' }])
+  }
 
   const addUrl = () => {
     if(!urlInput.trim()) return
@@ -327,6 +345,24 @@ function GalleryManager({ gallery=[], onChange, onLightbox }) {
           ))}
         </div>
       </div>
+
+      <div className="flex justify-end">
+        <button type="button" onClick={()=>setShowLibrary(value=>!value)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50">
+          <Image size={13}/> {showLibrary ? 'Hide gallery library' : 'Import from gallery'}
+        </button>
+      </div>
+      {showLibrary&&(
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
+          {library.map(item=>{
+            const url=item.image_url||item.url||item.imageUrl
+            return <button key={item.id||url} type="button" onClick={()=>importImage(item)} className="aspect-[4/3] overflow-hidden rounded-lg border border-white bg-white hover:border-emerald-400">
+              <img src={url} alt={item.title||'Gallery image'} className="w-full h-full object-cover"/>
+            </button>
+          })}
+          {!library.length&&<p className="col-span-full text-xs text-gray-500 py-3 text-center">No gallery images available.</p>}
+        </div>
+      )}
 
       {gallery.length>0&&(
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
