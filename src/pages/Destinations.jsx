@@ -1058,6 +1058,7 @@ export default function Destinations() {
         ...(filterCategory   && { category: filterCategory }),
         ...(filterDifficulty && { difficulty: filterDifficulty }),
         ...(filterFeatured   && { is_featured: filterFeatured === 'true' }),
+        include: 'gallery' // Request gallery data to include rich image information
       }
       const { data } = await destinationsAPI.getAll(params)
       setDestinations(data.data || data.destinations || [])
