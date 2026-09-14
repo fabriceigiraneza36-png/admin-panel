@@ -294,18 +294,58 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
   const isFull = remaining <= 0
   const nextSlot = gallery.length  // index of next empty slot
 
-  const addUrl = () => {
-    if(!urlInput.trim() || isFull) return
-    if(!isValidUrl(urlInput.trim())){setUrlValid(false);return}
-    setUrlValid(true)
-    onChange([...gallery,{url:urlInput.trim(),caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'url'}])
-    setUrlInput(''); setCaption(''); setActiveSlot(null)
-  }
-  const addUpload = () => {
-    if(!uploaded || isFull) return
-    onChange([...gallery,{url:uploaded,caption:caption.trim(),is_primary:gallery.length===0,sort_order:gallery.length,source:'upload'}])
-    setUploaded(''); setCaption(''); setActiveSlot(null)
-  }
+const addUrl = () => {
+     const url = urlInput.trim()
+     if (!url || isFull) return
+     if (!isValidUrl(url)) { setUrlValid(false); return }
+     setUrlValid(true)
+     
+     // Check for duplicate URL in the current gallery
+     const isDuplicate = gallery.some(image => image.url === url)
+     if (isDuplicate) {
+       // Ignore duplicate
+       setUrlInput(''); setCaption(''); setActiveSlot(null)
+       return
+     }
+     
+     // Create new gallery array with all existing images having is_primary: false
+     const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
+     // Add the new image as primary
+     newGallery.push({
+       url,
+       caption: caption.trim(),
+       is_primary: true,
+       sort_order: newGallery.length,
+       source: 'url'
+     })
+     
+     onChange(newGallery)
+     setUrlInput(''); setCaption(''); setActiveSlot(null)
+   }
+const addUpload = () => {
+     if (!uploaded || isFull) return
+     
+     // Check for duplicate URL in the current gallery
+     const isDuplicate = gallery.some(image => image.url === uploaded)
+     if (isDuplicate) {
+       setUploaded(''); setCaption(''); setActiveSlot(null)
+       return
+     }
+     
+     // Create new gallery array with all existing images having is_primary: false
+     const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
+     // Add the new image as primary
+     newGallery.push({
+       url: uploaded,
+       caption: caption.trim(),
+       is_primary: true,
+       sort_order: newGallery.length,
+       source: 'upload'
+     })
+     
+     onChange(newGallery)
+     setUploaded(''); setCaption(''); setActiveSlot(null)
+   }
   const remove     = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
   const moveUp     = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
   const moveDown   = (i) => { if(i===gallery.length-1) return; const g=[...gallery];[g[i],g[i+1]]=[g[i+1],g[i]];onChange(g) }
