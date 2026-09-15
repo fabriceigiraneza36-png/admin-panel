@@ -289,16 +289,19 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
   const [editIdx,setEditIdx]     = useState(null)
   const [editCap,setEditCap]     = useState('')
   const [activeSlot,setActiveSlot] = useState(null)  // which placeholder is being filled
+    const [isAdding, setIsAdding] = useState(false);
 
   const remaining = MAX_GALLERY_IMAGES - gallery.length
   const isFull = remaining <= 0
   const nextSlot = gallery.length  // index of next empty slot
 
 const addUrl = () => {
-     const url = urlInput.trim()
-     if (!url || isFull) return
-     if (!isValidUrl(url)) { setUrlValid(false); return }
-     setUrlValid(true)
+      if (isAdding) return;
+      setIsAdding(true);
+      const url = urlInput.trim()
+      if (!url || isFull) return
+      if (!isValidUrl(url)) { setUrlValid(false); return }
+      setUrlValid(true)
      
      // Check for duplicate URL in the current gallery
      const isDuplicate = gallery.some(image => image.url === url)
@@ -323,7 +326,9 @@ const addUrl = () => {
      setUrlInput(''); setCaption(''); setActiveSlot(null)
    }
 const addUpload = () => {
-     if (!uploaded || isFull) return
+      if (isAdding) return;
+      setIsAdding(true);
+      if (!uploaded || isFull) return
      
      // Check for duplicate URL in the current gallery
      const isDuplicate = gallery.some(image => image.url === uploaded)
@@ -561,10 +566,10 @@ const addUpload = () => {
                 <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
                   value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Caption (optional)"/>
 
-                <button type="button"
-                  onClick={mode==='url'?addUrl:addUpload}
-                  disabled={mode==='url'?!urlInput.trim():!uploaded}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
+<button type="button"
+                   onClick={mode==='url'?addUrl:addUpload}
+                   disabled={mode==='url'?!urlInput.trim():!uploaded || isAdding}
+                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
                   <Plus size={14}/> Add to Slot #{activeSlot+1}
                 </button>
               </div>
@@ -590,6 +595,11 @@ const addUpload = () => {
       </div>
     </div>
   )
+  useEffect(() => {
+    if (isAdding) {
+      setIsAdding(false);
+    }
+  }, [gallery]);
 }
 
 /* ─── LibraryImportPanel (from central gallery — unlimited) ──────────────── */
