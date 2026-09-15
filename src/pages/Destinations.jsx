@@ -299,58 +299,72 @@ const addUrl = () => {
       if (isAdding) return;
       setIsAdding(true);
       const url = urlInput.trim()
-      if (!url || isFull) return
-      if (!isValidUrl(url)) { setUrlValid(false); return }
+      if (!url || isFull) {
+        setIsAdding(false);
+        return
+      }
+      if (!isValidUrl(url)) { 
+        setUrlValid(false);
+        setIsAdding(false);
+        return 
+      }
       setUrlValid(true)
-     
-     // Check for duplicate URL in the current gallery
-     const isDuplicate = gallery.some(image => image.url === url)
-     if (isDuplicate) {
-       // Ignore duplicate
-       setUrlInput(''); setCaption(''); setActiveSlot(null)
-       return
-     }
-     
-     // Create new gallery array with all existing images having is_primary: false
-     const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
-     // Add the new image as primary
-     newGallery.push({
-       url,
-       caption: caption.trim(),
-       is_primary: true,
-       sort_order: newGallery.length,
-       source: 'url'
-     })
-     
-     onChange(newGallery)
-     setUrlInput(''); setCaption(''); setActiveSlot(null)
-   }
+      
+      // Check for duplicate URL in the current gallery
+      const isDuplicate = gallery.some(image => image.url === url)
+      if (isDuplicate) {
+        // Ignore duplicate
+        setUrlInput(''); setCaption(''); setActiveSlot(null)
+        setIsAdding(false);
+        return
+      }
+      
+      // Create new gallery array with all existing images having is_primary: false
+      const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
+      // Add the new image as primary
+      newGallery.push({
+        url,
+        caption: caption.trim(),
+        is_primary: true,
+        sort_order: newGallery.length,
+        source: 'url'
+      })
+      
+      onChange(newGallery)
+      setUrlInput(''); setCaption(''); setActiveSlot(null)
+      setIsAdding(false);
+    }
 const addUpload = () => {
       if (isAdding) return;
       setIsAdding(true);
-      if (!uploaded || isFull) return
-     
-     // Check for duplicate URL in the current gallery
-     const isDuplicate = gallery.some(image => image.url === uploaded)
-     if (isDuplicate) {
-       setUploaded(''); setCaption(''); setActiveSlot(null)
-       return
-     }
-     
-     // Create new gallery array with all existing images having is_primary: false
-     const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
-     // Add the new image as primary
-     newGallery.push({
-       url: uploaded,
-       caption: caption.trim(),
-       is_primary: true,
-       sort_order: newGallery.length,
-       source: 'upload'
-     })
-     
-     onChange(newGallery)
-     setUploaded(''); setCaption(''); setActiveSlot(null)
-   }
+      if (!uploaded || isFull) {
+        setIsAdding(false);
+        return
+      }
+      
+      // Check for duplicate URL in the current gallery
+      const isDuplicate = gallery.some(image => image.url === uploaded)
+      if (isDuplicate) {
+        setUploaded(''); setCaption(''); setActiveSlot(null)
+        setIsAdding(false);
+        return
+      }
+      
+      // Create new gallery array with all existing images having is_primary: false
+      const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
+      // Add the new image as primary
+      newGallery.push({
+        url: uploaded,
+        caption: caption.trim(),
+        is_primary: true,
+        sort_order: newGallery.length,
+        source: 'upload'
+      })
+      
+      onChange(newGallery)
+      setUploaded(''); setCaption(''); setActiveSlot(null)
+      setIsAdding(false);
+    }
   const remove     = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
   const moveUp     = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
   const moveDown   = (i) => { if(i===gallery.length-1) return; const g=[...gallery];[g[i],g[i+1]]=[g[i+1],g[i]];onChange(g) }
@@ -588,18 +602,13 @@ const addUpload = () => {
         )}
 
         {gallery.length === 0 && activeSlot === null && (
-          <p className="text-center text-xs text-emerald-600 py-1 font-medium">
-            👆 Click on <span className="font-bold">Slot #1</span> to add your first photo
-          </p>
-        )}
-      </div>
-    </div>
-  )
-  useEffect(() => {
-    if (isAdding) {
-      setIsAdding(false);
-    }
-  }, [gallery]);
+<p className="text-center text-xs text-emerald-600 py-1 font-medium">
+             👆 Click on <span className="font-bold">Slot #1</span> to add your first photo
+           </p>
+         )}
+       </div>
+     </div>
+   );
 }
 
 /* ─── LibraryImportPanel (from central gallery — unlimited) ──────────────── */
@@ -1124,37 +1133,38 @@ export default function Destinations() {
   useEffect(() => { load() }, [load])
 
   /* ── Normalise gallery from API — split gallery vs library ───────── */
-  const normaliseGalleries = (dest) => {
-    const raw = dest.gallery || []
-    const gallery = []
-    const library_images = []
+const normaliseGalleries = (dest) => {
+  const raw = dest.gallery || []
+  const gallery = []
+  const library_images = []
 
-    if (!raw.length) {
-      // Fallback: images array becomes gallery
-      const images = (dest.images || []).map((url, i) => ({
-        url, caption: '', is_primary: i === 0, sort_order: i, source: 'url',
-      }))
-      return { gallery: images, library_images: [] }
-    }
-
-    raw.forEach((g, i) => {
-      const url = g.imageUrl || g.url || ''
-      if (!url) return
-      const entry = {
-        url,
-        caption:    g.caption  || '',
-        is_primary: g.isPrimary ?? g.is_primary ?? false,
-        sort_order: g.sortOrder ?? g.sort_order ?? i,
-        library_id: g.libraryId ?? g.library_id ?? null,
-        source:     g.source || (g.libraryId || g.library_id ? 'library' : 'url'),
-      }
-      if (entry.source === 'library') library_images.push(entry)
-      else gallery.push(entry)
-    })
-
-    gallery.sort((a, b) => a.sort_order - b.sort_order)
-    return { gallery: gallery.slice(0, MAX_GALLERY_IMAGES), library_images }
+  if (!raw.length) {
+    // Fallback: images array becomes gallery
+    const images = (dest.images || []).map((url, i) => ({
+      url, caption: '', is_primary: i === 0, sort_order: i, source: 'url',
+    }))
+    return { gallery: images, library_images: [] }
   }
+
+  raw.forEach((g, i) => {
+    const url = g.imageUrl || g.url || ''
+    if (!url) return
+    const entry = {
+      id: g.id, // Preserve the ID from the backend
+      url,
+      caption:    g.caption  || '',
+      is_primary: g.isPrimary ?? g.is_primary ?? false,
+      sort_order: g.sortOrder ?? g.sort_order ?? i,
+      library_id: g.libraryId ?? g.library_id ?? null,
+      source:     g.source || (g.libraryId || g.library_id ? 'library' : 'url'),
+    }
+    if (entry.source === 'library') library_images.push(entry)
+    else gallery.push(entry)
+  })
+
+  gallery.sort((a, b) => a.sort_order - b.sort_order)
+  return { gallery: gallery.slice(0, MAX_GALLERY_IMAGES), library_images }
+}
 
   const normaliseTips = (dest) => {
     if (Array.isArray(dest.local_tips)) return dest.local_tips
@@ -1307,22 +1317,25 @@ export default function Destinations() {
         setCelebrationMsg(`"${form.name}" created successfully!`)
       }
 
-      // Merge gallery + library images for saving
-      const allNewImages = [
-        ...(gallery || []).filter(image => !image.id && image.url).map(image => ({
-          url: image.url,
-          caption: image.caption,
-          is_primary: image.is_primary,
-          sort_order: image.sort_order,
-          source: image.source,
-        })),
-        ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
-          url: image.url,
-          caption: image.caption,
-          library_id: image.library_id,
-          source: 'library',
-        })),
-      ]
+// Merge gallery + library images for saving
+// Only send images without ID (new images) to be created via addImages endpoint
+// Images with ID are existing images - to modify existing images, 
+// use the dedicated image management endpoints (not implemented in this form)
+const allNewImages = [
+  ...(gallery || []).filter(image => !image.id && image.url).map(image => ({
+    url: image.url,
+    caption: image.caption,
+    is_primary: image.is_primary,
+    sort_order: image.sort_order,
+    source: image.source,
+  })),
+  ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
+    url: image.url,
+    caption: image.caption,
+    library_id: image.library_id,
+    source: 'library',
+  })),
+]
 
       if (savedDestination?.id && allNewImages.length) {
         const formData = new FormData()
