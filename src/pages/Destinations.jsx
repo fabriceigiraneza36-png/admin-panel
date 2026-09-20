@@ -1335,14 +1335,21 @@ const allNewImages = [
     library_id: image.library_id,
     source: 'library',
   })),
-]
+];
+// Deduplicate by URL to avoid sending the same image multiple times in the same request
+const seenUrls = new Set()
+const uniqueNewImages = allNewImages.filter(img => {
+  if (seenUrls.has(img.url)) return false
+  seenUrls.add(img.url)
+  return true
+})
 
-      if (savedDestination?.id && allNewImages.length) {
-        const formData = new FormData()
-        formData.append('image_urls', JSON.stringify(allNewImages.map(image => image.url)))
-        formData.append('image_meta', JSON.stringify(allNewImages))
-        await destinationsAPI.addImages(savedDestination.id, formData)
-      }
+if (savedDestination?.id && uniqueNewImages.length) {
+  const formData = new FormData()
+  formData.append('image_urls', JSON.stringify(uniqueNewImages.map(image => image.url)))
+  formData.append('image_meta', JSON.stringify(uniqueNewImages))
+  await destinationsAPI.addImages(savedDestination.id, formData)
+}
 
       if (savedDestination?.id) {
         await Promise.all((itinerary || []).filter(item => item.title?.trim()).map(item => {
