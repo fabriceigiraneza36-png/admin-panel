@@ -440,7 +440,7 @@ export default function UsersPage() {
   /* ─── Render ───────────────────────────────────────────────────────────── */
 
   return (
-    <div className="space-y-5 page-enter">
+    <div className="admin-page premium-page space-y-5 page-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
