@@ -120,7 +120,7 @@ function PageBreadcrumb({ view, booking, onBack }) {
 
 function SectionCard({ title, icon: Icon, children, className = '' }) {
   return (
-    <div className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-[0_12px_35px_rgba(15,23,42,.055)] overflow-hidden transition-all duration-200 hover:border-emerald-200/70 ${className}`}>
       {title && (
         <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-slate-50/60">
           {Icon && <Icon size={16} className="text-emerald-600" />}
@@ -1291,8 +1291,8 @@ export default function Bookings() {
           </div>
 
           {/* Filters */}
-          <div className="card p-4">
-            <FilterBar>
+          <div className="management-filter-panel card p-4">
+            <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Booking workspace</p><p className="text-xs text-slate-400">Find requests quickly and keep operational work moving</p></div><span className="badge badge-green">{pag.total.toLocaleString()} total</span></div><FilterBar>
               <SearchBar value={search} onChange={setSearch}
                 placeholder="Search by name, email, booking #…" className="max-w-sm" />
               <FilterSelect label="Status" value={status}
@@ -1311,7 +1311,8 @@ export default function Bookings() {
           </div>
 
           {/* Table */}
-          <div className="card">
+          <div className="management-table-shell card">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between"><div><p className="text-sm font-bold text-slate-800">Booking queue</p><p className="text-xs text-slate-400 hidden sm:block">Select rows for bulk operational actions</p></div><span className="text-xs font-semibold text-slate-400">{loading ? "Updating…" : `${items.length} shown`}</span></div>
             {!!selectedIds.size && (
               <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/80">
                 <BulkActionsToolbar
