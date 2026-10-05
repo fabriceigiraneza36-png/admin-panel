@@ -153,7 +153,10 @@ export function NotificationProvider({ children }) {
 
   /* ── Convenience ── */
   const refresh = useCallback(
-    () => { failsRef.current = 0; fetchNotifications(1); },
+    () => {
+      failsRef.current = 0;
+      return fetchNotifications(1);
+    },
     [fetchNotifications],
   );
 
