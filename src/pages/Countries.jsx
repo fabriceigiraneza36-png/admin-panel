@@ -1400,8 +1400,8 @@ export default function Countries() {
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <FilterBar>
+      <div className="management-filter-panel card p-4">
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p><p className="text-xs text-slate-400">Keep travel information, media and practical guidance organized</p></div><span className="badge badge-green">{pag.total.toLocaleString()} countries</span></div><FilterBar>
           <SearchBar value={search} onChange={setSearch} placeholder="Search countries…" className="max-w-sm" />
           <FilterSelect label="Continent" value={continent}
             onChange={v => { setContinent(v); pag.reset() }}
@@ -1413,7 +1413,8 @@ export default function Countries() {
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="management-table-shell card">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">Country inventory</p><p className="text-xs text-slate-400 hidden sm:block">Open a country for media, travel information and publishing controls</p></div><span className="text-xs font-semibold text-slate-400">{loading ? "Loading…" : `${countries.length} shown`}</span></div>
         <Table
           columns={columns} data={countries} loading={loading}
           sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
