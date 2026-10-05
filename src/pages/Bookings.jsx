@@ -918,6 +918,10 @@ export default function Bookings() {
         : <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">⏳ Pending</span>,
     },
     {
+      key: 'itinerary_status', label: 'Itinerary',
+      render: v => <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">{String(v || 'not_started').replace('_',' ')}</span>,
+    },
+    {
       key: 'created_at', label: 'Created', sortable: true,
       render: v => <span className="text-sm text-slate-500">{formatTimeAgo(v)}</span>,
     },
