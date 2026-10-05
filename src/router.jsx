@@ -38,6 +38,7 @@ import Broadcast     from '@pages/Broadcast'
 import MessagesPage  from '@pages/Messages'
 import LikesPage     from '@pages/Likes'
 import Maintenance   from '@pages/Maintenance'
+import ItineraryBuilder from '@pages/ItineraryBuilder'
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
@@ -202,6 +203,10 @@ const router = createBrowserRouter(
                 {
                     path:    'bookings',
                     element: <Page title="Bookings"><Bookings /></Page>,
+                },
+                {
+                    path:    'itineraries/:bookingId',
+                    element: <Page title="Itinerary Builder"><ItineraryBuilder /></Page>,
                 },
                 {
                     path:    'packages',
