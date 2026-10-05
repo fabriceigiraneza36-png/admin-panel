@@ -124,9 +124,22 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
         <p className="mt-0.5 text-[10px] text-gray-400">
           {formatDate(notif.created_at || notif.createdAt)}
         </p>
+        {getNotificationTarget(notif) && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!notif.is_read && notifId && typeof onMarkRead === "function") onMarkRead(notifId);
+              window.location.href = getNotificationTarget(notif);
+            }}
+            className="mt-2 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {notif.action_label || "Open related page"} →
+          </button>
+        )}
       </div>
 
-      {/* Action triggers (Hover targets on Desktop, Static triggers on Touch/Mobile Screens) */}
+      {/* Action triggers (Hover targets on Desktop, Static triggers on Touch/Mobile Screens) */
       <div className="flex-shrink-0 flex flex-col items-end gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {!notif.is_read && (
           <button
