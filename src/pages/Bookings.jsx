@@ -1255,7 +1255,7 @@ export default function Bookings() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5 page-enter">
+    <div className="admin-page premium-page space-y-5 page-enter">
 
       {/* ════════════════════════════════════════════════════════════════
           LIST VIEW
