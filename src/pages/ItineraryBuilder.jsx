@@ -163,6 +163,13 @@ export default function ItineraryBuilder() {
               {verified ? <><CheckCircle2 size={14} className="inline mr-1 text-emerald-600"/> Email request confirmed</> : <>Waiting for traveller email confirmation before itinerary can be sent.</>}
             </div>
           </div>
+          <details className="mt-4 rounded-xl border border-slate-200 bg-white">
+            <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Complete destination & country records — no fields hidden</summary>
+            <div className="grid grid-cols-1 gap-3 p-3 border-t border-slate-100">
+              <div><p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Destination</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-4 text-slate-600 bg-slate-50 rounded-lg p-2">{JSON.stringify(booking.destination_details || {}, null, 2)}</pre></div>
+              <div><p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Country</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-4 text-slate-600 bg-slate-50 rounded-lg p-2">{JSON.stringify(booking.country_details || {}, null, 2)}</pre></div>
+            </div>
+          </details>
           <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
             <p className="text-[10px] font-bold uppercase text-slate-400 mb-2">Complete traveller & booking details</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
