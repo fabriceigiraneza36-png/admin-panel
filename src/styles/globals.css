@@ -297,3 +297,27 @@ select option { color:#1a1a1a; background:#fff; }
     border-color:rgba(16,185,129,.18);
   }
 }
+
+
+/* ── Notifications command center ─────────────────────────────────────── */
+@layer components {
+  .notifications-command-center {
+    width: 100%;
+  }
+  .notifications-command-center .notification-list,
+  .notifications-command-center .notification-row {
+    min-width: 0;
+  }
+  .notifications-command-center input {
+    min-height: 44px;
+  }
+  @media (max-width: 640px) {
+    .notifications-command-center {
+      padding-bottom: 18px;
+    }
+    .notifications-command-center .page-header,
+    .notifications-command-center .card {
+      border-radius: 18px;
+    }
+  }
+}
