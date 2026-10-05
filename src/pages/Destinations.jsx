@@ -1422,6 +1422,12 @@ const normaliseGalleries = (dest) => {
         country_id:   form.country_id ? Number(form.country_id) : null,
         ...(editing ? {} : {
           image_urls: newDestinationImages,
+          image_meta: newDestinationImages.map((url, index) => ({
+            url,
+            is_primary: index === 0,
+            sort_order: index,
+            source: index < 3 ? 'hero' : 'gallery',
+          })),
           image_url: heroImages[0] || null,
           hero_image: heroImages[0] || null,
           cover_image_url: heroImages[0] || galleryImages[0] || null,
