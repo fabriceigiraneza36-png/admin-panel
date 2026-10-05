@@ -9,6 +9,15 @@ import { itinerariesAPI } from '@api/itineraries'
 import { getErrorMessage } from '@api/client'
 import { useToast } from '@hooks/useToast'
 
+const DEFAULT_CHECKLIST = [
+  { key:'arrival', label:'Arrival / airport transfer confirmed', done:false, note:'' },
+  { key:'transport', label:'Transport and driver details confirmed', done:false, note:'' },
+  { key:'accommodation', label:'Accommodation and room details confirmed', done:false, note:'' },
+  { key:'activities', label:'Activities and permits confirmed', done:false, note:'' },
+  { key:'meals', label:'Meals / dietary requirements checked', done:false, note:'' },
+  { key:'guest_notes', label:'Traveller requests and special notes reviewed', done:false, note:'' },
+]
+
 const dayTemplate = (date, index) => ({
   date: date || '',
   title: index === 0 ? 'Arrival & Welcome' : 'Explore & Experience',
@@ -39,7 +48,7 @@ export default function ItineraryBuilder() {
   const navigate = useNavigate()
   const toast = useToast()
   const [booking, setBooking] = useState(null)
-  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', days:[], inclusions:[], essentials:[], contactNote:'' })
+  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', planningChecklist:DEFAULT_CHECKLIST, days:[], inclusions:[], essentials:[], contactNote:'' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
@@ -60,6 +69,7 @@ export default function ItineraryBuilder() {
           ...prev,
           title: `${data?.booking?.destination_name || 'Your'} Adventure Itinerary`,
           introduction: `A personalized plan prepared by Altuvera Safaris for ${data?.booking?.full_name || 'our traveller'}.`,
+          planningChecklist: DEFAULT_CHECKLIST.map(item => ({...item})),
           days: dates.map((d,i) => dayTemplate(d,i)),
         }))
       }
@@ -73,6 +83,18 @@ export default function ItineraryBuilder() {
   const removeDay = (i) => setItinerary(prev => ({...prev,days:prev.days.filter((_,idx)=>idx!==i)}))
   const addActivity = (i) => setItinerary(prev => ({...prev,days:prev.days.map((d,idx)=>idx===i?{...d,activities:[...(d.activities||[]),'New activity']}:d)}))
   const removeActivity = (di, ai) => setItinerary(prev => ({...prev,days:prev.days.map((d,i)=>i===di?{...d,activities:d.activities.filter((_,j)=>j!==ai)}:d)}))
+  const updateChecklist = (index, patch) => setItinerary(prev => ({
+    ...prev,
+    planningChecklist: (prev.planningChecklist || DEFAULT_CHECKLIST).map((item,i)=>i===index?{...item,...patch}:item),
+  }))
+  const addChecklistItem = () => setItinerary(prev => ({
+    ...prev,
+    planningChecklist: [...(prev.planningChecklist || []), {key:`custom_${Date.now()}`,label:'New planning item',done:false,note:''}],
+  }))
+  const removeChecklistItem = (index) => setItinerary(prev => ({
+    ...prev,
+    planningChecklist: (prev.planningChecklist || []).filter((_,i)=>i!==index),
+  }))
 
   const save = async () => {
     setSaving(true)
@@ -136,10 +158,56 @@ export default function ItineraryBuilder() {
               {verified ? <><CheckCircle2 size={14} className="inline mr-1 text-emerald-600"/> Email request confirmed</> : <>Waiting for traveller email confirmation before itinerary can be sent.</>}
             </div>
           </div>
-          {booking.special_requests && <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200"><p className="text-[10px] font-bold uppercase text-slate-400">Special requests</p><p className="text-xs mt-1 text-slate-700 whitespace-pre-wrap">{booking.special_requests}</p></div>}
+          <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <p className="text-[10px] font-bold uppercase text-slate-400 mb-2">Complete traveller & booking details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
+              <div><b>Nationality:</b> {booking.nationality || '—'}</div>
+              <div><b>Residence:</b> {booking.country || '—'}</div>
+              <div><b>Phone:</b> {booking.phone || '—'}</div>
+              <div><b>WhatsApp:</b> {booking.whatsapp || '—'}</div>
+              <div><b>Preferred time:</b> {booking.preferred_contact_time || 'Any time'}</div>
+              <div><b>Booking type:</b> {booking.booking_type || '—'}</div>
+              <div><b>Package:</b> {booking.package_name || '—'}</div>
+              <div><b>Service:</b> {booking.service_name || '—'}</div>
+              <div><b>Accommodation:</b> {booking.accommodation_type || '—'}</div>
+              <div><b>Pickup:</b> {booking.pickup_location || '—'}</div>
+              <div><b>Dietary:</b> {booking.dietary_requirements || '—'}</div>
+              <div><b>Accessibility:</b> {booking.accessibility_needs || '—'}</div>
+              <div><b>Flexible dates:</b> {booking.flexible_dates ? 'Yes' : 'No'}</div>
+              <div><b>Group:</b> {booking.group_type || '—'}</div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+              <p><b>Special requests:</b> {booking.special_requests || 'None'}</p>
+              <p><b>Customer notes:</b> {booking.customer_notes || 'None'}</p>
+              <p><b>Emergency contact:</b> {booking.emergency_contact || 'Not provided'}</p>
+              <p><b>Traveler details:</b> {booking.travelers_details || 'Not provided'}</p>
+            </div>
+          </div>
         </section>
 
         <section className="lg:col-span-2 space-y-4">
+          <div className="bg-white border border-emerald-100 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-extrabold text-slate-800 flex items-center gap-2"><ClipboardCheck size={18} className="text-emerald-600"/> Assisted planning checklist</h2>
+                <p className="text-xs text-slate-500 mt-1">Editable checks help the coordinator verify the trip before sending. They are saved with the itinerary.</p>
+              </div>
+              <button onClick={addChecklistItem} className="text-xs font-bold text-emerald-700 whitespace-nowrap"><Plus size={14} className="inline mr-1"/> Add item</button>
+            </div>
+            <div className="space-y-2">
+              {(itinerary.planningChecklist || []).map((item,i)=>(
+                <div key={item.key || i} className="grid grid-cols-[auto_1fr_auto] gap-2 items-center p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <input type="checkbox" checked={Boolean(item.done)} onChange={e=>updateChecklist(i,{done:e.target.checked})} className="w-4 h-4 accent-emerald-600"/>
+                  <div className="min-w-0 space-y-1">
+                    <input value={item.label||''} onChange={e=>updateChecklist(i,{label:e.target.value})} className="input !py-1.5"/>
+                    <input value={item.note||''} onChange={e=>updateChecklist(i,{note:e.target.value})} placeholder="Optional coordinator note" className="input !py-1.5 text-xs"/>
+                  </div>
+                  <button onClick={()=>removeChecklistItem(i)} className="p-2 text-rose-500"><Trash2 size={14}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
             <div><label className="text-xs font-bold uppercase text-slate-500">Itinerary title</label><input value={itinerary.title} onChange={e=>setItinerary(p=>({...p,title:e.target.value}))} className="input mt-1"/></div>
             <div><label className="text-xs font-bold uppercase text-slate-500">Introduction</label><textarea value={itinerary.introduction} onChange={e=>setItinerary(p=>({...p,introduction:e.target.value}))} className="input mt-1 min-h-[90px]"/></div>
