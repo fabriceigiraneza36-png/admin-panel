@@ -628,6 +628,7 @@ const resolveIcon = (icon) => {
    STYLES
 ═══════════════════════════════════════════════════════════════════════════ */
 const SIDEBAR_CSS = `
+.sb-mobile-shell { width: 270px; max-width: 88vw; }
 .sb-nav::-webkit-scrollbar { width: 4px; }
 .sb-nav::-webkit-scrollbar-track { background: transparent; }
 .sb-nav::-webkit-scrollbar-thumb {
@@ -673,6 +674,13 @@ const SIDEBAR_CSS = `
 @media (max-width: 1023px) {
   .sb-lg-flex   { display: none; }
   .sb-lg-hidden { display: block; }
+  .sb-mobile-shell { width: min(88vw, 340px) !important; max-width: 340px; }
+}
+@media (max-width: 560px) {
+  .sb-mobile-shell { width: min(91vw, 320px) !important; }
+}
+@media (max-width: 380px) {
+  .sb-mobile-shell { width: min(94vw, 300px) !important; }
 }
 `
 
@@ -875,6 +883,7 @@ export default function Sidebar({
       <style>{SIDEBAR_CSS}</style>
       <aside
         aria-label="Admin navigation"
+        className={isMobile ? 'sb-mobile-shell' : ''}
         style={{
           display: 'flex',
           flexDirection: 'column',
