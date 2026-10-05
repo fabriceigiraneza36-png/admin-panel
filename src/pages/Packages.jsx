@@ -759,24 +759,45 @@ export default function Packages() {
 
   // Deep-link support for instant package-request notifications.
   // Example: /packages?packageId=12&requestId=87
+  // If the package is not on the current paginated/filter view, fetch it
+  // directly so an admin email/notification always opens the correct package.
   useEffect(() => {
-    if (loading || !items.length || deepLinkHandled.current) return
+    if (loading || deepLinkHandled.current) return
     const packageId = searchParams.get('packageId')
     const requestId = searchParams.get('requestId')
     if (!packageId) return
 
-    const pkg = items.find(item => String(item.id) === String(packageId))
-    if (!pkg) return
+    let cancelled = false
 
-    deepLinkHandled.current = true
-    openView(pkg)
-    if (requestId) {
-      setFocusedBookingId(String(requestId))
-      setActiveTab('bookings')
-      loadSubData(pkg, 'bookings')
+    const openRequestedPackage = async () => {
+      try {
+        let pkg = items.find(item => String(item.id) === String(packageId))
+
+        if (!pkg) {
+          const res = await packagesAPI.getById(packageId)
+          pkg = res?.data || res
+        }
+
+        if (!pkg?.id || cancelled) return
+
+        deepLinkHandled.current = true
+        openView(pkg)
+
+        if (requestId) {
+          setFocusedBookingId(String(requestId))
+          setActiveTab('bookings')
+          await loadSubData(pkg, 'bookings')
+        }
+
+        setSearchParams({}, { replace: true })
+      } catch (e) {
+        if (!cancelled) toast.error(getErrorMessage(e))
+      }
     }
-    setSearchParams({}, { replace: true })
-  }, [items, loading, searchParams, setSearchParams, openView, loadSubData])
+
+    openRequestedPackage()
+    return () => { cancelled = true }
+  }, [items, loading, searchParams, setSearchParams, openView, loadSubData, toast])
 
 
 
