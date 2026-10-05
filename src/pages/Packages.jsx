@@ -719,27 +719,6 @@ export default function Packages() {
   useEffect(() => { load() },      [load])
   useEffect(() => { loadStats() }, [loadStats])
 
-  // Deep-link support for instant package-request notifications.
-  // Example: /packages?packageId=12&requestId=87
-  useEffect(() => {
-    if (loading || !items.length || deepLinkHandled.current) return
-    const packageId = searchParams.get('packageId')
-    const requestId = searchParams.get('requestId')
-    if (!packageId) return
-
-    const pkg = items.find(item => String(item.id) === String(packageId))
-    if (!pkg) return
-
-    deepLinkHandled.current = true
-    openView(pkg)
-    if (requestId) {
-      setFocusedBookingId(String(requestId))
-      setActiveTab('bookings')
-      loadSubData(pkg, 'bookings')
-    }
-    setSearchParams({}, { replace: true })
-  }, [items, loading, searchParams, setSearchParams, openView, loadSubData])
-
   // ── Load sub-data ──────────────────────────────────────────────────────────
 
   const loadSubData = useCallback(async (pkg, tab) => {
@@ -777,6 +756,29 @@ export default function Packages() {
     setActiveTab(tab)
     loadSubData(viewModal.data, tab)
   }, [viewModal.data, loadSubData])
+
+  // Deep-link support for instant package-request notifications.
+  // Example: /packages?packageId=12&requestId=87
+  useEffect(() => {
+    if (loading || !items.length || deepLinkHandled.current) return
+    const packageId = searchParams.get('packageId')
+    const requestId = searchParams.get('requestId')
+    if (!packageId) return
+
+    const pkg = items.find(item => String(item.id) === String(packageId))
+    if (!pkg) return
+
+    deepLinkHandled.current = true
+    openView(pkg)
+    if (requestId) {
+      setFocusedBookingId(String(requestId))
+      setActiveTab('bookings')
+      loadSubData(pkg, 'bookings')
+    }
+    setSearchParams({}, { replace: true })
+  }, [items, loading, searchParams, setSearchParams, openView, loadSubData])
+
+
 
   // ── Form ───────────────────────────────────────────────────────────────────
 
@@ -1167,8 +1169,13 @@ export default function Packages() {
         : (
           <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
             {pkgBookings.map(bk => (
-              <BookingRow
+              <div
                 key={bk.id}
+                className={String(bk.id) === String(focusedBookingId)
+                  ? 'rounded-2xl ring-2 ring-emerald-400 ring-offset-2 bg-emerald-50/40 p-1'
+                  : ''}
+              >
+              <BookingRow
                 booking={bk}
                 onUpdate={handleBookingUpdate}
                 onConfirm={handleBookingConfirm}
