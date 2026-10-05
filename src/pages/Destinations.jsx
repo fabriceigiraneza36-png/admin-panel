@@ -1807,7 +1807,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
       <div className="management-table-shell card">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">Destination inventory</p><p className="text-xs text-slate-400 hidden sm:block">Click a row to open the full destination workspace</p></div><span className="text-xs font-semibold text-slate-400">{loading ? "Loading…" : `${destinations.length} shown`}</span></div>
         <Table
-          columns={columns data={destinations} loading={loading}
+          columns={columns} data={destinations} loading={loading}
           sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
           onRowClick={row=>viewModal.open(row)} emptyMessage="No destinations found"
           hoverActions={[
