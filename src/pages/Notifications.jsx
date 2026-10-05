@@ -266,7 +266,7 @@ export default function Notifications() {
   /* ── Render ────────────────────────────────────────────────────────────── */
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+    <div className="notifications-command-center admin-page premium-page max-w-5xl mx-auto space-y-4 sm:space-y-5">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5 sm:mb-6">
         <div className="flex items-center gap-3">
