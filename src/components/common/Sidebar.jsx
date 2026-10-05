@@ -1286,7 +1286,7 @@ export function AdminLayout() {
       background: '#f8faf9',
     }}>
       {/* Desktop sidebar */}
-      <div className="sb-lg-flex" style={{ flexShrink: 0, display: 'flex' }}>
+      <div className="sb-lg-flex" style={{ flexShrink: 0 }}>
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       </div>
 
