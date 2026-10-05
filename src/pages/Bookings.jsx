@@ -1579,6 +1579,12 @@ export default function Bookings() {
               )}
             </div>
           </div>
+          <SectionCard title="Complete submitted booking record — no fields hidden" icon={FileText}>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-auto max-h-[520px]">
+              <pre className="text-[11px] leading-5 text-slate-600 whitespace-pre-wrap break-words">{JSON.stringify(selected, null, 2)}</pre>
+            </div>
+          </SectionCard>
+
         </motion.div>
       )}
 
