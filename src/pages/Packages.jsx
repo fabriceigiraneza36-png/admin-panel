@@ -1187,6 +1187,7 @@ export default function Packages() {
                   guest_name:  b.full_name,
                 })}
               />
+              </div>
             ))}
           </div>
         )
