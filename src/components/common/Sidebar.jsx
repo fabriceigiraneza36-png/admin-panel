@@ -392,6 +392,7 @@ const BELL_TABS = [
   { key: 'all', label: 'All' },
   { key: 'unread', label: 'Unread' },
   { key: 'booking', label: 'Bookings' },
+  { key: 'package', label: 'Packages' },
   { key: 'payment', label: 'Payments' },
   { key: 'user', label: 'Users' },
 ]
@@ -439,6 +440,7 @@ function AdminNotificationBell() {
     notifications.filter(n => {
       if (tab === 'unread') return !n.is_read
       if (tab === 'booking') return n.type?.includes('booking')
+      if (tab === 'package') return n.type?.includes('package')
       if (tab === 'payment') return n.type?.includes('payment')
       if (tab === 'user') return n.type?.includes('user')
       return true
