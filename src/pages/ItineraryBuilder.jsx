@@ -62,7 +62,12 @@ export default function ItineraryBuilder() {
       setBooking(data?.booking || null)
       const existing = data?.itinerary && typeof data.itinerary === 'object' ? data.itinerary : null
       if (existing?.days?.length) {
-        setItinerary(existing)
+        setItinerary({
+          ...existing,
+          planningChecklist: existing.planningChecklist?.length
+            ? existing.planningChecklist
+            : DEFAULT_CHECKLIST.map(item => ({...item})),
+        })
       } else {
         const dates = dateRange(data?.booking?.travel_date, data?.booking?.return_date)
         setItinerary(prev => ({
