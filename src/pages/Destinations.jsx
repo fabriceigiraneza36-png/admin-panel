@@ -1,4 +1,4 @@
-﻿// admin/src/pages/Destinations.jsx
+// admin/src/pages/Destinations.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   MapPin, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
@@ -1064,6 +1064,7 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
     const [mode, setMode] = useState('upload');
     const [url, setUrl] = useState(value || '');
     const [invalid, setInvalid] = useState(false);
+
     useEffect(() => { setUrl(value || ''); setInvalid(false) }, [value]);
 
     const apply = () => {
@@ -1088,8 +1089,7 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
         <div className="p-3 space-y-2.5">
           {value ? (
             <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-100 group">
-              <img src={value} alt={label} className="w-full h-full object-cover"
-                onError={e=>{e.currentTarget.src='https://placehold.co/640x400?text=Image+error'}}/>
+              <img src={value} alt={label} className="w-full h-full object-cover" onError={e=>{e.currentTarget.src='https://placehold.co/640x400?text=Image+error'}}/>
               <button type="button" onClick={()=>onChange('')} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>
               <div className="absolute left-2 bottom-2 px-2 py-1 rounded-md bg-black/55 text-white text-[9px] font-bold uppercase tracking-wider">Ready</div>
             </div>
@@ -1442,22 +1442,26 @@ const normaliseGalleries = (dest) => {
 // Images with ID are existing images - to modify existing images, 
 // use the dedicated image management endpoints (not implemented in this form)
 const allNewImages = [
-  ...((editing ? (gallery || []) : [...(heroImages || []).map((url, index) => ({url, is_primary: index === 0, sort_order: index, source: 'hero'})), ...(galleryImages || []).map((url, index) => ({url, is_primary: false, sort_order: index + 3, source: 'gallery'}))]))
-    .filter(image => !image.id && image.url)
-    .map(image => ({
-      url: image.url,
-      caption: image.caption,
-      is_primary: image.is_primary,
-      sort_order: image.sort_order,
-      source: image.source,
-    })),
+  ...((editing
+    ? (gallery || [])
+    : [
+        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'hero' })),
+        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'gallery' })),
+      ]
+  ).filter(image => !image.id && image.url).map(image => ({
+    url: image.url,
+    caption: image.caption,
+    is_primary: image.is_primary,
+    sort_order: image.sort_order,
+    source: image.source,
+  })),
   ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
     url: image.url,
     caption: image.caption,
     library_id: image.library_id,
     source: 'library',
   })),
-];
+]
 // Deduplicate by URL to avoid sending the same image multiple times in the same request
 const seenUrls = new Set()
 const uniqueNewImages = allNewImages.filter(img => {
@@ -1710,9 +1714,104 @@ if (savedDestination?.id && uniqueNewImages.length) {
              <ItineraryEditor items={form.itinerary} onChange={v=>upd('itinerary',v)}/>
            </div>
         </motion.div>
-        )
       )
 
+      /* ─── MEDIA ─────────────────────────────────────────────────── */
+      case 'media': return (
+        !editing ? (
+          <motion.div key="media-new" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
+            <NewDestinationMedia
+              heroSlides={form.hero_slides}
+              gallery={form.gallery}
+              onHeroChange={v=>upd('hero_slides',v)}
+              onGalleryChange={v=>upd('gallery',v)}
+            />
+          </motion.div>
+        ) : (
+<motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-6">
+          {/* Header banner */}
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border border-emerald-100">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Camera size={18} className="text-emerald-600"/></div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-emerald-800">Media Library</h3>
+              <p className="text-xs text-emerald-600">Manage hero images, banners, gallery uploads and library imports</p>
+            </div>
+            {allImgs.length>0 && (
+              <button type="button" onClick={()=>openLightbox(allImgs,0)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 transition-all shadow-sm">
+                <Maximize2 size={11}/>View all {allImgs.length}
+              </button>
+            )}
+          </div>
+
+          {/* Section 1: Hero, Cover, Main */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Layers size={14} className="text-gray-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Featured Images</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Primary display images</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <HeroImagePanel
+                label="Hero Image" description="Top banner on destination page"
+                value={form.hero_image} onChange={v=>upd('hero_image',v)}
+                folder="destinations/hero" theme="amber" icon={Sun}
+                allImages={allImgs} onLightbox={openLightbox}/>
+              <HeroImagePanel
+                label="Cover Banner" description="Card thumbnail & listings"
+                value={form.cover_image_url} onChange={v=>upd('cover_image_url',v)}
+                folder="destinations/cover" theme="sky" icon={Palette}
+                allImages={allImgs} onLightbox={openLightbox}/>
+              <HeroImagePanel
+                label="Main Image" description="Default fallback image"
+                value={form.image_url} onChange={v=>upd('image_url',v)}
+                folder="destinations/main" theme="emerald" icon={Image}
+                allImages={allImgs} onLightbox={openLightbox}/>
+            </div>
+          </div>
+
+          {/* Section 2: Destination Gallery (uploaded/URL, max 10) */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Camera size={14} className="text-emerald-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Destination Gallery</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Own photos — max {MAX_GALLERY_IMAGES}</span>
+            </div>
+            <DestinationGallery gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
+          </div>
+
+          {/* Section 3: Library Imports (unlimited) */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Library size={14} className="text-violet-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Library Imports</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+              <span className="text-[10px] text-gray-400 font-medium">Reused from central gallery — unlimited</span>
+            </div>
+            <LibraryImportPanel libraryImages={form.library_images} onChange={v=>upd('library_images',v)} onLightbox={openLightbox}/>
+          </div>
+
+          {/* Section 4: Video / Virtual Tour */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Video size={14} className="text-rose-500"/>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Video & Virtual Tour</h4>
+              <div className="flex-1 h-px bg-gray-200"/>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl border-2 border-rose-100 bg-gradient-to-br from-rose-50/40 via-white to-pink-50/30">
+              <Field label="Video URL" icon={Video} hint="YouTube, Vimeo or direct MP4">
+                <input className={inputClass} type="url" value={form.video_url} onChange={e=>upd('video_url',e.target.value)} placeholder="https://youtube.com/watch?v=…"/>
+              </Field>
+              <Field label="Virtual Tour URL" icon={Globe2} hint="360° tour or Matterport link">
+                <input className={inputClass} type="url" value={form.virtual_tour_url} onChange={e=>upd('virtual_tour_url',e.target.value)} placeholder="https://…"/>
+              </Field>
+            </div>
+          </div>
+        </motion.div>
+        )
+      )
 
       /* ─── SETTINGS ──────────────────────────────────────────────── */
       case 'settings': return (
