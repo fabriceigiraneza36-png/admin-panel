@@ -1552,6 +1552,12 @@ export default function Countries() {
                   <ModalField label="Gallery"      value={`${(viewModal.data.gallery || []).length} photo(s)`} />
                 </ModalGrid>
               </ModalSection>
+              <ModalSection title="Complete record — no fields hidden">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-auto max-h-[420px]">
+                  <pre className="text-[11px] leading-5 text-slate-600 whitespace-pre-wrap break-words">{JSON.stringify(c, null, 2)}</pre>
+                </div>
+              </ModalSection>
+
             </div>
           )
         })()}
