@@ -396,6 +396,7 @@ export default function Bookings() {
   // ── Cancellation review ───────────────────────────────────────────────────
   const [review,      setReview]      = useState({ decision: null, response: '', refund_amount: '' })
   const [reviewing,   setReviewing]   = useState(false)
+  const [portraitBusy, setPortraitBusy] = useState(false)
 
   // ── Quick message modal ───────────────────────────────────────────────────
   const [msgBooking,  setMsgBooking]  = useState(null)
@@ -482,6 +483,28 @@ export default function Bookings() {
       load()
       if (selected?.id === b.id) setSelected(s => ({ ...s, status: newStatus }))
     } catch (e) { toast.error(getErrorMessage(e)) }
+  }
+
+  const handleRequestPortrait = async (b) => {
+    setPortraitBusy(true)
+    try {
+      const r = await bookingsAPI.requestPortrait(b.id)
+      toast.success("Portrait request sent to the traveller.")
+      if (selected?.id === b.id) setSelected(r?.data || r)
+      load()
+    } catch (e) { toast.error(getErrorMessage(e)) }
+    finally { setPortraitBusy(false) }
+  }
+
+  const handleConfirmWithPortrait = async (b) => {
+    setPortraitBusy(true)
+    try {
+      const r = await bookingsAPI.confirmWithPortrait(b.id)
+      toast.success("Traveller verified and booking confirmed.")
+      if (selected?.id === b.id) setSelected(r?.data || r)
+      load()
+    } catch (e) { toast.error(getErrorMessage(e)) }
+    finally { setPortraitBusy(false) }
   }
 
   // ── Selection helpers ────────────────────────────────────────────────────
@@ -1546,6 +1569,32 @@ export default function Bookings() {
                       {selected.source || '—'}
                     </span>
                   </div>
+                </div>
+
+                {/* Traveller identity verification */}
+                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Traveller verification</p>
+                  {selected.identity_portrait_url ? (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <img src={selected.identity_portrait_url} alt="Traveller portrait" className="w-12 h-12 rounded-xl object-cover border border-emerald-200" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-emerald-800">Portrait received</p>
+                        <p className="text-[10px] text-emerald-700">{selected.identity_portrait_status || 'uploaded'}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                  {selected.identity_portrait_status !== 'requested' && selected.identity_portrait_status !== 'uploaded' && selected.identity_portrait_status !== 'verified' && (
+                    <button onClick={() => handleRequestPortrait(selected)} disabled={portraitBusy || !selected.email_verified}
+                      className="w-full btn-secondary btn-sm justify-center">
+                      <User size={13} /> {selected.email_verified ? 'Request face portrait' : 'Awaiting email verification'}
+                    </button>
+                  )}
+                  {selected.identity_portrait_status === 'uploaded' && (
+                    <button onClick={() => handleConfirmWithPortrait(selected)} disabled={portraitBusy}
+                      className="w-full btn-primary btn-sm justify-center">
+                      <CheckCircle size={13} /> Verify portrait & confirm booking
+                    </button>
+                  )}
                 </div>
 
                 {/* Quick status buttons */}
