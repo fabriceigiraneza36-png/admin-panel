@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate }    from 'react-router-dom'
-import { useDispatch, useSelector }    from 'react-redux'
 import { motion, AnimatePresence }     from 'framer-motion'
 import {
   Bell, ChevronDown,
@@ -9,15 +8,9 @@ import {
 import { useAuth }                     from '@hooks/useAuth'
 import { useToast }                    from '@hooks/useToast'
 import { useSocket }                    from '@context/SocketContext'
-import {
-  selectUnreadCount,
-  togglePanel,
-} from '@store/notificationsSlice'
-
 /* ── import getInitials + getAvatarColor from formatters (correct location) ── */
 import { getInitials, getAvatarColor } from '@utils/formatters'
 
-import NotificationPanel from '@components/notifications/NotificationPanel'
 import { NAV_ITEMS }     from '@utils/constants'
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -178,17 +171,14 @@ function AdminMenu({ admin, onLogout, onClose }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    HEADER COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
-export default function Header({ onMenuClick, isMobileOpen }) {
+export default function Header({ onMenuClick, isMobileOpen, notificationBell }) {
   const location    = useLocation()
-  const dispatch    = useDispatch()
   const { admin, logout } = useAuth()
   const { success: toastSuccess } = useToast()
 
    /* Socket connection status */
    const { isOnline, connected, apiReachable } = useSocket()
    const online = isOnline
-
-  const notifUnread = useSelector(selectUnreadCount)
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
   const adminMenuRef = useRef(null)
@@ -285,33 +275,8 @@ export default function Header({ onMenuClick, isMobileOpen }) {
             }
           </div>
 
-          {/* Notifications button */}
-          <button
-            onClick={() => dispatch(togglePanel())}
-            data-notif-trigger
-            className="relative w-9 h-9 flex items-center justify-center
-                       rounded-xl transition-all duration-150"
-            style={{ color: '#6b7280', background: 'transparent' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f0fdf4'
-              e.currentTarget.style.color      = '#059669'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color      = '#6b7280'
-            }}
-            title="Notifications"
-          >
-            <Bell size={19} />
-            {notifUnread > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px]
-                               px-1 flex items-center justify-center
-                               rounded-full text-white text-[10px] font-bold animate-pulse"
-                    style={{ background: '#ef4444' }}>
-                {notifUnread > 9 ? '9+' : notifUnread}
-              </span>
-            )}
-          </button>
+          {/* Single modern notification control */}
+          {notificationBell}
 
           {/* Divider */}
           <div className="w-px h-6 bg-gray-100 hidden md:block mx-1" />
@@ -357,9 +322,6 @@ export default function Header({ onMenuClick, isMobileOpen }) {
           </div>
         </div>
       </header>
-
-      {/* Notification panel */}
-      <NotificationPanel />
     </>
   )
 }
