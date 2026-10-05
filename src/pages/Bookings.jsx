@@ -1390,9 +1390,15 @@ export default function Bookings() {
             <div className="flex gap-2 flex-wrap">
               {selected.status === 'pending' && (
                 <button
-                  onClick={() => handleQuickStatus(selected, 'confirmed')}
-                  className="btn-primary btn-sm">
-                  <CheckCircle size={14} /> Confirm
+                  onClick={() => selected.email_verified
+                    ? handleQuickStatus(selected, 'confirmed')
+                    : null}
+                  disabled={!selected.email_verified}
+                  title={selected.email_verified
+                    ? 'Confirm booking'
+                    : 'Traveller must confirm the booking from their real inbox first'}
+                  className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  <CheckCircle size={14} /> {selected.email_verified ? 'Confirm' : 'Awaiting email'}
                 </button>
               )}
               <button
