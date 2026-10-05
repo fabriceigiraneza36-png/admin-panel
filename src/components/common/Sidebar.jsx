@@ -25,6 +25,8 @@ import {
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
 import { useSocket } from '@context/SocketContext'
+import { useNotifications } from '@context/NotificationContext'
+import { getNotificationTarget } from '@utils/notificationTarget'
 import Header from './Header'
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -396,9 +398,22 @@ const BELL_TABS = [
 
 function AdminNotificationBell() {
   const {
-    notifications, unreadCount, loading, connected,
-    NOTIF_TYPES, markAsRead, markAllAsRead, deleteNotification, refresh,
-  } = useAdminNotifications()
+    notifications, unreadCount, loading,
+    markRead, markAllRead, deleteOne, refresh,
+  } = useNotifications()
+  const { isOnline: connected } = useSocket()
+  const NOTIF_TYPES = {
+    booking_new:       { icon: '📋', color: '#059669', bg: '#ecfdf5', label: 'New Booking' },
+    booking_confirmed: { icon: '✅', color: '#0891b2', bg: '#f0f9ff', label: 'Confirmed' },
+    booking_cancelled: { icon: '❌', color: '#dc2626', bg: '#fef2f2', label: 'Cancelled' },
+    payment_received:  { icon: '💰', color: '#d97706', bg: '#fffbeb', label: 'Payment' },
+    user_registered:   { icon: '👤', color: '#7c3aed', bg: '#faf5ff', label: 'New User' },
+    contact_message:   { icon: '💬', color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
+    review_posted:     { icon: '⭐', color: '#d97706', bg: '#fffbeb', label: 'Review' },
+    checklist_request: { icon: '📝', color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
+    package_request:   { icon: '📦', color: '#059669', bg: '#ecfdf5', label: 'Package Request' },
+    system:            { icon: '🔧', color: '#64748b', bg: '#f8fafc', label: 'System' },
+  }
 
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState('all')
@@ -430,13 +445,8 @@ function AdminNotificationBell() {
     }), [notifications, tab])
 
   const handleClick = useCallback((n) => {
-    if (!n.is_read) markAsRead(n.id)
-    const routes = {
-      booking_new: '/bookings', booking_confirmed: '/bookings', booking_cancelled: '/bookings',
-      payment_received: '/bookings', user_registered: '/users', contact_message: '/contact',
-      review_posted: '/testimonials', checklist_request: '/checklist',
-    }
-    const path = routes[n.type]
+    if (!n.is_read) markRead(n.id)
+    const path = getNotificationTarget(n)
     if (path) window.location.href = path
   }, [markAsRead])
 
@@ -475,9 +485,9 @@ function AdminNotificationBell() {
               </div>
               <div className="anb-head-r">
                 {unreadCount > 0 && (
-                  <button className="anb-mark-all" onClick={markAllAsRead}>Mark all read</button>
+                  <button className="anb-mark-all" onClick={markAllRead}>Mark all read</button>
                 )}
-                <button className="anb-hbtn" onClick={refresh} title="Refresh">
+                <button className="anb-hbtn" onClick={() => { void refresh() }} title="Refresh">
                   <RefreshCw size={13} />
                 </button>
                 <button className="anb-hbtn" onClick={() => setOpen(false)} title="Close">
@@ -532,7 +542,7 @@ function AdminNotificationBell() {
                             <Check size={11} />
                           </button>
                         )}
-                        <button className="anb-ibtn anb-ibtn--d" onClick={() => deleteNotification(n.id)} title="Delete">
+                        <button className="anb-ibtn anb-ibtn--d" onClick={() => deleteOne(n.id)} title="Delete">
                           <Trash2 size={11} />
                         </button>
                       </div>
@@ -860,7 +870,7 @@ export default function Sidebar({
 }) {
   const { admin, logout } = useAuth()
   const { error: toastError } = useToast()
-  const { unreadCount: notifUnread } = useAdminNotifications()
+  const { unreadCount: notifUnread } = useNotifications()
 
   useEffect(() => {
     if (!isMobile) return
