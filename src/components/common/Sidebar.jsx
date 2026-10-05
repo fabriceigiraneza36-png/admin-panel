@@ -448,7 +448,7 @@ function AdminNotificationBell() {
     if (!n.is_read) markRead(n.id)
     const path = getNotificationTarget(n)
     if (path) window.location.href = path
-  }, [markAsRead])
+  }, [markRead])
 
   return (
     <>
