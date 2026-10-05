@@ -11,6 +11,7 @@ import {
 
 // ── API — both named exports come from the same file ─────────────────────────
 import { packagesAPI, getErrorMessage } from '@api/packages'
+import apiClient from '@api/client'
 import { useSearchParams } from 'react-router-dom'
 
 // ── Admin common components ───────────────────────────────────────────────────
@@ -95,6 +96,9 @@ const INIT_PACKAGE = {
    // Primary fields for image-based package creation
    title: '', 
    cover_image_url: '', 
+   destination_id: '',
+   destination_name: '',
+   country_name: '', 
    thumbnail_url: '',
    
    // Secondary fields (optional for basic image-based packages)
@@ -674,11 +678,22 @@ export default function Packages() {
 
   // ── Info request state ─────────────────────────────────────────────────────
   const [infoForm, setInfoForm] = useState(INIT_INFO_REQUEST)
+  const [destinations, setDestinations] = useState([])
 
   const dSearch = useDebounce(search, 400)
   const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
   const [focusedBookingId, setFocusedBookingId] = useState(null)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiClient.get('/destinations', { params: { limit: 500 } })
+        const body = res.data || {}
+        setDestinations(body.data || body.destinations || body.rows || [])
+      } catch { setDestinations([]) }
+    })()
+  }, [])
 
   // ── Load packages ──────────────────────────────────────────────────────────
 
@@ -829,7 +844,7 @@ export default function Packages() {
        seo: false 
      })
      formModal.open()
-   }, [formModal])
+   }, [formModal, destinations])
 
    const openEdit = useCallback((p) => {
      const f = { ...INIT_PACKAGE }
@@ -869,6 +884,7 @@ export default function Packages() {
      try {
        const payload = {
          cover_image_url: form.cover_image_url,
+         destination_id: form.destination_id ? Number(form.destination_id) : null,
          is_published: form.is_published,
          is_featured: form.is_featured,
        }
