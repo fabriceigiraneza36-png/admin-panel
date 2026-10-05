@@ -2119,6 +2119,12 @@ if (savedDestination?.id && uniqueNewImages.length) {
                   <ModalField label="Total Photos"    value={viewImgs.length}/>
                 </ModalGrid>
               </ModalSection>
+              <ModalSection title="Complete record — no fields hidden">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-auto max-h-[420px]">
+                  <pre className="text-[11px] leading-5 text-slate-600 whitespace-pre-wrap break-words">{JSON.stringify(d, null, 2)}</pre>
+                </div>
+              </ModalSection>
+
             </div>
           )
         })()}
