@@ -227,3 +227,60 @@ select option { color:#1a1a1a; background:#fff; }
     border-radius:18px;
   }
 }
+
+@layer components {
+  .management-filter-panel {
+    background:
+      radial-gradient(circle at top right, rgba(16,185,129,.07), transparent 34%),
+      linear-gradient(180deg,#fff 0%,#fcfdfd 100%);
+  }
+
+  .management-table-shell {
+    box-shadow:0 14px 38px rgba(15,23,42,.055);
+  }
+
+  .management-table-shell > .table-container,
+  .management-table-shell .table-container {
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+  }
+
+  .destination-command-center .page-header,
+  .premium-page .management-filter-panel,
+  .premium-page .management-table-shell {
+    position:relative;
+  }
+
+  .destination-command-center .page-header::before,
+  .premium-page .management-filter-panel::before {
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:3px;
+    border-radius:999px;
+    background:linear-gradient(180deg,#059669,#34d399);
+  }
+
+  .premium-page .management-filter-panel .filter-bar,
+  .premium-page .management-filter-panel form {
+    width:100%;
+  }
+
+  .premium-page .management-table-shell .pagination,
+  .premium-page .management-table-shell > nav {
+    border-top:1px solid #f1f5f9;
+    background:#fcfdfd;
+  }
+
+  .premium-page .modal-section,
+  .premium-page [class*="section-card"] {
+    transition:box-shadow .2s ease,border-color .2s ease;
+  }
+
+  .premium-page .modal-section:hover,
+  .premium-page [class*="section-card"]:hover {
+    border-color:rgba(16,185,129,.18);
+  }
