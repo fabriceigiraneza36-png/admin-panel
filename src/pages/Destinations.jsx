@@ -1765,7 +1765,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className="space-y-5 page-enter">
+    <div className="admin-page premium-page destination-command-center space-y-5 page-enter">
       <Confetti active={showConfetti}/>
       <SuccessCelebration show={showCelebration} message={celebrationMsg} onDone={()=>setShowCelebration(false)}/>
 
@@ -1786,8 +1786,8 @@ if (savedDestination?.id && uniqueNewImages.length) {
         </div>
       </div>
 
-      <div className="card p-4">
-        <FilterBar>
+      <div className="management-filter-panel card p-4">
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination catalogue</p><p className="text-xs text-slate-400">Search, segment and manage your travel inventory</p></div><span className="badge badge-green">{pag.total.toLocaleString()} records</span></div><FilterBar>
           <SearchBar value={search} onChange={setSearch} placeholder="Search destinations…" className="max-w-sm"/>
           <FilterSelect label="Country" value={filterCountry}
             onChange={v=>{setFilterCountry(v);pag.reset()}}
@@ -1804,9 +1804,10 @@ if (savedDestination?.id && uniqueNewImages.length) {
         </FilterBar>
       </div>
 
-      <div className="card">
+      <div className="management-table-shell card">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">Destination inventory</p><p className="text-xs text-slate-400 hidden sm:block">Click a row to open the full destination workspace</p></div><span className="text-xs font-semibold text-slate-400">{loading ? "Loading…" : `${destinations.length} shown`}</span></div>
         <Table
-          columns={columns} data={destinations} loading={loading}
+          columns={columns data={destinations} loading={loading}
           sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
           onRowClick={row=>viewModal.open(row)} emptyMessage="No destinations found"
           hoverActions={[
