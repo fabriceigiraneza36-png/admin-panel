@@ -1371,7 +1371,7 @@ export default function Countries() {
   }
 
   return (
-    <div className="space-y-5 page-enter">
+    <div className="admin-page premium-page space-y-5 page-enter">
       <Confetti active={showConfetti} />
       <SuccessCelebration show={showCelebration} message={celebrationMsg} onDone={() => setShowCelebration(false)} />
 
