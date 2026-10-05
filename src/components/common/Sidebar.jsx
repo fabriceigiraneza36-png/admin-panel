@@ -1,6 +1,6 @@
 // admin/src/components/common/Sidebar.jsx
 // ═══════════════════════════════════════════════════════════════════════════════
-// SIDEBAR v3.0 — Professional Green/White Redesign
+// SIDEBAR v3.1 — Single responsive Altuvera sidebar
 // ═══════════════════════════════════════════════════════════════════════════════
 // • Clean flat-modern aesthetic with subtle depth
 // • Refined green/white palette (no darkness on light mode)
@@ -684,8 +684,10 @@ const SIDEBAR_CSS = `
   .sb-lg-hidden { display: none !important; }
 }
 @media (max-width: 1023px) {
-  .sb-lg-flex   { display: none; }
-  .sb-lg-hidden { display: block; }
+  /* Never render the permanent desktop sidebar on tablet/mobile.
+     Only the hamburger-triggered drawer below is allowed to appear. */
+  .sb-lg-flex   { display: none !important; }
+  .sb-lg-hidden { display: block !important; }
   .sb-mobile-shell { width: min(88vw, 340px) !important; max-width: 340px; }
 }
 @media (max-width: 560px) {
