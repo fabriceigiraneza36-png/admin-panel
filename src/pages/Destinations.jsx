@@ -908,14 +908,15 @@ function AttractionEditor({ attractions = [], onChange }) {
 function StepIndicator({ steps, current, completed, onGoTo }) {
   const currentIdx = steps.findIndex(s=>s.id===current)
   return (
-    <div className="relative mb-8">
+    <div className="relative mb-8 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
+      <div className="relative min-w-[520px] sm:min-w-0">
       <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-100 mx-8"/>
       <div className="absolute top-5 left-8 h-0.5 bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-700"
         style={{width:currentIdx===0?'0%':`calc(${(currentIdx/(steps.length-1))*100}% - 1px)`}}/>
       <div className="relative flex items-start justify-between">
         {steps.map((s,idx)=>{
           const isActive=s.id===current, isDone=completed.includes(s.id)
-          const isAccessible=isDone||isActive||idx<=currentIdx
+          const isAccessible=isDone||isActive
           const Icon=s.icon
           return (
             <button key={s.id} type="button" onClick={()=>isAccessible&&onGoTo(s.id)} disabled={!isAccessible}
@@ -935,6 +936,7 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
             </button>
           )
         })}
+      </div>
       </div>
     </div>
   )
