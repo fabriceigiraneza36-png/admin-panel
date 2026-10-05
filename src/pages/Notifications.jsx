@@ -114,6 +114,19 @@ const NotificationRow = React.memo(function NotificationRow({
           {formatDate(notif.created_at || notif.createdAt)}
         </p>
 
+        {target && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openTarget();
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            {notif.action_label || "Open related page"} →
+          </button>
+        )}
+
         {/* Mobile action row */}
         <div className="flex sm:hidden gap-3 mt-2">
           {!notif.is_read && (
