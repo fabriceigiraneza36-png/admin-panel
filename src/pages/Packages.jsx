@@ -1,5 +1,5 @@
 // admin/src/pages/Packages.jsx
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   Package, Plus, Eye, Pencil, Trash2, RefreshCw,
   Globe2, EyeOff, Star, DollarSign, Calendar,
@@ -11,6 +11,7 @@ import {
 
 // ── API — both named exports come from the same file ─────────────────────────
 import { packagesAPI, getErrorMessage } from '@api/packages'
+import { useSearchParams } from 'react-router-dom'
 
 // ── Admin common components ───────────────────────────────────────────────────
 import Table, { TableActions, TableAction } from '@components/common/Table'
@@ -675,6 +676,9 @@ export default function Packages() {
   const [infoForm, setInfoForm] = useState(INIT_INFO_REQUEST)
 
   const dSearch = useDebounce(search, 400)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const deepLinkHandled = useRef(false)
+  const [focusedBookingId, setFocusedBookingId] = useState(null)
 
   // ── Load packages ──────────────────────────────────────────────────────────
 
@@ -714,6 +718,27 @@ export default function Packages() {
 
   useEffect(() => { load() },      [load])
   useEffect(() => { loadStats() }, [loadStats])
+
+  // Deep-link support for instant package-request notifications.
+  // Example: /packages?packageId=12&requestId=87
+  useEffect(() => {
+    if (loading || !items.length || deepLinkHandled.current) return
+    const packageId = searchParams.get('packageId')
+    const requestId = searchParams.get('requestId')
+    if (!packageId) return
+
+    const pkg = items.find(item => String(item.id) === String(packageId))
+    if (!pkg) return
+
+    deepLinkHandled.current = true
+    openView(pkg)
+    if (requestId) {
+      setFocusedBookingId(String(requestId))
+      setActiveTab('bookings')
+      loadSubData(pkg, 'bookings')
+    }
+    setSearchParams({}, { replace: true })
+  }, [items, loading, searchParams, setSearchParams, openView, loadSubData])
 
   // ── Load sub-data ──────────────────────────────────────────────────────────
 
@@ -976,66 +1001,24 @@ export default function Packages() {
 
   const columns = useMemo(() => [
     {
-      key: 'title', label: 'Package', sortable: true,
+      key: 'cover_image_url', label: 'Package poster',
       render: (_, r) => (
-        <div className="flex items-center gap-3">
-          <Avatar
-            src={r.thumbnail_url || r.cover_image_url}
-            name={r.title}
-            size="sm"
-            rounded="lg"
-          />
-          <div>
-            <p className="font-semibold text-slate-800 max-w-[200px] truncate">
-              {r.title}
-            </p>
-            <p className="text-xs text-slate-400">
-              {r.category || '—'} · {r.destination || r.country || '—'}
-            </p>
-          </div>
+        <div className="w-24 sm:w-32 h-14 sm:h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+          {r.cover_image_url
+            ? <img src={r.cover_image_url} alt="Package poster" className="w-full h-full object-cover" loading="lazy" />
+            : <div className="w-full h-full flex items-center justify-center text-slate-300"><Package size={20} /></div>}
         </div>
       ),
-    },
-    {
-      key: 'price', label: 'Price', sortable: true, align: 'right',
-      render: (v, r) => (
-        <div className="text-right">
-          <p className="font-bold text-emerald-700 text-sm">
-            {fmtPrice(v, r.currency)}
-          </p>
-          <p className="text-xs text-slate-400">{r.price_label || 'per person'}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'duration_days', label: 'Duration',
-      render: (v, r) =>
-        v ? (
-          <span className="text-sm text-slate-600">
-            {v}D / {r.duration_nights ?? Math.max(0, v - 1)}N
-          </span>
-        ) : '—',
     },
     {
       key: 'is_published', label: 'Status',
-      render: (v) => (
-        <Badge
-          status={v ? 'published' : 'draft'}
-          label={v ? 'Published' : 'Draft'}
-        />
-      ),
+      render: (v) => <Badge status={v ? 'published' : 'draft'} label={v ? 'Published' : 'Draft'} />,
     },
     {
-      key: 'is_featured', label: 'Featured', align: 'center',
-      render: (v) => v
-        ? <Star size={15} className="text-amber-500 fill-amber-500 mx-auto" />
-        : <span className="text-slate-200 text-lg mx-auto block text-center">—</span>,
-    },
-    {
-      key: 'booking_count', label: 'Bookings', align: 'right', sortable: true,
+      key: 'booking_count', label: 'Requests', align: 'right', sortable: true,
       render: (v) => (
-        <span className="inline-flex items-center gap-1 text-slate-600 text-sm">
-          <BookOpen size={12} className="text-blue-400" />
+        <span className="inline-flex items-center gap-1.5 text-slate-700 text-sm font-semibold">
+          <BookOpen size={13} className="text-emerald-500" />
           {formatNumber(v || 0)}
         </span>
       ),
@@ -1583,8 +1566,7 @@ export default function Packages() {
              icon={Image} open={openSecs.media} onToggle={toggleSec}>
              <div className="text-center mb-4">
                <p className="text-sm text-slate-500">
-                 Upload a representative image for your package. This will be the primary 
-                 visual displayed to users.
+                 Upload the package poster only. Travellers will see this poster and can submit a request with their own special requirements.
                </p>
              </div>
              <ImageUpload
