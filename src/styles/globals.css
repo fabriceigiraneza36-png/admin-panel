@@ -157,7 +157,12 @@ select option { color:#1a1a1a; background:#fff; }
   }
 
   .premium-page .table-container {
-    @apply card-hover;
+    transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+  }
+  .premium-page .table-container:hover {
+    transform:translateY(-2px);
+    box-shadow:0 18px 45px rgba(15,23,42,.10);
+    border-color:rgba(16,185,129,.22);
   }
 
   .premium-page .table thead th {
@@ -195,7 +200,14 @@ select option { color:#1a1a1a; background:#fff; }
   .premium-page .page-enter > .grid > .card,
   .premium-page .page-enter > .grid > div.card,
   .premium-page > .grid > .card {
-    @apply card-hover;
+    transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+  }
+  .premium-page .page-enter > .grid > .card:hover,
+  .premium-page .page-enter > .grid > div.card:hover,
+  .premium-page > .grid > .card:hover {
+    transform:translateY(-3px);
+    box-shadow:0 18px 45px rgba(15,23,42,.10);
+    border-color:rgba(16,185,129,.22);
   }
 
   .premium-page .empty-state {
