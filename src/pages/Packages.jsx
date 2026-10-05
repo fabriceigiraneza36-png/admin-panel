@@ -879,6 +879,10 @@ export default function Packages() {
        toast.error('Please upload a package poster image')
        return
      }
+     if (!form.destination_id) {
+       toast.error('Please select the destination this package belongs to')
+       return
+     }
      
      setSaving(true)
      try {
