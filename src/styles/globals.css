@@ -137,3 +137,93 @@ select option { color:#1a1a1a; background:#fff; }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
+
+
+/* ── Premium management-page layer ─────────────────────────────────────── */
+@layer components {
+  .premium-page .page-header {
+    @apply flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:flex-row sm:items-center sm:justify-between;
+    box-shadow:0 8px 28px rgba(15,23,42,.045);
+  }
+
+  .premium-page .page-header h1 {
+    @apply tracking-tight;
+  }
+
+  .premium-page .filter-bar,
+  .premium-page .search-filter-bar {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-4;
+    box-shadow:0 8px 24px rgba(15,23,42,.04);
+  }
+
+  .premium-page .table-container {
+    @apply card-hover;
+  }
+
+  .premium-page .table thead th {
+    @apply sticky top-0 z-10;
+  }
+
+  .premium-page .table tbody tr {
+    transition:background-color .18s ease, transform .18s ease;
+  }
+
+  .premium-page .table tbody tr:hover {
+    transform:translateX(1px);
+  }
+
+  .premium-page form,
+  .premium-page .form-card,
+  .premium-page .form-section {
+    @apply rounded-2xl;
+  }
+
+  .premium-page .form-section {
+    border:1px solid rgba(226,232,240,.9);
+    background:linear-gradient(180deg,#fff 0%,#fcfdfd 100%);
+    box-shadow:0 8px 24px rgba(15,23,42,.035);
+  }
+
+  .premium-page .input-group {
+    @apply transition-all duration-200;
+  }
+
+  .premium-page .input-group:focus-within label {
+    @apply text-emerald-700;
+  }
+
+  .premium-page .page-enter > .grid > .card,
+  .premium-page .page-enter > .grid > div.card,
+  .premium-page > .grid > .card {
+    @apply card-hover;
+  }
+
+  .premium-page .empty-state {
+    min-height:180px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .premium-page .loading-skeleton {
+    min-height:72px;
+  }
+
+  .premium-page .btn-primary,
+  .premium-page .btn-secondary,
+  .premium-page .btn-ghost {
+    min-height:40px;
+  }
+}
+
+@media (max-width:640px) {
+  .premium-page .page-header {
+    border-radius:18px;
+    padding:14px;
+  }
+
+  .premium-page .table-container {
+    border-radius:18px;
+  }
+}
