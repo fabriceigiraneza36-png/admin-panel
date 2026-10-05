@@ -1311,8 +1311,8 @@ export default function Packages() {
       <StatsBar stats={stats} />
 
       {/* ── Filters ── */}
-      <div className="card p-4">
-        <FilterBar>
+      <div className="management-filter-panel card p-4">
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Package catalogue</p><p className="text-xs text-slate-400">Control visibility, category and travel-product content</p></div><span className="badge badge-green">{pag.total.toLocaleString()} packages</span></div><FilterBar>
           <SearchBar
             value={search}
             onChange={setSearch}
@@ -1342,7 +1342,8 @@ export default function Packages() {
       </div>
 
       {/* ── Table ── */}
-      <div className="card">
+      <div className="management-table-shell card">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">Travel product inventory</p><p className="text-xs text-slate-400 hidden sm:block">Open a package to inspect messages, bookings and information requests</p></div><span className="text-xs font-semibold text-slate-400">{loading ? "Loading…" : `${items.length} shown`}</span></div>
         <Table
           columns={columns}
           data={items}
