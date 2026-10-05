@@ -296,3 +296,4 @@ select option { color:#1a1a1a; background:#fff; }
   .premium-page [class*="section-card"]:hover {
     border-color:rgba(16,185,129,.18);
   }
+}
