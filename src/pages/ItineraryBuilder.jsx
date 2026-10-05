@@ -122,6 +122,11 @@ export default function ItineraryBuilder() {
             <div className="flex gap-2"><CalendarDays size={14}/><span><b>Dates:</b> {booking.travel_date || 'Flexible'} → {booking.return_date || '—'}</span></div>
             <div className="flex gap-2"><Mail size={14}/><span><b>Email:</b> {booking.email}</span></div>
             <div className="flex gap-2"><MessageSquare size={14}/><span><b>Preferred:</b> {booking.preferred_contact_method || 'Not selected'}</span></div>
+            <div className="pt-2 flex flex-wrap gap-2">
+              {booking.email && <a href={`mailto:${booking.email}`} className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-700"><Mail size={12} className="inline mr-1"/>Email</a>}
+              {booking.phone && <a href={`tel:${booking.phone}`} className="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-700"><MessageSquare size={12} className="inline mr-1"/>Phone</a>}
+              {booking.phone && <a target="_blank" rel="noreferrer" href={`https://wa.me/${String(booking.phone).replace(/\\D/g,'')}`} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700"><MessageSquare size={12} className="inline mr-1"/>WhatsApp</a>}
+            </div>
             <div className={`p-3 rounded-xl border ${verified?'bg-emerald-50 border-emerald-200':'bg-amber-50 border-amber-200'}`}>
               {verified ? <><CheckCircle2 size={14} className="inline mr-1 text-emerald-600"/> Email request confirmed</> : <>Waiting for traveller email confirmation before itinerary can be sent.</>}
             </div>
