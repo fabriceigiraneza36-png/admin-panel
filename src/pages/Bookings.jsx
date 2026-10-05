@@ -147,6 +147,26 @@ function InfoItem({ label, value, full = false }) {
   )
 }
 
+function DetailObject({ title, icon: Icon, value }) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined && v !== '' && v !== false && !(Array.isArray(v) && !v.length))
+  if (!entries.length) return null
+  return (
+    <SectionCard title={title} icon={Icon}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {entries.map(([key, value]) => (
+          <div key={key} className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
+            <p className="text-sm text-slate-700 break-words whitespace-pre-wrap">
+              {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  )
+}
+
 function StepIndicator({ steps, current, completed }) {
   return (
     <div className="flex items-center mb-8">
@@ -1462,6 +1482,11 @@ export default function Bookings() {
                   </div>
                 )}
               </SectionCard>
+
+              <DetailObject title="Complete Destination Record" icon={MapPin} value={selected.destination_details} />
+              <DetailObject title="Complete Country Record" icon={MapPin} value={selected.country_details} />
+              {selected.service_details && <DetailObject title="Complete Service Record" icon={FileText} value={selected.service_details} />}
+              {selected.package_details && <DetailObject title="Complete Package Record" icon={FileText} value={selected.package_details} />}
 
               {/* Admin notes */}
               {selected.admin_notes && (
