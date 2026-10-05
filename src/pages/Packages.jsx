@@ -112,7 +112,7 @@ const INIT_PACKAGE = {
    gallery: [], features: [], inclusions: [], exclusions: [],
    highlights: [], itinerary: [], faqs: [], tags: [],
    available_months: [], departure_dates: [], availability_note: '',
-   is_published: false, is_featured: false, is_sold_out: false,
+   is_published: true, is_featured: false, is_sold_out: false,
    badge_label: '', badge_color: '#047857',
    meta_title: '', meta_description: '',
    card_theme: 'default', accent_color: '#047857',
