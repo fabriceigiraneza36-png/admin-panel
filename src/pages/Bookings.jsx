@@ -7,7 +7,7 @@ import {
   Bell, Shield, Ban, DollarSign, CheckCircle2,
   XCircle, ArrowLeft, MapPin, Phone, Mail,
   Users, Bed, ClipboardList, AlertTriangle,
-  CheckSquare, Square, MessageSquare, Send,
+  CheckSquare, Square, MessageSquare, Send, ClipboardCheck,
 } from 'lucide-react'
 import { bookingsAPI }      from '@api/bookings'
 import { notificationsAPI } from '@api/notifications'
@@ -1371,6 +1371,12 @@ export default function Bookings() {
                   <CheckCircle size={14} /> Confirm
                 </button>
               )}
+              <button
+                onClick={() => window.location.assign(`/itineraries/${selected.id}`)}
+                className="btn-primary btn-sm"
+                disabled={!selected.email_verified}>
+                <ClipboardCheck size={14} /> Itinerary
+              </button>
               <button onClick={() => openMsgModal(selected)}
                 className="btn-secondary btn-sm">
                 <MessageSquare size={14} /> Message
@@ -1401,6 +1407,8 @@ export default function Bookings() {
                   <InfoItem label="Email"       value={selected.email} />
                   <InfoItem label="Phone"       value={selected.phone} />
                   <InfoItem label="WhatsApp"    value={selected.whatsapp} />
+                  <InfoItem label="Preferred Contact" value={selected.preferred_contact_method} />
+                  <InfoItem label="Preferred Contact Time" value={selected.preferred_contact_time} />
                   <InfoItem label="Nationality" value={selected.nationality} />
                   <InfoItem label="Country"     value={selected.country} />
                 </InfoGrid>
@@ -1421,6 +1429,14 @@ export default function Bookings() {
                   <InfoItem label="Country"       value={selected.country_name} />
                   <InfoItem label="Service"       value={selected.service_name} />
                   <InfoItem label="Package"       value={selected.package_name} />
+                  <InfoItem label="Flexible Dates" value={selected.flexible_dates ? 'Yes' : 'No'} />
+                  <InfoItem label="Flexible Months" value={selected.flexible_months} />
+                  <InfoItem label="Pickup Location" value={selected.pickup_location} />
+                  <InfoItem label="Accessibility Needs" value={selected.accessibility_needs} />
+                  <InfoItem label="Marketing Source" value={selected.marketing_source} />
+                  <InfoItem label="Newsletter Opt-in" value={selected.newsletter_opt_in ? 'Yes' : 'No'} />
+                  <InfoItem label="Email Verified At" value={selected.email_verified_at ? formatDate(selected.email_verified_at) : 'Pending'} />
+                  <InfoItem label="Itinerary Status" value={selected.itinerary_status || 'not_started'} />
                 </InfoGrid>
                 {selected.special_requests && (
                   <div className="mt-5 pt-5 border-t border-slate-100">
