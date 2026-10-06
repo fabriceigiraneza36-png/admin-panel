@@ -1218,7 +1218,7 @@ export default function Messages() {
           {/* ═══════════════════════════════════════════════════════════
               RIGHT: CHAT PANEL — Fixed header + Scrollable log + Fixed composer
               ═══════════════════════════════════════════════════════════ */}
-          <section className={`flex-1 flex flex-col bg-slate-50 min-h-0 min-w-0 relative ${showMobileChat ? "flex" : "hidden md:flex"}`}>
+          <section className={`flex-1 w-0 flex flex-col bg-slate-50 min-h-0 min-w-0 relative ${showMobileChat ? "flex" : "hidden md:flex"}`}>
             {!sidebarOpen && !showMobileChat && <button onClick={() => setSidebarOpen(true)} className="absolute left-3 top-3 z-30 w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Show conversations" title="Show conversations"><PanelLeftOpen size={17} /></button>}
 
             {!activeConv ? (
