@@ -1478,7 +1478,7 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="flex items-end gap-2 px-2.5 sm:px-5 py-2.5 sm:py-3 min-w-0">
+                  <div className="flex items-end gap-2 px-2 sm:px-3 py-2 min-w-0 rounded-2xl border border-slate-200 bg-slate-50/90 shadow-sm focus-within:border-emerald-300 focus-within:bg-white focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1522,7 +1522,7 @@ export default function Messages() {
                       rows={1}
                       placeholder="Write a message…"
                       aria-label="Type a message"
-                      className="flex-1 min-w-0 resize-none text-sm px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200
+                      className="flex-1 min-w-0 resize-none text-sm px-3 sm:px-4 py-2.5 rounded-xl border border-transparent
                                  bg-slate-50 outline-none leading-relaxed transition-all
                                  focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                       style={{ minHeight: 40, maxHeight: 120 }}
