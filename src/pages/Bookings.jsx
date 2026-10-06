@@ -368,7 +368,7 @@ export default function Bookings() {
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceFresh = false) => {
     setLoading(true)
     try {
       const params = {
@@ -389,7 +389,18 @@ export default function Bookings() {
     }
   }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, status, requestFilter])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+
+    const refreshId = window.setInterval(() => load(true), 30_000)
+    const onFocus = () => load(true)
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      window.clearInterval(refreshId)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [load])
 
   // ── Update status quick-action ─────────────────────────────────────────
 
