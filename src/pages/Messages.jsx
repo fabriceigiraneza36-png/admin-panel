@@ -1082,7 +1082,7 @@ export default function Messages() {
         has fixed height, and only ONE child inside scrolls (the message log)
         ═══════════════════════════════════════════════════════════════════════
       */}
-      <div className="flex flex-col bg-slate-50" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col bg-slate-50" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ═══ TOP HEADER (fixed, non-scrolling) ═══ */}
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
@@ -1118,7 +1118,7 @@ export default function Messages() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 max-w-[48%]">
             <button onClick={() => setShowNewChat(true)}
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600
                          text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/20
@@ -1136,7 +1136,7 @@ export default function Messages() {
         </header>
 
         {/* ═══ MAIN 2-PANE AREA ═══ */}
-        <main className="flex-1 flex min-h-0 overflow-hidden">
+        <main className="flex-1 flex min-h-0 min-w-0 overflow-hidden w-full">
 
           {/* ═══════════════════════════════════════════════════════════
               LEFT SIDEBAR — Conversations list
@@ -1242,9 +1242,9 @@ export default function Messages() {
             ) : (
               <>
                 {/* ═══ CHAT HEADER (fixed, non-scrolling) ═══ */}
-                <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-5 py-3
+                <div className="flex-shrink-0 min-w-0 flex items-center justify-between px-3 sm:px-5 py-3
                                 bg-white border-b border-slate-200 z-10">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                     <button onClick={() => openConversation(null)} aria-label="Back"
                       className="md:hidden -ml-1 p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition">
                       <ArrowLeft size={18} />
@@ -1416,7 +1416,7 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="flex items-end gap-2 px-3 sm:px-5 py-3">
+                  <div className="flex items-end gap-2 px-2.5 sm:px-5 py-2.5 sm:py-3 min-w-0">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1461,7 +1461,7 @@ export default function Messages() {
                       rows={1}
                       placeholder="Message…"
                       aria-label="Type a message"
-                      className="flex-1 resize-none text-sm px-4 py-2.5 rounded-xl border border-slate-200
+                      className="flex-1 min-w-0 resize-none text-sm px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200
                                  bg-slate-50 outline-none leading-relaxed transition-all
                                  focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                       style={{ minHeight: 40, maxHeight: 120 }}
