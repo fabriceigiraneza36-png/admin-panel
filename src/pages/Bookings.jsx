@@ -226,7 +226,7 @@ function FormField({ label, required, hint, error, children, span = 1 }) {
 function CancellationRequestPanel({ booking, review, setReview, reviewing, onReview }) {
   if (!booking?.cancel_request_status || booking.cancel_request_status === 'none') return null
 
-  const is   = booking.cancel_request_type === 'refund'
+  const is = false
   const isPending  = booking.cancel_request_status === 'pending'
   const isApproved = booking.cancel_request_status === 'approved'
 
@@ -241,7 +241,7 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
           ? <DollarSign size={18} className="text-amber-600" />
           : <Ban        size={18} className="text-amber-600" />}
         <h4 className="font-bold text-amber-900 text-sm">
-          {is ? '' : 'Cancellation'} Request
+          Cancellation Request
         </h4>
         <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ml-auto
           ${isPending  ? 'bg-amber-200 text-amber-800'
@@ -288,7 +288,7 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
                   : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
               <CheckCircle2 size={15} className="inline mr-1.5" />
-              {is ? 'Approve ' : 'Approve Cancel'}
+              Approve Cancel
             </button>
             <button onClick={() => toggleDecision('rejected')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all
