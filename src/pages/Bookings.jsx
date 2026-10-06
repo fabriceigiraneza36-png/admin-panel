@@ -225,131 +225,48 @@ function FormField({ label, required, hint, error, children, span = 1 }) {
 
 function CancellationRequestPanel({ booking, review, setReview, reviewing, onReview }) {
   if (!booking?.cancel_request_status || booking.cancel_request_status === 'none') return null
-
-  const is = false
-  const isPending  = booking.cancel_request_status === 'pending'
+  const isPending = booking.cancel_request_status === 'pending'
   const isApproved = booking.cancel_request_status === 'approved'
-
-  const toggleDecision = (d) =>
-    setReview(p => ({ ...p, decision: p.decision === d ? null : d }))
-
+  const toggleDecision = (decision) => setReview(p => ({ ...p, decision: p.decision === decision ? null : decision }))
   return (
-    <div className={`rounded-2xl border-2 p-5
-      ${isPending ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+    <div className={`rounded-2xl border-2 p-5 ${isPending ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
       <div className="flex items-center gap-2 mb-4">
-        {is
-          ? <DollarSign size={18} className="text-amber-600" />
-          : <Ban        size={18} className="text-amber-600" />}
-        <h4 className="font-bold text-amber-900 text-sm">
-          Cancellation Request
-        </h4>
-        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ml-auto
-          ${isPending  ? 'bg-amber-200 text-amber-800'
-          : isApproved ? 'bg-emerald-100 text-emerald-700'
-                       : 'bg-rose-100 text-rose-700'}`}>
-          {booking.cancel_request_status}
-        </span>
+        <Ban size={18} className="text-amber-600" />
+        <h4 className="font-bold text-amber-900 text-sm">Cancellation Request</h4>
+        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ml-auto ${isPending ? 'bg-amber-200 text-amber-800' : isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{booking.cancel_request_status}</span>
       </div>
-
-      <div className="grid sm:grid-cols-2 gap-4 mb-4 text-sm">
-        <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Requested At</p>
-          <p className="font-semibold text-slate-700">
-            {booking.cancel_requested_at
-              ? new Date(booking.cancel_requested_at).toLocaleString()
-              : '—'}
-          </p>
-        </div>
-        {is && (
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Paid</p>
-            <p className="font-semibold text-slate-700">
-              {booking.total_price != null
-                ? `${booking.currency || 'USD'} ${booking.total_price}`
-                : '—'}
-            </p>
-          </div>
-        )}
+      <div className="mb-4">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Requested At</p>
+        <p className="font-semibold text-slate-700">{booking.cancel_requested_at ? new Date(booking.cancel_requested_at).toLocaleString() : '—'}</p>
       </div>
-
       <div className="mb-4">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Customer Reason</p>
-        <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-3 leading-relaxed">
-          {booking.cancel_request_reason || 'No reason provided.'}
-        </p>
+        <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-3 leading-relaxed">{booking.cancel_request_reason || 'No reason provided.'}</p>
       </div>
-
       {isPending ? (
         <div className="space-y-4">
           <div className="flex gap-3">
-            <button onClick={() => toggleDecision('approved')}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all
-                ${review.decision === 'approved'
-                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
-              <CheckCircle2 size={15} className="inline mr-1.5" />
-              Approve Cancel
+            <button onClick={() => toggleDecision('approved')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${review.decision === 'approved' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
+              <CheckCircle2 size={15} className="inline mr-1.5" /> Approve Cancel
             </button>
-            <button onClick={() => toggleDecision('rejected')}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all
-                ${review.decision === 'rejected'
-                  ? 'bg-rose-500 border-rose-500 text-white shadow-md'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700'}`}>
+            <button onClick={() => toggleDecision('rejected')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${review.decision === 'rejected' ? 'bg-rose-500 border-rose-500 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700'}`}>
               <XCircle size={15} className="inline mr-1.5" /> Reject
             </button>
           </div>
-
-          {is && (
-            <FormField label={` Amount (${booking.currency || 'USD'})`}
-              hint="Leave blank for full refund">
-              <input type="number" className="input" style={{ maxWidth: 200 }}
-                value={review.}
-                placeholder="e.g. 450"
-                onChange={e => setReview(p => ({ ...p, : e.target.value }))} />
-            </FormField>
-          )}
-
           <FormField label="Response to Customer" hint="Optional — customer will see this">
-            <textarea className="input min-h-[80px] resize-none"
-              value={review.response}
-              placeholder="Add a note the customer will see…"
-              onChange={e => setReview(p => ({ ...p, response: e.target.value }))} />
+            <textarea className="input min-h-[80px] resize-none" value={review.response} placeholder="Add a note the customer will see…" onChange={e => setReview(p => ({ ...p, response: e.target.value }))} />
           </FormField>
-
           {review.decision && (
-            <button onClick={() => onReview(booking, review.decision)}
-              disabled={reviewing}
-              className={`btn-primary w-full justify-center
-                ${review.decision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700 border-rose-600' : ''}`}>
-              {reviewing
-                ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing…</>
-                : <>Submit {review.decision === 'approved' ? 'Approval' : 'Rejection'}</>}
+            <button onClick={() => onReview(booking, review.decision)} disabled={reviewing} className={`btn-primary w-full justify-center ${review.decision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700 border-rose-600' : ''}`}>
+              {reviewing ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing…</> : <>Submit {review.decision === 'approved' ? 'Approval' : 'Rejection'}</>}
             </button>
           )}
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className={`text-sm font-bold mb-1 ${isApproved ? 'text-emerald-700' : 'text-rose-700'}`}>
-            {isApproved
-              ? `✅ ${is ? '' : 'Cancellation'} approved`
-              : '❌ Request rejected'}
-          </p>
-          {booking.cancel_admin_response && (
-            <p className="text-sm text-slate-600 mt-1">
-              <span className="font-semibold">Admin note: </span>{booking.cancel_admin_response}
-            </p>
-          )}
-          {is && booking. != null && (
-            <p className="text-sm text-slate-600 mt-1">
-              <span className="font-semibold"> amount: </span>
-              {booking.currency || 'USD'} {booking.}
-            </p>
-          )}
-          {booking.cancel_reviewed_at && (
-            <p className="text-[11px] text-slate-400 mt-2">
-              Reviewed: {new Date(booking.cancel_reviewed_at).toLocaleString()}
-            </p>
-          )}
+          <p className={`text-sm font-bold mb-1 ${isApproved ? 'text-emerald-700' : 'text-rose-700'}`}>{isApproved ? '✅ Cancellation approved' : '❌ Request rejected'}</p>
+          {booking.cancel_admin_response && <p className="text-sm text-slate-600 mt-1"><span className="font-semibold">Admin note: </span>{booking.cancel_admin_response}</p>}
+          {booking.cancel_reviewed_at && <p className="text-[11px] text-slate-400 mt-2">Reviewed: {new Date(booking.cancel_reviewed_at).toLocaleString()}</p>}
         </div>
       )}
     </div>
@@ -394,7 +311,7 @@ export default function Bookings() {
   const [createErrors,setCreateErrors]= useState({})
 
   // ── Cancellation review ───────────────────────────────────────────────────
-  const [review,      setReview]      = useState({ decision: null, response: '', : '' })
+  const [review,      setReview]      = useState({ decision: null, response: '' })
   const [reviewing,   setReviewing]   = useState(false)
   const [portraitBusy, setPortraitBusy] = useState(false)
 
