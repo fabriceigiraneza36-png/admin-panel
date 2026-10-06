@@ -8,7 +8,7 @@ import React, {
 } from 'react'
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
-  MessageSquare, RefreshCw, Search, Plus, User, ChevronDown, Circle, Trash2,
+  MessageSquare, RefreshCw, Search, Plus, User, ChevronDown, Circle, Trash2, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
@@ -586,6 +586,7 @@ export default function Messages() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [filter, setFilter] = useState('open')
   const [search, setSearch] = useState('')
   const [replyToId, setReplyToId] = useState(null)
@@ -600,6 +601,16 @@ export default function Messages() {
 
   const [clearing, setClearing] = useState(false)
   const [clearConfirm, setClearConfirm] = useState({ open: false })
+
+  const draftStorageKey = activeId ? `altuvera:admin-chat-draft:${activeId}` : null
+  useEffect(() => {
+    if (!draftStorageKey) return
+    try { setDraft(localStorage.getItem(draftStorageKey) || '') } catch {}
+  }, [draftStorageKey])
+  useEffect(() => {
+    if (!draftStorageKey) return
+    try { if (draft) localStorage.setItem(draftStorageKey, draft); else localStorage.removeItem(draftStorageKey) } catch {}
+  }, [draft, draftStorageKey])
 
   const scrollRef = useRef(null)
   const textareaRef = useRef(null)
@@ -1077,7 +1088,7 @@ export default function Messages() {
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
                             bg-white border-b border-slate-200 z-20
                             ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0"><button onClick={() => setSidebarOpen(v => !v)} className="w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Toggle conversations" title="Toggle conversations">{sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}</button>
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600
                             flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
               <MessageSquare size={17} strokeWidth={2.2} />
@@ -1130,9 +1141,7 @@ export default function Messages() {
           {/* ═══════════════════════════════════════════════════════════
               LEFT SIDEBAR — Conversations list
               ═══════════════════════════════════════════════════════════ */}
-          <aside className={`w-full md:w-[300px] lg:w-[340px] flex-shrink-0 flex flex-col
-                             bg-white border-r border-slate-200 min-h-0
-                             ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+          <aside className={`w-full md:w-[300px] lg:w-[340px] flex-shrink-0 flex flex-col bg-white border-r border-slate-200 min-h-0 transition-all duration-200 ${showMobileChat ? "hidden md:flex" : "flex"} ${sidebarOpen ? "" : "md:hidden"}`}>
 
             {/* Sidebar sticky header */}
             <div className="flex-shrink-0 p-3 border-b border-slate-100 space-y-2.5 bg-white">
@@ -1209,8 +1218,8 @@ export default function Messages() {
           {/* ═══════════════════════════════════════════════════════════
               RIGHT: CHAT PANEL — Fixed header + Scrollable log + Fixed composer
               ═══════════════════════════════════════════════════════════ */}
-          <section className={`flex-1 flex flex-col bg-slate-50 min-h-0 min-w-0 relative
-                              ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
+          <section className={`flex-1 flex flex-col bg-slate-50 min-h-0 min-w-0 relative ${showMobileChat ? "flex" : "hidden md:flex"}`}>
+            {!sidebarOpen && !showMobileChat && <button onClick={() => setSidebarOpen(true)} className="absolute left-3 top-3 z-30 w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Show conversations" title="Show conversations"><PanelLeftOpen size={17} /></button>}
 
             {!activeConv ? (
               /* EMPTY STATE */
