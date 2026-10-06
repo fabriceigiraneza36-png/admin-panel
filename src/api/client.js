@@ -22,6 +22,50 @@ export const apiClient = axios.create({
   },
 })
 
+// ── Fast shared GET cache ─────────────────────────────────────────────────────
+// Keeps successful GET responses warm while navigating between admin pages.
+// Mutations clear the cache so edits are reflected immediately. Notifications
+// stay uncached because their context already manages real-time state.
+const GET_CACHE_TTL = 30_000
+const getCache = new Map()
+
+const isCacheableGet = (config) => {
+  const method = String(config?.method || 'get').toLowerCase()
+  const url = String(config?.url || '')
+  return method === 'get' && !url.includes('/notifications')
+}
+
+const cacheKeyFor = (config) => {
+  const params = config?.params ? JSON.stringify(config.params) : ''
+  return `${String(config?.baseURL || '')}${String(config?.url || '')}?${params}`
+}
+
+const clearGetCache = () => getCache.clear()
+
+const originalAdapter = axios.getAdapter(apiClient.defaults.adapter)
+apiClient.defaults.adapter = async (config) => {
+  if (isCacheableGet(config)) {
+    const key = cacheKeyFor(config)
+    const cached = getCache.get(key)
+    if (cached && Date.now() - cached.timestamp < GET_CACHE_TTL) {
+      return {
+        ...cached.response,
+        data: cached.response.data,
+        config,
+      }
+    }
+
+    const response = await originalAdapter(config)
+    getCache.set(key, { timestamp: Date.now(), response })
+    return response
+  }
+
+  clearGetCache()
+  return originalAdapter(config)
+}
+
+// ── Auth helpers})
+
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
 const getToken   = () => localStorage.getItem(TOKEN_KEY)   || null
@@ -39,12 +83,12 @@ const redirectToLogin = () => {
   }
 }
 
-// ── Request interceptor — attach token ────────────────────────────────────────
-
+// ── Request interceptor — attach token + invalidate cache on writes ───────────
 apiClient.interceptors.request.use(
   (config) => {
     const token = getToken()
     if (token) config.headers.Authorization = `Bearer ${token}`
+    if (String(config.method || 'get').toLowerCase() !== 'get') clearGetCache()
     return config
   },
   (error) => Promise.reject(error),
