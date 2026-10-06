@@ -3,6 +3,7 @@
 // MESSAGES v4.0 — Instagram-Style Fixed Composer Layout
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import EmojiPickerNative from "emoji-picker-react";
 import React, {
   useState, useEffect, useRef, useMemo, useCallback,
 } from 'react'
@@ -162,26 +163,37 @@ function TypingDots({ name = 'User' }) {
 }
 
 function EmojiPicker({ onPick, onClose }) {
-  const ref = useRef(null)
+  const ref = useRef(null);
   useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose() }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [onClose])
-  return (
-    <div ref={ref} role="dialog" aria-label="Emoji picker"
-      className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200
-                 rounded-2xl shadow-xl p-2.5 grid grid-cols-6 gap-1 z-50 w-64">
-      {QUICK_EMOJIS.map(e => (
-        <button key={e} onClick={() => onPick(e)} aria-label={e}
-          className="text-xl p-2 rounded-lg hover:bg-emerald-50 active:scale-95 transition-all leading-none">
-          {e}
-        </button>
-      ))}
-    </div>
-  )
-}
+    const h = e => {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
 
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label="Searchable emoji picker"
+      className="absolute bottom-full left-0 mb-2 z-[70] max-w-[calc(100vw-24px)]"
+    >
+      <EmojiPickerNative
+        onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
+        emojiStyle="native"
+        theme="light"
+        width={340}
+        height={420}
+        lazyLoadEmojis
+        autoFocusSearch
+        searchPlaceHolder="Search emojis..."
+        previewConfig={{ showPreview: false }}
+        skinTonesDisabled={false}
+      />
+    </div>
+  );
+}
 function ScrollBtn({ visible, onClick, unread = 0 }) {
   return (
     <button onClick={onClick} aria-label="Scroll to latest"
