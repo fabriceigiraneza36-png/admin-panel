@@ -226,7 +226,7 @@ function FormField({ label, required, hint, error, children, span = 1 }) {
 function CancellationRequestPanel({ booking, review, setReview, reviewing, onReview }) {
   if (!booking?.cancel_request_status || booking.cancel_request_status === 'none') return null
 
-  const isRefund   = booking.cancel_request_type === 'refund'
+  const is   = booking.cancel_request_type === 'refund'
   const isPending  = booking.cancel_request_status === 'pending'
   const isApproved = booking.cancel_request_status === 'approved'
 
@@ -237,11 +237,11 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
     <div className={`rounded-2xl border-2 p-5
       ${isPending ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
       <div className="flex items-center gap-2 mb-4">
-        {isRefund
+        {is
           ? <DollarSign size={18} className="text-amber-600" />
           : <Ban        size={18} className="text-amber-600" />}
         <h4 className="font-bold text-amber-900 text-sm">
-          {isRefund ? 'Refund' : 'Cancellation'} Request
+          {is ? '' : 'Cancellation'} Request
         </h4>
         <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ml-auto
           ${isPending  ? 'bg-amber-200 text-amber-800'
@@ -260,7 +260,7 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
               : '—'}
           </p>
         </div>
-        {isRefund && (
+        {is && (
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Paid</p>
             <p className="font-semibold text-slate-700">
@@ -288,7 +288,7 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
                   ? 'bg-emerald-500 border-emerald-500 text-white shadow-md'
                   : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'}`}>
               <CheckCircle2 size={15} className="inline mr-1.5" />
-              {isRefund ? 'Approve Refund' : 'Approve Cancel'}
+              {is ? 'Approve ' : 'Approve Cancel'}
             </button>
             <button onClick={() => toggleDecision('rejected')}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all
@@ -299,13 +299,13 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
             </button>
           </div>
 
-          {isRefund && (
-            <FormField label={`Refund Amount (${booking.currency || 'USD'})`}
+          {is && (
+            <FormField label={` Amount (${booking.currency || 'USD'})`}
               hint="Leave blank for full refund">
               <input type="number" className="input" style={{ maxWidth: 200 }}
-                value={review.refund_amount}
+                value={review.}
                 placeholder="e.g. 450"
-                onChange={e => setReview(p => ({ ...p, refund_amount: e.target.value }))} />
+                onChange={e => setReview(p => ({ ...p, : e.target.value }))} />
             </FormField>
           )}
 
@@ -331,7 +331,7 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <p className={`text-sm font-bold mb-1 ${isApproved ? 'text-emerald-700' : 'text-rose-700'}`}>
             {isApproved
-              ? `✅ ${isRefund ? 'Refund' : 'Cancellation'} approved`
+              ? `✅ ${is ? '' : 'Cancellation'} approved`
               : '❌ Request rejected'}
           </p>
           {booking.cancel_admin_response && (
@@ -339,10 +339,10 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
               <span className="font-semibold">Admin note: </span>{booking.cancel_admin_response}
             </p>
           )}
-          {isRefund && booking.refund_amount != null && (
+          {is && booking. != null && (
             <p className="text-sm text-slate-600 mt-1">
-              <span className="font-semibold">Refund amount: </span>
-              {booking.currency || 'USD'} {booking.refund_amount}
+              <span className="font-semibold"> amount: </span>
+              {booking.currency || 'USD'} {booking.}
             </p>
           )}
           {booking.cancel_reviewed_at && (
@@ -394,7 +394,7 @@ export default function Bookings() {
   const [createErrors,setCreateErrors]= useState({})
 
   // ── Cancellation review ───────────────────────────────────────────────────
-  const [review,      setReview]      = useState({ decision: null, response: '', refund_amount: '' })
+  const [review,      setReview]      = useState({ decision: null, response: '', : '' })
   const [reviewing,   setReviewing]   = useState(false)
   const [portraitBusy, setPortraitBusy] = useState(false)
 
@@ -419,7 +419,7 @@ export default function Bookings() {
 
   const goView = (b) => {
     setSelected(b)
-    setReview({ decision: null, response: '', refund_amount: '' })
+    setReview({ decision: null, response: '' })
     setView(VIEWS.VIEW)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -721,10 +721,10 @@ export default function Bookings() {
       const res = await bookingsAPI.reviewCancellation(booking.id, {
         decision,
         admin_response: review.response,
-        refund_amount:  review.refund_amount || null,
+        :  review. || null,
       })
       toast.success(`Request ${decision}! Customer has been notified.`)
-      setReview({ decision: null, response: '', refund_amount: '' })
+      setReview({ decision: null, response: '' })
       const updated = res?.data?.data ?? res?.data ?? res
       setSelected(updated)
       load()
@@ -948,7 +948,7 @@ export default function Bookings() {
                 : r.cancel_request_status === 'approved'
                   ? 'bg-emerald-100 text-emerald-700'
                   : 'bg-rose-100 text-rose-700'}`}>
-              {r.cancel_request_type === 'refund' ? 'Refund' : 'Cancel'} · {r.cancel_request_status}
+              {r.cancel_request_type === 'refund' ? '' : 'Cancel'} · {r.cancel_request_status}
             </span>
           )}
         </div>
@@ -1526,10 +1526,10 @@ export default function Bookings() {
                 </SectionCard>
               )}
 
-              {/* Cancellation / Refund */}
+              {/* Cancellation /  */}
               {selected.cancel_request_status &&
                selected.cancel_request_status !== 'none' && (
-                <SectionCard title="Cancellation / Refund Request" icon={Ban}>
+                <SectionCard title="Cancellation /  Request" icon={Ban}>
                   <CancellationRequestPanel
                     booking={selected}
                     review={review}
@@ -1558,18 +1558,7 @@ export default function Bookings() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-medium">Payment</span>
-                    <span className="text-xs font-semibold text-slate-700 capitalize">
-                      {selected.payment_status || '—'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-medium">Source</span>
-                    <span className="text-xs font-semibold text-slate-700 capitalize">
-                      {selected.source || '—'}
-                    </span>
-                  </div>
-                </div>
+                    
 
                 {/* Traveller identity verification */}
                 <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
