@@ -186,6 +186,8 @@ function EmojiPicker({ onPick, onClose }) {
     <div
       ref={ref}
       role="dialog"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       aria-label="Searchable emoji picker"
       className="absolute bottom-full left-0 mb-2 z-[70] max-w-[calc(100vw-24px)]"
     >
@@ -386,8 +388,8 @@ const MsgBubble = React.memo(function MsgBubble({ message, mine, replyTo, onReac
           <span>{fmtShort(message.createdAt)}</span>
           {mine && !isPending && (
             message.isRead
-              ? <><CheckCheck size={12} className="text-emerald-500" /><span className="text-emerald-600">Seen {fmtElapsed(message.readAt, now)}</span></>
-              : <Check size={12} className="text-slate-400" />
+              ? <><CheckCheck size={13} strokeWidth={2.6} className="text-emerald-600" /><span className="text-emerald-600 font-medium">Seen {fmtElapsed(message.readAt, now)}</span></>
+              : <><Check size={13} strokeWidth={2.6} className="text-emerald-600" /><span className="text-emerald-600 font-medium">Sent</span></>
           )}
           {isPending && <Circle size={7} className="text-slate-300 animate-pulse fill-slate-300" />}
         </div>
@@ -1119,6 +1121,15 @@ export default function Messages() {
   const replyMsg = replyToId ? replyMap.get(String(replyToId)) : null
   const totalUnread = conversations.reduce((s, c) => s + (c.unreadAdmin || 0), 0)
 
+  const activePresence = activeId ? presenceByConversation[String(activeId)] : null
+  const activeSince = activePresence?.activeSince ? new Date(activePresence.activeSince).getTime() : 0
+  const activeDurationMins = activeSince ? Math.max(0, Math.floor((now - activeSince) / 60000)) : 0
+  const presenceLabel = activePresence?.active
+    ? (activeDurationMins < 1 ? 'Active now' : `Active for ${activeDurationMins}m`)
+    : activePresence?.lastSeenAt
+      ? `Last active ${fmtElapsed(activePresence.lastSeenAt, now)}`
+      : 'Offline'
+
   const convTitle = activeConv?.subject
     || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
     || activeConv?.guestName
@@ -1160,6 +1171,10 @@ export default function Messages() {
                 )}
               </h1>
               <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                <span className={activePresence?.active ? "text-emerald-600 font-semibold" : "text-slate-400"}>
+                  {activePresence?.active ? "●" : "○"} {presenceLabel}
+                </span>
+                <span className="text-slate-300">•</span>
                 {connected ? (
                   <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1478,7 +1493,7 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="flex items-end gap-2 px-2 sm:px-3 py-2 min-w-0 rounded-2xl border border-slate-200 bg-slate-50/90 shadow-sm focus-within:border-emerald-300 focus-within:bg-white focus-within:shadow-md transition-all">
+                  <div className="flex items-end gap-2 px-2 sm:px-3 py-2.5 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1522,9 +1537,10 @@ export default function Messages() {
                       rows={1}
                       placeholder="Write a message…"
                       aria-label="Type a message"
-                      className="flex-1 min-w-0 resize-none text-sm px-3 sm:px-4 py-2.5 rounded-xl border border-transparent
-                                 bg-slate-50 outline-none leading-relaxed transition-all
-                                 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-100
+                                 bg-slate-50/70 outline-none leading-relaxed transition-all
+                                 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100
+                                 placeholder:text-slate-400"
                       style={{ minHeight: 40, maxHeight: 120 }}
                     />
 
