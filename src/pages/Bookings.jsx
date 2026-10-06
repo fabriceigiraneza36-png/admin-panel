@@ -4,7 +4,7 @@ import {
   CalendarCheck, Eye, Pencil, Trash2, RefreshCw,
   CheckCircle, Download, Plus, User, ChevronRight,
   ChevronLeft, Check, Calendar, FileText,
-  Bell, Shield, Ban, DollarSign, CheckCircle2,
+  Bell, Shield, Ban, CheckCircle2,
   XCircle, ArrowLeft, MapPin, Phone, Mail,
   Users, Bed, ClipboardList, AlertTriangle,
   CheckSquare, Square, MessageSquare, Send, ClipboardCheck,
