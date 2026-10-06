@@ -1271,6 +1271,7 @@ export function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+  const isMessagesPage = location.pathname === '/messages' || location.pathname.startsWith('/messages/')
 
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
@@ -1349,12 +1350,26 @@ export function AdminLayout() {
           isMobileOpen={mobileOpen}
           notificationBell={<AdminNotificationBell />}
         />
-        <main style={{ flex: 1, overflowY: 'auto' }}>
+        <main style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          overflow: isMessagesPage ? 'hidden' : 'auto',
+          display: isMessagesPage ? 'flex' : 'block',
+          flexDirection: 'column',
+        }}>
           <div style={{
-            padding: 'clamp(16px, 2vw, 24px)',
-            maxWidth: '1600px',
-            margin: '0 auto',
+            flex: isMessagesPage ? '1 1 auto' : undefined,
+            minWidth: 0,
+            minHeight: isMessagesPage ? 0 : undefined,
+            width: '100%',
+            height: isMessagesPage ? '100%' : undefined,
+            padding: isMessagesPage ? 0 : 'clamp(16px, 2vw, 24px)',
+            maxWidth: isMessagesPage ? 'none' : '1600px',
+            margin: isMessagesPage ? 0 : '0 auto',
             animation: 'sbFadeIn 0.25s ease-out',
+            display: isMessagesPage ? 'flex' : undefined,
+            flexDirection: isMessagesPage ? 'column' : undefined,
           }}>
             <Outlet />
           </div>
