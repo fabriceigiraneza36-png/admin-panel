@@ -341,7 +341,7 @@ function LastEmailReceipt({ data }) {
     <div className="card p-4 sm:p-5 border-emerald-200 bg-emerald-50/60">
       <div className="flex items-center gap-2 mb-2">
         <CheckCircle2 size={18} className="text-emerald-600" />
-        <h3 className="font-semibold text-emerald-900">Email broadcast delivered</h3>
+        <h3 className="font-semibold text-emerald-900">Newsletter delivered</h3>
       </div>
       <p className="text-sm font-medium text-slate-800 break-words">{data.subject}</p>
       <div className="flex flex-wrap gap-2 mt-3 text-xs">
@@ -619,7 +619,7 @@ export default function Broadcast() {
             <Megaphone size={28} className="text-primary-600" /> Broadcast
           </h1>
           <p className="page-subtitle">
-            Email a targeted audience or push an in-app notification to all users.
+            Send a newsletter to active subscribers by email; linked subscriber accounts also receive the newsletter instantly in their in-app notification center.
           </p>
         </div>
       </div>
