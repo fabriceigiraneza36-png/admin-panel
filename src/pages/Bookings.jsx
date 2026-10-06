@@ -650,7 +650,6 @@ export default function Bookings() {
       const res = await bookingsAPI.reviewCancellation(booking.id, {
         decision,
         admin_response: review.response,
-        :  review. || null,
       })
       toast.success(`Request ${decision}! Customer has been notified.`)
       setReview({ decision: null, response: '' })
