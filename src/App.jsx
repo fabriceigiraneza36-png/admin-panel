@@ -44,7 +44,16 @@ function AdminDataWarmup() {
             }
         }
         run()
-        return () => { cancelled = true }
+        // Keep shared data fresh while the admin app stays open. Page components
+        // still own their React state; this keeps the cache warm for navigation
+        // without suppressing live/socket updates.
+        const refreshId = window.setInterval(() => {
+            if (!cancelled) run()
+        }, 30_000)
+        return () => {
+            cancelled = true
+            window.clearInterval(refreshId)
+        }
     }, [isLoggedIn])
 
     return null
