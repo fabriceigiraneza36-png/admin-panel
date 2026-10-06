@@ -1462,7 +1462,7 @@ const allNewImages = [
     is_primary: image.is_primary,
     sort_order: image.sort_order,
     source: image.source,
-  })),
+  }))),
   ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
     url: image.url,
     caption: image.caption,
