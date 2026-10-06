@@ -1320,7 +1320,11 @@ export default function Messages() {
                       </p>
                       <div className="flex items-center gap-2 min-w-0">
                         <p className="text-xs text-slate-500 truncate min-w-0">
-                          {activeConv.guestEmail || 'Guest'}
+                          {presenceByConversation[String(activeId)]?.active
+                            ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
+                            : (presenceByConversation[String(activeId)]?.lastSeenAt
+                              ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
+                              : (activeConv.guestEmail || 'Guest'))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
