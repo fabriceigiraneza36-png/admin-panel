@@ -377,6 +377,7 @@ export default function Bookings() {
         ...(dSearch        && { search: dSearch }),
         ...(status         && { status }),
         ...(requestFilter  && { cancel_request_status: requestFilter }),
+        ...(forceFresh && { _t: Date.now() }),
       }
       const res  = await bookingsAPI.getAll(params)
       const body = res?.data ?? res
