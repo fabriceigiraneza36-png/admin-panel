@@ -465,9 +465,7 @@ export default function Subscribers() {
                           rounded-xl text-sm text-amber-800">
             <AlertCircle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
             <p>
-              This will send an email to all{' '}
-              <strong>{pag.total.toLocaleString()}</strong> active subscribers.
-              This action cannot be undone.
+              This will send the newsletter to all active subscribers and, for linked accounts, place the same message in their Altuvera notification center instantly.
             </p>
           </div>
 
