@@ -64,8 +64,6 @@ apiClient.defaults.adapter = async (config) => {
   return originalAdapter(config)
 }
 
-// ── Auth helpers})
-
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
 const getToken   = () => localStorage.getItem(TOKEN_KEY)   || null
