@@ -63,6 +63,16 @@ const fmtRelative = (d) => {
 const fmtShort = (d) =>
   d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''
 
+const fmtElapsed = (d, now = Date.now()) => {
+  if (!d) return ''
+  const mins = Math.max(0, Math.floor((now - new Date(d).getTime()) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return mins + 'm ago'
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return hrs + 'h ' + (mins % 60) + 'm ago'
+  return Math.floor(hrs / 24) + 'd ago'
+}
+
 const isToday = (d) => {
   const n = new Date()
   return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear()
@@ -287,7 +297,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
 
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
-const MsgBubble = React.memo(function MsgBubble({ message, mine, replyTo, onReact, onReply }) {
+const MsgBubble = React.memo(function MsgBubble({ message, mine, replyTo, onReact, onReply, now }) {
   const reactions = useMemo(() => {
     const r = message.reactions || {}
     return Object.entries(r).filter(([, ids]) => ids?.length > 0)
@@ -376,7 +386,7 @@ const MsgBubble = React.memo(function MsgBubble({ message, mine, replyTo, onReac
           <span>{fmtShort(message.createdAt)}</span>
           {mine && !isPending && (
             message.isRead
-              ? <CheckCheck size={12} className="text-emerald-500" />
+              ? <><CheckCheck size={12} className="text-emerald-500" /><span className="text-emerald-600">Seen {fmtElapsed(message.readAt, now)}</span></>
               : <Check size={12} className="text-slate-400" />
           )}
           {isPending && <Circle size={7} className="text-slate-300 animate-pulse fill-slate-300" />}
@@ -608,6 +618,11 @@ export default function Messages() {
   const [atBottom, setAtBottom] = useState(true)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [newMsgsWhileScrolled, setNewMsgsWhileScrolled] = useState(0)
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
 
   const [userTyping, setUserTyping] = useState(null)
   const [typingConvIds, setTypingConvIds] = useState(new Set())
@@ -1391,6 +1406,7 @@ export default function Messages() {
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
                             onReply={setReplyToId}
+                            now={now}
                           />
                         )
                       )}
@@ -1475,7 +1491,6 @@ export default function Messages() {
                           onPick={emoji => {
                             const val = draft + emoji
                             handleDraftChange(val)
-                            setShowEmoji(false)
                             textareaRef.current?.focus()
                           }}
                           onClose={() => setShowEmoji(false)}
@@ -1501,7 +1516,7 @@ export default function Messages() {
                         }
                       }}
                       rows={1}
-                      placeholder="Message…"
+                      placeholder="Write a message…"
                       aria-label="Type a message"
                       className="flex-1 min-w-0 resize-none text-sm px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200
                                  bg-slate-50 outline-none leading-relaxed transition-all
