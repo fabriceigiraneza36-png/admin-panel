@@ -1,9 +1,54 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import AppRouter from './router'
 import { AuthProvider } from '@context/AuthContext'
 import { SocketProvider } from '@context/SocketContext'
 import { NotificationProvider } from '@context/NotificationContext'
 import { PushProvider } from '@context/PushNotificationContext'
+import { useAuth } from '@hooks/useAuth'
+import apiClient from '@api/client'
+
+const WARMUP_ENDPOINTS = [
+    ['/countries', { limit: 50, page: 1 }],
+    ['/destinations', { limit: 50, page: 1 }],
+    ['/bookings', { limit: 20, page: 1, sortBy: 'created_at', order: 'desc' }],
+    ['/users', { limit: 20, page: 1 }],
+    ['/posts', { limit: 20, page: 1 }],
+    ['/subscribers', { limit: 20, page: 1 }],
+    ['/contact', { limit: 20, page: 1 }],
+    ['/packages', { limit: 50, page: 1 }],
+    ['/services', { limit: 50, page: 1 }],
+    ['/faqs', { limit: 50, page: 1 }],
+    ['/team', { limit: 50, page: 1 }],
+    ['/gallery', { limit: 50, page: 1 }],
+]
+
+function AdminDataWarmup() {
+    const { isLoggedIn } = useAuth()
+    const warmedToken = useRef(null)
+
+    useEffect(() => {
+        if (!isLoggedIn) return
+        const token = localStorage.getItem('altuvera_admin_token')
+        if (!token || warmedToken.current === token) return
+        warmedToken.current = token
+
+        // Warm the shared GET cache in small batches so navigation is fast
+        // without creating a burst of requests against the Render backend.
+        let cancelled = false
+        const run = async () => {
+            for (let i = 0; i < WARMUP_ENDPOINTS.length && !cancelled; i += 3) {
+                const batch = WARMUP_ENDPOINTS.slice(i, i + 3)
+                await Promise.allSettled(
+                    batch.map(([url, params]) => apiClient.get(url, { params }))
+                )
+            }
+        }
+        run()
+        return () => { cancelled = true }
+    }, [isLoggedIn])
+
+    return null
+}
 
 /* ── Error boundary for catching render errors ── */
 class AppErrorBoundary extends React.Component {
@@ -75,6 +120,7 @@ export default function App() {
     return (
         <AppErrorBoundary>
             <AuthProvider>
+                <AdminDataWarmup />
                 <SocketProvider>
                     <NotificationProvider>
                         <PushProvider>
