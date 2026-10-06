@@ -48,6 +48,17 @@ apiClient.defaults.adapter = async (config) => {
     const key = cacheKeyFor(config)
     const cached = getCache.get(key)
     if (cached && Date.now() - cached.timestamp < GET_CACHE_TTL) {
+      // Stale-while-revalidate: navigation gets cached data immediately while
+      // the same request refreshes the shared cache in the background.
+      void originalAdapter(config)
+        .then((freshResponse) => {
+          getCache.set(key, { timestamp: Date.now(), response: freshResponse })
+          window.dispatchEvent(new CustomEvent('altuvera:api-updated', {
+            detail: { key, url: config.url },
+          }))
+        })
+        .catch(() => {})
+
       return {
         ...cached.response,
         data: cached.response.data,
