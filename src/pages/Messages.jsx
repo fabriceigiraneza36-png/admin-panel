@@ -599,6 +599,7 @@ export default function Messages() {
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [presenceByConversation, setPresenceByConversation] = useState({})
   const [filter, setFilter] = useState('open')
   const [search, setSearch] = useState('')
   const [replyToId, setReplyToId] = useState(null)
@@ -1026,6 +1027,30 @@ export default function Messages() {
       setConversations(prev => prev.map(c => String(c.id) === String(conv.id) ? { ...c, ...conv } : c))
     }
 
+    const onRead = (payload) => {
+      if (!payload?.conversationId) return
+      const ids = new Set((payload.messageIds || []).map(String))
+      if (String(payload.conversationId) === String(activeIdRef.current) && payload.readBy === 'user') {
+        setMessages(prev => prev.map(m =>
+          ids.has(String(m.id)) || m.senderType === 'admin'
+            ? { ...m, isRead: true, readAt: m.readAt || payload.readAt || new Date().toISOString() }
+            : m
+        ))
+      }
+    }
+
+    const onPresence = (payload) => {
+      if (!payload?.conversationId || payload.senderType !== 'user') return
+      setPresenceByConversation(prev => ({
+        ...prev,
+        [String(payload.conversationId)]: {
+          active: Boolean(payload.active),
+          activeSince: payload.activeSince || null,
+          lastSeenAt: payload.lastSeenAt || null,
+        },
+      }))
+    }
+
     const onReaction = ({ messageId, reactions }) => {
       if (!messageId) return
       setMessages(prev =>
@@ -1039,6 +1064,8 @@ export default function Messages() {
     on('msg:new-from-user',        onNewFromUser)
     on('msg:conversation-updated', onConvUpdated)
     on('msg:reaction',             onReaction)
+    on('msg:read',                 onRead)
+    on('msg:presence',             onPresence)
     on('msg:typing',               onTyping)
 
     return () => {
@@ -1046,6 +1073,8 @@ export default function Messages() {
       off('msg:new-from-user',        onNewFromUser)
       off('msg:conversation-updated', onConvUpdated)
       off('msg:reaction',             onReaction)
+      off('msg:read',                 onRead)
+      off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
     }
   }, [on, off, emit, loadConversations, showDesktopNotif, atBottom])
@@ -1053,6 +1082,7 @@ export default function Messages() {
   useEffect(() => {
     if (!emit || !activeId) return
     emit('msg:admin-join', { conversationId: activeId })
+    emit('msg:mark-read', { conversationId: activeId })
     return () => {
       if (emit) emit('msg:leave-conversation', { conversationId: activeId })
     }
