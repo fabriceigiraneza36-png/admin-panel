@@ -1485,6 +1485,8 @@ export default function Bookings() {
                       {selected.email_verified ? '✓ Yes' : '⏳ No'}
                     </span>
                   </div>
+                </div>
+
                 {/* Traveller identity verification */}
                 <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Traveller verification</p>
