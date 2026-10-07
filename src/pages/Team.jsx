@@ -79,6 +79,7 @@ const INIT = Object.freeze({
   website_url:      '',
   expertise:        [],
   languages:        [],
+  certifications:   [],
   years_experience: 0,
   location:         '',
   country:          '',
@@ -828,6 +829,12 @@ export default function TeamPage() {
               value={Array.isArray(form.languages) ? form.languages : []}
               onChange={(v) => upd('languages', v)}
               placeholder="e.g. English, Swahili"
+            />
+            <TagInput
+              label="Certifications"
+              value={Array.isArray(form.certifications) ? form.certifications : []}
+              onChange={(v) => upd('certifications', v)}
+              placeholder="e.g. UWA Guide Certification"
             />
           </ModalSection>
 
