@@ -18,7 +18,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   UserCircle, Plus, Pencil, Trash2, RefreshCw, Eye, Star,
-  Mail, Phone, MapPin, Globe,
+  Mail, Phone, Globe,
 } from 'lucide-react'
 
 import { teamAPI }         from '@api/team'
@@ -79,10 +79,7 @@ const INIT = Object.freeze({
   website_url:      '',
   expertise:        [],
   languages:        [],
-  certifications:   [],
   years_experience: 0,
-  location:         '',
-  country:          '',
   display_order:    0,
   is_featured:      false,
   is_active:        true,
@@ -518,12 +515,7 @@ export default function TeamPage() {
 
             <ModalGrid>
               <ModalField label="Email"      value={viewModal.data.email      || '—'} />
-              <ModalField label="Phone"      value={viewModal.data.phone      || '—'} />
-              <ModalField
-                label="Location"
-                value={`${viewModal.data.location || ''} ${viewModal.data.country || ''}`.trim() || '—'}
-              />
-              <ModalField
+              <ModalField label="Phone"      value={viewModal.data.phone      || '—'} />              <ModalField
                 label="Experience"
                 value={`${viewModal.data.years_experience || 0} years`}
               />
@@ -735,26 +727,6 @@ export default function TeamPage() {
                   placeholder="+250 700 000 000"
                 />
               </div>
-              <div className="input-group">
-                <label className="input-label flex items-center gap-1.5">
-                  <MapPin size={12} /> Location
-                </label>
-                <input
-                  className="input"
-                  value={form.location}
-                  onChange={(e) => upd('location', e.target.value)}
-                  placeholder="Kigali"
-                />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Country</label>
-                <input
-                  className="input"
-                  value={form.country}
-                  onChange={(e) => upd('country', e.target.value)}
-                  placeholder="Rwanda"
-                />
-              </div>
             </ModalGrid>
           </ModalSection>
 
@@ -829,14 +801,7 @@ export default function TeamPage() {
               value={Array.isArray(form.languages) ? form.languages : []}
               onChange={(v) => upd('languages', v)}
               placeholder="e.g. English, Swahili"
-            />
-            <TagInput
-              label="Certifications"
-              value={Array.isArray(form.certifications) ? form.certifications : []}
-              onChange={(v) => upd('certifications', v)}
-              placeholder="e.g. UWA Guide Certification"
-            />
-          </ModalSection>
+            />          </ModalSection>
 
           {/* Photo */}
           <ImageUpload
