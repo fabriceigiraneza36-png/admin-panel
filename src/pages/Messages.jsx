@@ -889,30 +889,21 @@ export default function Messages() {
   const toggleReaction = useCallback(async (messageId, emoji) => {
     const convId = activeIdRef.current
     if (!convId) return
+    const current = messages.find(m => String(m.id) === String(messageId))
+    const mine = current?.reactions?.[emoji]?.map(String).includes(String(user?.id))
     try {
       const res = await authFetch(
         `${API_BASE}/messages/conversations/${convId}/messages/${messageId}/react`,
-        { method: 'PATCH', body: JSON.stringify({ emoji }) }
+        { method: 'PATCH', body: JSON.stringify({ emoji, add: !mine }) }
       )
-      if (res.ok) {
-        const data = await res.json()
-        setMessages(prev =>
-          prev.map(m =>
-            String(m.id) === String(messageId)
-              ? { ...m, reactions: data.data?.reactions || {} }
-              : m
-          )
-        )
-        if (connected && emit) {
-          emit('msg:reaction-broadcast', {
-            conversationId: convId,
-            messageId,
-            reactions: data.data?.reactions || {},
-          })
-        }
-      }
-    } catch { /* ignore */ }
-  }, [connected, emit])
+      if (!res.ok) throw new Error('Reaction failed')
+      const data = await res.json()
+      setMessages(prev => prev.map(m =>
+        String(m.id) === String(messageId)
+          ? { ...m, reactions: data.data?.reactions || {} } : m
+      ))
+    } catch (e) { toast.error(e.message) }
+  }, [messages, user, toast])
 
   const startEditMessage = useCallback((message) => {
     if (!message || message.deleted) return
