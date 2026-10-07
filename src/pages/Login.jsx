@@ -28,8 +28,6 @@ function AnimatedCounter({ target, duration = 2, delay = 0 }) {
     const [count, setCount] = useState(0)
     const started = useRef(false)
 
-    if (target === null || target === undefined) return <>—</>
-
     useEffect(() => {
         if (started.current) return
         started.current = true
@@ -49,6 +47,8 @@ function AnimatedCounter({ target, duration = 2, delay = 0 }) {
 
         return () => clearTimeout(timer)
     }, [target, duration, delay])
+
+    if (target === null || target === undefined) return <>—</>
 
     return <>{count.toLocaleString()}</>
 }
