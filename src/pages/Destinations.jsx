@@ -995,7 +995,7 @@ function DeleteDialog({ isOpen, onClose, target, onDeleted }) {
   const doDelete = async () => {
     setBusy(true)
     try {
-      await destinationsAPI.remove(target.id)
+      await destinationsAPI.removePermanent(target.id)
       toast.success(`"${target.name}" deleted`)
       onDeleted(); onClose()
     } catch(err) {
