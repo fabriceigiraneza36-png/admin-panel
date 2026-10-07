@@ -1024,6 +1024,7 @@ export default function Countries() {
 
   const handleSave = async () => {
     if (!validateStep('identity')) { setStep('identity'); return }
+    if (!validateStep('media')) { setStep('media'); return }
     setSaving(true)
     try {
       const payload = {
