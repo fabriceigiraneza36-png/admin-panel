@@ -65,14 +65,8 @@ export function NotificationProvider({ children }) {
   const [totalPages,    setTotalPages]    = useState(1);
   const [total,         setTotal]         = useState(0);
 
-  /* ── Socket (optional — graceful if SocketContext absent) ── */
-  let socketOn  = null;
-  let socketOff = null;
-  try {
-    const ctx = useSocket();
-    socketOn  = ctx.on;
-    socketOff = ctx.off;
-  } catch { /* SocketContext not available */ }
+  /* ── Socket — always read from the provider unconditionally ── */
+  const { on: socketOn, off: socketOff } = useSocket();
 
   /* ══════════════════════════════════════════════════════════
      FETCH — list
