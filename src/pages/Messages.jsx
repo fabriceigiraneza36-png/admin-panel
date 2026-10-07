@@ -1122,12 +1122,21 @@ export default function Messages() {
       )
     }
 
+    const onMessageMutation = (payload) => {
+      if (!payload?.id) return
+      setMessages(prev => prev.map(m => String(m.id) === String(payload.id) ? { ...m, ...payload } : m))
+    }
+
     if (emit) emit('join:admin')
 
     on('msg:message',              onMessage)
     on('msg:new-from-user',        onNewFromUser)
     on('msg:conversation-updated', onConvUpdated)
     on('msg:reaction',             onReaction)
+    on('msg:message-edited',       onMessageMutation)
+    on('msg:message-deleted',      onMessageMutation)
+    on('msg:message-pinned',       onMessageMutation)
+    on('msg:message-highlighted',  onMessageMutation)
     on('msg:read',                 onRead)
     on('msg:presence',             onPresence)
     on('msg:typing',               onTyping)
@@ -1137,6 +1146,10 @@ export default function Messages() {
       off('msg:new-from-user',        onNewFromUser)
       off('msg:conversation-updated', onConvUpdated)
       off('msg:reaction',             onReaction)
+      off('msg:message-edited',       onMessageMutation)
+      off('msg:message-deleted',      onMessageMutation)
+      off('msg:message-pinned',       onMessageMutation)
+      off('msg:message-highlighted',  onMessageMutation)
       off('msg:read',                 onRead)
       off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
