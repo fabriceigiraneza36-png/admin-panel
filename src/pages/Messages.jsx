@@ -627,6 +627,9 @@ export default function Messages() {
   const [replyToId, setReplyToId] = useState(null)
   const [showEmoji, setShowEmoji] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
+  const [showGroupChat, setShowGroupChat] = useState(false)
+  const [editingMessageId, setEditingMessageId] = useState(null)
+  const [editText, setEditText] = useState("")
   const [atBottom, setAtBottom] = useState(true)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [newMsgsWhileScrolled, setNewMsgsWhileScrolled] = useState(0)
@@ -910,6 +913,49 @@ export default function Messages() {
       }
     } catch { /* ignore */ }
   }, [connected, emit])
+
+  const startEditMessage = useCallback((message) => {
+    if (!message || message.deleted) return
+    setEditingMessageId(message.id)
+    setEditText(message.body || "")
+  }, [])
+
+  const saveEditMessage = useCallback(async (messageId) => {
+    const body = editText.trim()
+    if (!body || !activeId) return
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}/messages/${messageId}`, {
+        method: 'PATCH', body: JSON.stringify({ body }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'Failed to edit message')
+      setMessages(prev => prev.map(m => String(m.id) === String(messageId) ? data.data : m))
+      setEditingMessageId(null); setEditText("")
+      toast.success('Message edited')
+    } catch (e) { toast.error(e.message) }
+  }, [activeId, editText, toast])
+
+  const unsendMessage = useCallback(async (messageId) => {
+    if (!activeId || !window.confirm('Unsend this message? It will be replaced with an unsent marker for everyone.')) return
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}/messages/${messageId}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'Failed to unsend message')
+      setMessages(prev => prev.map(m => String(m.id) === String(messageId) ? data.data : m))
+    } catch (e) { toast.error(e.message) }
+  }, [activeId, toast])
+
+  const setMessageFlag = useCallback(async (messageId, flag, value) => {
+    if (!activeId) return
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}/messages/${messageId}/${flag}`, {
+        method: 'PATCH', body: JSON.stringify({ value }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'Failed to update message')
+      setMessages(prev => prev.map(m => String(m.id) === String(messageId) ? data.data : m))
+    } catch (e) { toast.error(e.message) }
+  }, [activeId, toast])
 
   const changeStatus = useCallback(async (status) => {
     const convId = activeIdRef.current
