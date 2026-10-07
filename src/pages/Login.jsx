@@ -28,6 +28,8 @@ function AnimatedCounter({ target, duration = 2, delay = 0 }) {
     const [count, setCount] = useState(0)
     const started = useRef(false)
 
+    if (target === null || target === undefined) return <>—</>
+
     useEffect(() => {
         if (started.current) return
         started.current = true
@@ -519,10 +521,10 @@ export default function Login() {
                         <div className="grid grid-cols-4 gap-2">
                             {/* Replace the stats grid items in Login.jsx left panel */}
                             {[
-                                { val: liveStats.countries, label: 'Countries', delay: 0.2 },
-                                { val: liveStats.destinations, label: 'Destinations', delay: 0.4 },
-                                { val: liveStats.services, label: 'Services', delay: 0.6 },
-                                { val: liveStats.team, label: 'Team', delay: 0.8 },
+                                { val: liveStats?.countries, label: 'Countries', delay: 0.2 },
+                                { val: liveStats?.destinations, label: 'Destinations', delay: 0.4 },
+                                { val: liveStats?.services, label: 'Services', delay: 0.6 },
+                                { val: liveStats?.team, label: 'Team', delay: 0.8 },
                             ].map((s) => (
                                 <div key={s.label} className="text-center">
                                     <p className="font-black text-white leading-none"
