@@ -9,7 +9,8 @@ import React, {
 } from 'react'
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
-  MessageSquare, RefreshCw, Search, Plus, User, ChevronDown, Circle, Trash2, PanelLeftClose, PanelLeftOpen,
+  MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Edit3, Pin, Highlighter, Undo2,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
@@ -299,92 +300,101 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
 
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
-const MsgBubble = React.memo(function MsgBubble({ message, mine, replyTo, onReact, onReply, now }) {
+const MsgBubble = React.memo(function MsgBubble({
+  message, mine, replyTo, onReact, onReply, now,
+  editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
+  onUnsend, onPin, onHighlight, canModerate,
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const reactions = useMemo(() => {
     const r = message.reactions || {}
     return Object.entries(r).filter(([, ids]) => ids?.length > 0)
   }, [message.reactions])
-
   const isPending = String(message.id).startsWith('tmp-')
+  const isDeleted = Boolean(message.deleted)
+  const isEditing = String(editingId) === String(message.id)
 
   return (
     <div className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full`}>
-      {!mine && (
-        <div className="flex-shrink-0 self-end mr-2 mb-4">
-          <Avatar name={message.senderName || 'User'} size="xs" />
-        </div>
-      )}
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} size="xs" /></div>}
 
-      <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[70%] min-w-0`}>
-        {!mine && (
-          <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">
-            {message.senderName || 'User'}
-          </span>
-        )}
+      <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
+        {!mine && <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">{message.senderName || 'User'}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
-            <div className={`border-l-2 pl-2.5 py-1 pr-3 rounded-lg truncate max-w-[280px]
-                             ${mine
-                               ? 'border-emerald-300 bg-emerald-50 text-emerald-800/80'
-                               : 'border-slate-300 bg-slate-100 text-slate-600'
-                             }`}>
-              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">
-                ↩ {replyTo.senderName || 'Message'}
-              </span>
+            <div className={`border-l-2 pl-2.5 py-1 pr-3 rounded-lg truncate max-w-[280px] ${mine ? 'border-emerald-300 bg-emerald-50 text-emerald-800/80' : 'border-slate-300 bg-slate-100 text-slate-600'}`}>
+              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">↩ {replyTo.senderName || 'Message'}</span>
               <span className="block truncate text-[11px] mt-0.5">{replyTo.body || ''}</span>
             </div>
           </div>
         )}
 
-        <div className="relative flex items-center gap-2 max-w-full">
-          <div className={`
-            px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap rounded-2xl shadow-sm
-            ${mine
-              ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-md'
-              : 'bg-white text-slate-800 border border-slate-200 rounded-bl-md'
-            }
-            ${isPending ? 'opacity-60' : ''}
-            transition-all
-          `} style={{ wordBreak: 'break-word' }}>
-            {message.body}
-          </div>
+        <div className={`relative flex items-center gap-2 max-w-full ${message.isHighlighted ? 'rounded-2xl ring-2 ring-amber-300 ring-offset-2' : ''}`}>
+          {isEditing ? (
+            <div className="w-full min-w-[220px] max-w-[520px] bg-white border border-emerald-300 rounded-2xl p-2 shadow-md">
+              <textarea autoFocus value={editText} onChange={e => setEditText(e.target.value)}
+                className="w-full min-h-[76px] resize-none outline-none text-sm text-slate-800 bg-slate-50 rounded-xl p-2.5" />
+              <div className="flex justify-end gap-2 mt-2">
+                <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+                <button onClick={() => onSaveEdit(message.id)} disabled={!editText.trim()}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white disabled:opacity-40">Save</button>
+              </div>
+            </div>
+          ) : (
+            <div className={`px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap rounded-2xl shadow-sm
+              ${mine ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-md' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-md'}
+              ${isPending ? 'opacity-60' : ''} ${isDeleted ? 'italic opacity-60' : ''} transition-all`}
+              style={{ wordBreak: 'break-word' }}>
+              {isDeleted ? 'This message was unsent' : message.body}
+              {message.edited && !isDeleted && <span className={`ml-2 text-[9px] ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>edited</span>}
+            </div>
+          )}
 
-          {/* Hover actions */}
-          <div className={`opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-200
-                           absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-20 bg-white
-                           border border-slate-200 shadow-lg rounded-full px-1.5 py-1
-                           ${mine ? 'right-full mr-2' : 'left-full ml-2'}`}>
-            {INLINE_REACTION_EMOJIS.map(e => (
-              <button key={e}
-                onMouseDown={ev => { ev.preventDefault(); onReact(message.id, e) }}
-                className="text-sm p-1 rounded-md hover:bg-slate-100 transition-colors active:scale-125">
-                {e}
+          {!isPending && !isDeleted && !isEditing && (
+            <div className="relative flex-shrink-0">
+              <button onClick={() => setMenuOpen(v => !v)} aria-label="Message actions"
+                className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 transition">
+                <MoreHorizontal size={15} />
               </button>
-            ))}
-            <button
-              onMouseDown={ev => { ev.preventDefault(); onReply(message.id) }}
-              className="p-1 rounded-md hover:bg-emerald-50 text-slate-500 hover:text-emerald-700 transition-colors">
-              <CornerUpLeft size={13} />
-            </button>
-          </div>
+              {menuOpen && (
+                <div className={`absolute top-full mt-1 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
+                  {INLINE_REACTION_EMOJIS.map(e => (
+                    <button key={e} onClick={() => { onReact(message.id, e); setMenuOpen(false) }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm hover:bg-slate-50">{e}<span className="text-xs text-slate-500">React</span></button>
+                  ))}
+                  <button onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  {(mine || canModerate) && <>
+                    <button onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Edit3 size={15}/> Edit</button>
+                    <button onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend</button>
+                  </>}
+                  <button onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin'}</button>
+                  <button onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {reactions.length > 0 && (
           <div className={`flex flex-wrap gap-1 mt-1 ${mine ? 'justify-end' : ''}`}>
             {reactions.map(([emoji, ids]) => (
               <button key={emoji} onClick={() => onReact(message.id, emoji)}
-                className="bg-white border border-slate-200 rounded-full px-2 py-0.5 text-xs
-                           hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-1">
-                <span>{emoji}</span>
-                <span className="text-slate-500 font-semibold text-[10px]">{ids.length}</span>
+                className="bg-white border border-slate-200 rounded-full px-2 py-0.5 text-xs hover:bg-slate-50 transition-all shadow-sm flex items-center gap-1">
+                <span>{emoji}</span><span className="text-slate-500 font-semibold text-[10px]">{ids.length}</span>
               </button>
             ))}
           </div>
         )}
 
-        <div className={`flex items-center gap-1 mt-0.5 text-[10px] text-slate-400
-                         ${mine ? 'justify-end' : ''}`}>
+        {(message.isPinned || message.isHighlighted) && !isDeleted && (
+          <div className="flex items-center gap-2 mt-1">
+            {message.isPinned && <span className="text-[9px] font-bold text-slate-500 inline-flex items-center gap-1"><Pin size={10}/> Pinned</span>}
+            {message.isHighlighted && <span className="text-[9px] font-bold text-amber-600 inline-flex items-center gap-1"><Highlighter size={10}/> Highlighted</span>}
+          </div>
+        )}
+
+        <div className={`flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 ${mine ? 'justify-end' : ''}`}>
           <span>{fmtShort(message.createdAt)}</span>
           {mine && !isPending && (
             message.isRead
