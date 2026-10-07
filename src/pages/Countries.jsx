@@ -445,13 +445,9 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
             <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50 aspect-[4/3]">
               <img src={img.url} alt={img.caption || `Photo ${i+1}`} className="w-full h-full object-cover"
                 onError={e => { e.target.src = PLACEHOLDER_SVG }} />
-              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
-                img.source === 'upload' ? 'bg-emerald-500 text-white' :
-                img.source === 'gallery' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'
-              }`}>
-                {img.source === 'upload' ? 'Upload' : img.source === 'gallery' ? 'Library' : 'URL'}
-              </div>
-              {img.caption && (
+              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${i < HERO_COUNTRY_IMAGE_COUNT ? 'bg-emerald-600 text-white' : 'bg-violet-600 text-white'}`}>
+                {i < HERO_COUNTRY_IMAGE_COUNT ? `Hero ${i + 1}` : 'Attraction / Gallery'}
+              </div>             {img.caption && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
                   <p className="text-[10px] text-white truncate">{img.caption}</p>
                 </div>
