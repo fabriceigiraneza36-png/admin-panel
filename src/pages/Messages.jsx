@@ -1295,6 +1295,16 @@ export default function Messages() {
       {showNewChat && (
         <NewChatModal onClose={() => setShowNewChat(false)} onCreated={handleNewConvCreated} />
       )}
+      {showGroupChat && (
+        <GroupChatModal
+          onClose={() => setShowGroupChat(false)}
+          onCreated={(data) => {
+            setShowGroupChat(false)
+            loadConversations()
+            if (data?.conversationId) openConversation(data.conversationId)
+          }}
+        />
+      )}
 
       {/*
         ═══════════════════════════════════════════════════════════════════════
@@ -1343,7 +1353,13 @@ export default function Messages() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0 max-w-[48%]">
+          <div className="flex items-center gap-2 flex-shrink-0 max-w-[60%]">
+            <button onClick={() => setShowGroupChat(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-emerald-700 border border-emerald-200
+                         text-xs font-bold rounded-lg hover:bg-emerald-50 transition-all" title="Send to a shared group chat">
+              <UsersRound size={14} />
+              <span className="hidden sm:inline">Group</span>
+            </button>
             <button onClick={() => setShowNewChat(true)}
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600
                          text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/20
