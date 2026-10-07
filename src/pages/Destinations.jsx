@@ -1420,7 +1420,7 @@ const normaliseGalleries = (dest) => {
   /* ── Save ─────────────────────────────────────────────────────────── */
   const handleSave = async () => {
     if (!validateStep('identity')) { setStep('identity'); return }
-    if (!editing && !validateStep('media')) { setStep('media'); return }
+    if (!validateStep('media')) { setStep('media'); return }
     setSaving(true)
     try {
       const { gallery, library_images, hero_slides, itinerary, faqs, tags, local_tips, ...destinationFields } = form
