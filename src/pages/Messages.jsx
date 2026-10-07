@@ -603,6 +603,99 @@ function NewChatModal({ onClose, onCreated }) {
   )
 }
 
+function GroupChatModal({ onClose, onCreated }) {
+  const [search, setSearch] = useState("")
+  const [users, setUsers] = useState([])
+  const [selectedIds, setSelectedIds] = useState([])
+  const [name, setName] = useState("")
+  const [firstMessage, setFirstMessage] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await authFetch(`${API_BASE}/messages/users-list?search=${encodeURIComponent(search)}&limit=50`)
+        const data = await res.json()
+        setUsers(data.data || [])
+      } catch { setUsers([]) }
+      finally { setLoading(false) }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const toggle = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+  const submit = async () => {
+    if (!name.trim()) return setError("Enter a group name.")
+    if (!selectedIds.length) return setError("Select at least one traveler.")
+    if (!firstMessage.trim()) return setError("Enter the first group message.")
+    setSaving(true); setError("")
+    try {
+      const res = await authFetch(`${API_BASE}/messages/groups`, {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), userIds: selectedIds, firstMessage: firstMessage.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || "Failed to create group")
+      onCreated(data.data)
+    } catch (e) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative z-10 w-full max-w-xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-slate-900">Create group conversation</h3>
+            <p className="text-xs text-slate-400 mt-0.5">A shared chat, not a notification broadcast.</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center"><X size={17}/></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Group name e.g. Rwanda Gorilla Trip — June"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-500"/>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Travelers</label>
+              <span className="text-[11px] font-bold text-emerald-600">{selectedIds.length} selected</span>
+            </div>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, email or phone…"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-500 mb-2"/>
+            <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-64 overflow-y-auto">
+              {loading ? <div className="p-6 text-center text-xs text-slate-400">Loading travelers…</div> :
+                users.map(u => {
+                  const checked = selectedIds.includes(u.id)
+                  return <button key={u.id} onClick={()=>toggle(u.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left border-b border-slate-100 last:border-0 ${checked ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs ${checked ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-300"}`}>{checked ? "✓" : ""}</div>
+                    <Avatar name={u.fullName || u.email} src={u.avatarUrl} size="sm"/>
+                    <div className="min-w-0 flex-1"><p className="text-sm font-bold text-slate-800 truncate">{u.fullName || u.email}</p><p className="text-[11px] text-slate-400 truncate">{u.email}</p></div>
+                  </button>
+                })
+              }
+            </div>
+          </div>
+          <textarea value={firstMessage} onChange={e=>setFirstMessage(e.target.value)} rows={4}
+            placeholder="Write the first message that every group member will see…"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm resize-none outline-none focus:border-emerald-500"/>
+          {error && <div className="rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold px-3 py-2">{error}</div>}
+        </div>
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white">Cancel</button>
+          <button onClick={submit} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 disabled:opacity-50">
+            {saving ? "Creating…" : `Create group & send`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Main Component ───────────────────────────────────────────────────────── */
 
 export default function Messages() {
