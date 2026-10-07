@@ -36,7 +36,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 const DIFFICULTIES = ['easy', 'moderate', 'challenging', 'strenuous', 'expert']
 const STATUSES     = ['draft', 'published', 'archived']
 const CATEGORIES   = []
-const MAX_GALLERY_IMAGES = 10   // uploaded/URL gallery images (excludes hero/cover/main + library imports)
+const HERO_IMAGE_COUNT = 4
+const MIN_TOTAL_DESTINATION_IMAGES = 9
+const MAX_GALLERY_IMAGES = 12   // uploaded/URL gallery images (excludes hero/cover/main + library imports)
 
 const INITIAL_FORM = {
   // Identity
@@ -56,7 +58,7 @@ const INITIAL_FORM = {
   // Media - Galleries (separated)
   gallery: [],          // uploaded/URL — max 10
   library_images: [],   // imported from central gallery library — unlimited
-  hero_slides: [],      // create-only: 3 hero slideshow images
+  hero_slides: [],      // first 4 images: destination hero slideshow
 
   // Arrays / lists
   activities: [], attractions: [], highlights: [], wildlife: [],
@@ -864,7 +866,7 @@ function FaqEditor({ faqs=[], onChange }) {
 /* ─── Attraction Editor ─────────────────────────────────────────────────── */
 function AttractionEditor({ attractions = [], onChange }) {
   const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
-  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '' }])
+  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '', image_url: '' }])
   const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
 
   return (
@@ -890,8 +892,12 @@ function AttractionEditor({ attractions = [], onChange }) {
             placeholder="Attraction name" value={item.name || ''} onChange={e => update(index, 'name', e.target.value)} />
           <textarea className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm resize-none focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 min-h-[70px]"
             rows={2} placeholder="Short description" value={item.description || ''} onChange={e => update(index, 'description', e.target.value)} />
-          <input className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
-            type="url" placeholder="Image URL (optional)" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
+          <div className="rounded-xl border border-emerald-100 bg-white p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-2">Attraction image *</p>
+            <ImageUpload label="" value={item.imageUrl || item.image_url || ''} onChange={url => update(index, 'imageUrl', url)} folder="destinations/attractions" />
+            <input className="w-full mt-2 px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50"
+              type="url" placeholder="Or paste an image URL" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
+          </div>
         </div>
       ))}
       {attractions.length===0 && (
@@ -1337,8 +1343,8 @@ const normaliseGalleries = (dest) => {
       local_tips:         normaliseTips(dest),
       tags:               dest.tags               || [],
 
-      hero_slides: [],
-      gallery,
+      hero_slides: gallery.slice(0, HERO_IMAGE_COUNT),
+      gallery: gallery.slice(HERO_IMAGE_COUNT),
       library_images,
       itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
       faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
@@ -1382,11 +1388,16 @@ const normaliseGalleries = (dest) => {
       if (!form.country_id)    e.country_id = 'Please select a country'
       if (!form.category)      e.category   = 'Please select a category'
     }
-    if (stepId === 'media' && !editing) {
+    if (stepId === 'media') {
       const heroCount = (form.hero_slides || []).filter(Boolean).length
       const galleryCount = (form.gallery || []).filter(Boolean).length
-      if (heroCount < 3) e.hero_slides = 'Three hero images are required for the slideshow'
-      if (galleryCount < 5) e.gallery = 'Five additional gallery images are required'
+      const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
+      const attractionItems = Array.isArray(form.attractions) ? form.attractions : []
+      const completeAttractions = attractionItems.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 hero images are required for the destination slideshow'
+      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 destination images are required (4 hero + attraction/gallery images)'
+      if (attractionItems.length < 4) e.attractions = 'Add at least 4 attractions'
+      else if (completeAttractions < 4) e.attractions = 'Every attraction must have a name and image'
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -1426,7 +1437,7 @@ const normaliseGalleries = (dest) => {
             url,
             is_primary: index === 0,
             sort_order: index,
-            source: index < 3 ? 'hero' : 'gallery',
+            source: index < HERO_IMAGE_COUNT ? 'hero' : 'attraction',
           })),
           image_url: heroImages[0] || null,
           hero_image: heroImages[0] || null,
