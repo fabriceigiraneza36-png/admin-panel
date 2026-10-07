@@ -1129,10 +1129,10 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-800 text-white shadow-xl shadow-emerald-900/10">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0"><Camera size={18}/></div>
-          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Every new destination needs 3 hero images for the automatic hero slideshow plus 5 additional destination photos.</p></div>
+          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Every destination needs 4 hero images for the automatic hero slideshow plus at least 5 additional attraction/gallery photos.</p></div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-          {[['Hero',heroCount,3],['Gallery',galleryCount,5],['Total',heroCount+galleryCount,8],['Status',heroCount>=3&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
+          {[['Hero',heroCount,4],['Gallery',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
             <div key={label} className="rounded-xl bg-white/10 border border-white/10 p-2.5">
               <p className="text-[9px] uppercase tracking-wider text-emerald-200 font-bold">{label}</p>
               <p className="text-sm font-black mt-0.5">{max?`${value} / ${max}`:value}</p>
@@ -1142,15 +1142,15 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       </div>
 
       <section className="rounded-2xl border-2 border-amber-100 bg-amber-50/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">Hero slideshow — 3 images required</h4><p className="text-[10px] text-slate-500">These three images rotate automatically at the top of the destination detail page.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">Hero slideshow — 4 images required</h4><p className="text-[10px] text-slate-500">These four images rotate automatically at the top of the destination detail page.</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[0,1,2].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/hero" label={`Hero image ${i+1}`} number={i+1}/>)}
+          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/hero" label={`Hero image ${i+1}`} number={i+1}/>)}
         </div>
-        {heroCount<3&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 3 hero images before continuing.</p>}
+        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 hero images before continuing.</p>}
       </section>
 
       <section className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">Destination gallery — 5 images required</h4><p className="text-[10px] text-slate-500">Additional photos are displayed throughout the destination page.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">Attraction / gallery media — 5+ images required</h4><p className="text-[10px] text-slate-500">These images should showcase attractions and supporting visual stories.</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {[0,1,2,3,4].map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setGallery(i,v)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
         </div>
