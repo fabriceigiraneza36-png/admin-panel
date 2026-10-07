@@ -837,6 +837,46 @@ function SuccessCelebration({ show, message, onDone }) {
 
 /* ─── Main ───────────────────────────────────────────────────────────────────── */
 
+function CountryAttractionEditor({ attractions = [], onChange }) {
+  const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
+  const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '' }])
+  const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5"><Sparkles size={12}/> Country attractions ({attractions.length})</p>
+          <p className="text-[11px] text-emerald-700/70 mt-1">Add 4 or more places/experiences, each with its own image.</p>
+        </div>
+        <button type="button" onClick={add} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
+          <Plus size={12}/> Add Attraction
+        </button>
+      </div>
+      <div className="space-y-3">
+        {attractions.map((item, index) => (
+          <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] gap-3 p-4 rounded-2xl bg-white border border-emerald-100">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Attraction {index + 1}</span>
+                <button type="button" onClick={() => remove(index)} className="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center"><Trash2 size={12}/></button>
+              </div>
+              <input className={inputClass} placeholder="Attraction name" value={item.name || ''} onChange={e => update(index, 'name', e.target.value)} />
+              <textarea className={textareaClass} rows={3} placeholder="Short description" value={item.description || ''} onChange={e => update(index, 'description', e.target.value)} />
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-2">Attraction image *</p>
+              <ImageUpload label="" value={item.imageUrl || item.image_url || ''} onChange={url => update(index, 'imageUrl', url)} folder="countries/attractions" />
+              <input className={inputClass + " mt-2"} type="url" placeholder="Or paste an image URL" value={item.imageUrl || item.image_url || ''} onChange={e => update(index, 'imageUrl', e.target.value)} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {!attractions.length && <div className="py-7 text-center rounded-2xl border-2 border-dashed border-emerald-200 text-slate-400"><Sparkles size={26} className="mx-auto mb-2 opacity-40"/><p className="text-xs font-semibold">No attractions added yet</p></div>}
+    </div>
+  )
+}
+
 export default function Countries() {
   const toast = useToast()
   const pag = usePagination()
