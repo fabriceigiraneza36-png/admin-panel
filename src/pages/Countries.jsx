@@ -37,7 +37,7 @@ const INITIAL_FORM = {
   health_info: '', currency: '', currency_symbol: '', timezone: '',
   calling_code: '', languages: [], official_languages: [], highlights: [],
   experiences: [], travel_tips: [], image_url: '', cover_image_url: '',
-  gallery: [], hero_image: '',
+  gallery: [], hero_image: '', attractions: [],
   latitude: '', longitude: '', is_featured: false, is_active: true,
 }
 
@@ -338,7 +338,9 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 
 /* ─── Gallery Manager ────────────────────────────────────────────────────────── */
 
-const MAX_COUNTRY_IMAGES = 10
+const HERO_COUNTRY_IMAGE_COUNT = 4
+const MIN_COUNTRY_IMAGES = 9
+const MAX_COUNTRY_IMAGES = 12
 
 function GalleryManager({ gallery = [], onChange, onLightbox }) {
   const [addMode, setAddMode] = useState('upload')
@@ -394,7 +396,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
             <Camera size={14} className="text-emerald-500" /> Photo Gallery
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{gallery.length}/{MAX_COUNTRY_IMAGES} photos</p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length}/{MAX_COUNTRY_IMAGES} photos · first 4 are hero · remaining photos are attraction/gallery media</p>
         </div>
         <button type="button" onClick={() => setShowLibrary(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
@@ -906,7 +908,8 @@ export default function Countries() {
       try { heroImages = JSON.parse(heroImages) } catch { heroImages = [] }
     }
     if (!Array.isArray(heroImages)) heroImages = []
-    const gallery = heroImages.map(image => ({
+    const sourceImages = Array.isArray(c.images) && c.images.length ? c.images : heroImages
+    const gallery = sourceImages.map(image => ({
       url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
       caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
       source: 'upload',
@@ -914,6 +917,7 @@ export default function Countries() {
 
     return {
       gallery,
+      attractions: Array.isArray(c.attractions) ? c.attractions : (typeof c.attractions === 'string' ? (() => { try { return JSON.parse(c.attractions) } catch { return [] } })() : []),
       name: c.name || '', slug: c.slug || '', official_name: c.official_name || '',
       capital: c.capital || '', flag: c.flag || '', flag_url: c.flag_url || '',
       continent: c.continent || '', region: c.region || '', sub_region: c.sub_region || '',
@@ -955,6 +959,15 @@ export default function Countries() {
       if (!form.name.trim()) e.name = 'Country name is required'
       if (!form.continent)   e.continent = 'Please select a continent'
     }
+    if (stepId === 'media') {
+      const images = Array.isArray(form.gallery) ? form.gallery.filter(image => String(image?.url || '').trim()) : []
+      const completeAttractions = (Array.isArray(form.attractions) ? form.attractions : []).filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+      if (images.length < MIN_COUNTRY_IMAGES) e.gallery = 'At least 9 country images are required (4 hero + attraction/gallery images)'
+      if (images.slice(0, HERO_COUNTRY_IMAGE_COUNT).length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = 'The first 4 country images are required as the hero slideshow'
+      if ((form.attractions || []).length < 4) e.attractions = 'Add at least 4 country attractions'
+      else if (completeAttractions < 4) e.attractions = 'Every country attraction must have a name and image'
+      if (!form.latitude || !form.longitude) e.coordinates = 'Latitude and longitude are required so this country can appear correctly on the interactive map'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -979,13 +992,12 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        hero_images: [
-          ...(form.gallery || []).map(image => ({
-            url: image.url || image.imageUrl,
-            caption: image.caption || '',
-          })).filter(image => image.url),
-          ...(form.hero_image ? [{ url: form.hero_image, caption: 'Hero Image' }] : []),
-        ],
+        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
+          url: image.url || image.imageUrl,
+          caption: image.caption || '',
+        })).filter(image => image.url),
+        images: (form.gallery || []).map(image => image.url || image.imageUrl).filter(Boolean),
+        attractions: form.attractions || [],
         population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
         latitude:   form.latitude   ? Number(form.latitude)   : null,
@@ -1266,6 +1278,10 @@ export default function Countries() {
             <Field label="Travel Tips" icon={Lightbulb} className="md:col-span-2">
               <TagInput value={form.travel_tips} onChange={v => upd('travel_tips', v)} placeholder="Add tip…" />
             </Field>
+            <div className="md:col-span-2 p-4 sm:p-5 rounded-2xl border-2 border-emerald-100 bg-emerald-50/30">
+              <CountryAttractionEditor attractions={form.attractions || []} onChange={v => upd('attractions', v)} />
+              {errors.attractions && <p className="mt-2 text-xs font-semibold text-red-600">{errors.attractions}</p>}
+            </div>
           </div>
         </motion.div>
       )
