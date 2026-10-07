@@ -755,19 +755,19 @@ export default function Bookings() {
 
       toast.success(`✅ Booking ${bn} created successfully!`)
 
-      // Optional: send notification to user
+      // Dashboard notification only. The backend already sends the single
+      // branded booking email; never send a second plain notification email.
       if (createForm.notify_user && createForm.email) {
         await notificationsAPI.create({
           user_email:   createForm.email,
           type:         'booking_created',
-          title:        'Your Booking Has Been Created',
-          message:      createForm.admin_notes?.trim()
-            || `Your booking ${bn} has been created and is pending review.`,
-          action_url:   '/my-bookings',
-          action_label: 'View Booking',
+          title:        'Please confirm your booking request',
+          message:      `Your booking ${bn} has been created. Please confirm it using the confirmation button in the branded email sent to your inbox. This dashboard notification does not contain a confirmation link.`,
+          action_url:   '',
+          action_label: '',
           priority:     'high',
           category:     'booking',
-          send_email:   true,
+          send_email:   false,
         }).catch(() => {})
       }
 
