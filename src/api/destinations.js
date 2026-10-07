@@ -33,6 +33,7 @@ export const destinationsAPI = {
   bulkUpdate:     (ids, updates) => apiClient.patch(`${BASE}/bulk`, { ids, updates }),
   bulkDelete:     (ids, permanent = false) =>
     apiClient.delete(BASE, { data: { ids, permanent } }),
+  removePermanent: (id) => apiClient.delete(BASE + "/" + id + "?permanent=true"),
 
   toggleActive:   (id) => apiClient.patch(`${BASE}/${id}/toggle-active`),
   toggleFeatured: (id) => apiClient.patch(`${BASE}/${id}/toggle-featured`),
