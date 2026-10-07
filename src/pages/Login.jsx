@@ -213,30 +213,56 @@ function EmailDropdown({ items, inputValue, onSelect, activeIndex }) {
 
 /* ── Replace useLiveStats in Login.jsx with this version ── */
 function useLiveStats() {
-    const [stats, setStats] = useState({
-        countries: 0, destinations: 0, services: 0, team: 0,
-    })
+    const [stats, setStats] = useState(null)
 
     useEffect(() => {
         let cancelled = false
 
+        const getCount = (payload) => {
+            const d = payload?.data ?? payload ?? {}
+            const pagination = d?.pagination ?? payload?.pagination ?? {}
+
+            // Different public API endpoints expose totals differently.
+            const explicitTotal =
+                pagination?.total ??
+                pagination?.totalItems ??
+                d?.totalCount ??
+                d?.total ??
+                d?.count ??
+                payload?.totalCount ??
+                payload?.total ??
+                payload?.count
+
+            if (Number.isFinite(Number(explicitTotal))) {
+                return Number(explicitTotal)
+            }
+
+            // /services currently returns every active service in data[].
+            if (Array.isArray(d?.data)) return d.data.length
+            if (Array.isArray(d?.items)) return d.items.length
+            if (Array.isArray(d)) return d.length
+
+            return null
+        }
+
         const load = async () => {
-            /* Only call endpoints confirmed to be public and working */
-            const tryFetch = async (url) => {
+            const tryFetch = async (url, params) => {
                 try {
-                    const res = await apiClient.get(url, { params: { limit: 1, page: 1 } })
-                    const d = res?.data
-                    return d?.pagination?.total ?? d?.total ?? d?.count ?? 0
-                } catch {
-                    return 0  /* silently return 0 on any error */
+                    const res = await apiClient.get(url, { params })
+                    return getCount(res?.data)
+                } catch (error) {
+                    console.warn(`[Admin Login] Failed to load ${url} stats:`, error?.message || error)
+                    return null
                 }
             }
 
+            // Use the endpoint's real response shape rather than assuming
+            // every resource exposes pagination.total.
             const [countries, destinations, services, team] = await Promise.all([
-                tryFetch('/countries'),
-                tryFetch('/destinations'),
+                tryFetch('/countries', { limit: 1, page: 1 }),
+                tryFetch('/destinations', { limit: 1, page: 1 }),
                 tryFetch('/services'),
-                tryFetch('/team'),
+                tryFetch('/team', { limit: 50, page: 1 }),
             ])
 
             if (!cancelled) {
