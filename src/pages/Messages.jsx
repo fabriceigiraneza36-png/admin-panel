@@ -1068,19 +1068,6 @@ export default function Messages() {
     } catch (e) { toast.error(e.message) }
   }, [activeId, toast])
 
-  const changeStatus = useCallback(async (status) => {
-    const convId = activeIdRef.current
-    if (!convId) return
-    try {
-      await authFetch(`${API_BASE}/messages/conversations/${convId}/status`, {
-        method: 'PATCH', body: JSON.stringify({ status }),
-      })
-      setActiveConv(p => p ? { ...p, status } : p)
-      setConversations(prev => prev.map(c => c.id === convId ? { ...c, status } : c))
-      if (emit) emit('msg:conversation-updated', { id: convId, status })
-    } catch { /* ignore */ }
-  }, [emit])
-
   const handleNewConvCreated = useCallback((conv) => {
     setShowNewChat(false)
     loadConversations()
