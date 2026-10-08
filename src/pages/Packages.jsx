@@ -1637,7 +1637,7 @@ export default function Packages() {
                  <option value="">Select the destination this package belongs to</option>
                  {destinations.map(d => (
                    <option key={d.id} value={d.id}>
-                     {d.name}{d.country_name ? ` — ${d.country_name}` : d.country ? ` — ${d.country}` : ''}
+                      {typeof d.name === 'string' ? d.name : String(d.name?.name || d.name?.title || d.slug || d.id)}
                    </option>
                  ))}
                </select>
