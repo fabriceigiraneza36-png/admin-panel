@@ -7,7 +7,7 @@ import {
   Languages, Lightbulb, Heart, BookOpen, Camera, Shield,
   Clock, Phone, Users, Ruler, Thermometer, Plane,
   Link as LinkIcon, Upload, X, ZoomIn, ExternalLink, CheckCircle2,
-  ImagePlus, Maximize2, ChevronDown, ChevronUp,
+  ImagePlus, Maximize2, ChevronDown, ChevronUp, Sparkles,
 } from 'lucide-react'
 import { countriesAPI } from '@api/countries'
 import { galleryAPI } from '@api/gallery'
