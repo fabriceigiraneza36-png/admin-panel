@@ -715,7 +715,8 @@ export default function Messages() {
   const [draft, setDraft] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [presenceByConversation, setPresenceByConversation] = useState({})
-  const [filter, setFilter] = useState('open')
+  // Show every conversation by default so threads are never hidden by the initial filter.
+  const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [replyToId, setReplyToId] = useState(null)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -755,8 +756,13 @@ export default function Messages() {
   const isAdminTypingRef = useRef(false)
   const adminTypingTimer = useRef(null)
   const activeIdRef = useRef(null)
+  const atBottomRef = useRef(true)
+  const conversationsLoadedRef = useRef(false)
+  const conversationRefreshTimer = useRef(null)
+  const conversationRequestRef = useRef(0)
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
+  useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -780,7 +786,12 @@ export default function Messages() {
   }, [])
 
   const loadConversations = useCallback(async () => {
-    setLoadingList(true)
+    // Only the first load uses the skeleton. Refreshes update the existing
+    // list in place so conversations never disappear/flicker while refreshing.
+    const requestId = ++conversationRequestRef.current
+    const firstLoad = !conversationsLoadedRef.current
+    if (firstLoad) setLoadingList(true)
+
     try {
       const p = new URLSearchParams({ limit: '100', active: 'all' })
       if (filter !== 'all') p.set('status', filter)
@@ -788,15 +799,30 @@ export default function Messages() {
       const res = await authFetch(`${API_BASE}/messages/conversations?${p}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setConversations(data.data || [])
+      if (requestId === conversationRequestRef.current) {
+        setConversations(data.data || [])
+        conversationsLoadedRef.current = true
+      }
     } catch (err) {
       console.error('[AdminMessages] load error:', err.message)
     } finally {
-      setLoadingList(false)
+      if (firstLoad) setLoadingList(false)
     }
   }, [filter, search])
 
-  useEffect(() => { loadConversations() }, [loadConversations])
+  useEffect(() => {
+    loadConversations()
+    return () => {
+      if (conversationRefreshTimer.current) clearTimeout(conversationRefreshTimer.current)
+    }
+  }, [loadConversations])
+
+  const scheduleConversationRefresh = useCallback(() => {
+    clearTimeout(conversationRefreshTimer.current)
+    conversationRefreshTimer.current = setTimeout(() => {
+      loadConversations()
+    }, 500)
+  }, [loadConversations])
 
   const openConversation = useCallback(async (id) => {
     if (!id) {
@@ -848,6 +874,7 @@ export default function Messages() {
     if (!el) return
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
     setAtBottom(bottom)
+    atBottomRef.current = bottom
     setShowScrollBtn(!bottom)
     if (bottom) setNewMsgsWhileScrolled(0)
   }, [])
@@ -1107,7 +1134,7 @@ export default function Messages() {
             return next
           }
           // Track new messages while scrolled up
-          if (!atBottom && payload.senderType !== 'admin') {
+          if (!atBottomRef.current && payload.senderType !== 'admin') {
             setNewMsgsWhileScrolled(c => c + 1)
           }
           return [...prev, payload]
@@ -1168,7 +1195,7 @@ export default function Messages() {
     }
 
     const onNewFromUser = (payload) => {
-      loadConversations()
+      scheduleConversationRefresh()
       if (document.hidden) {
         showDesktopNotif(
           'New message from traveler',
@@ -1247,7 +1274,7 @@ export default function Messages() {
       off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
     }
-  }, [on, off, emit, loadConversations, showDesktopNotif, atBottom])
+  }, [on, off, emit, scheduleConversationRefresh, showDesktopNotif])
 
   useEffect(() => {
     if (!emit || !activeId) return
@@ -1524,19 +1551,7 @@ export default function Messages() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={activeConv.status} />
-                    {activeConv.status !== 'closed' ? (
-                      <button onClick={() => changeStatus('closed')}
-                        className="hidden sm:inline-flex text-xs font-bold border border-slate-200 rounded-lg
-                                   px-3 py-1.5 text-slate-600 hover:bg-slate-50 transition bg-white">
-                        Close
-                      </button>
-                    ) : (
-                      <button onClick={() => changeStatus('open')}
-                        className="hidden sm:inline-flex text-xs font-bold border border-emerald-200 rounded-lg
-                                   px-3 py-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
-                        Reopen
-                      </button>
-                    )}
+
                   </div>
                 </div>
 
@@ -1635,21 +1650,6 @@ export default function Messages() {
                 <div className="flex-shrink-0 bg-white border-t border-slate-200
                                 shadow-[0_-2px_10px_-2px_rgba(0,0,0,0.04)] z-10">
 
-                  {/* Mobile status toggle */}
-                  <div className="sm:hidden flex gap-2 px-3 pt-2.5">
-                    {activeConv.status !== 'closed' ? (
-                      <button onClick={() => changeStatus('closed')}
-                        className="flex-1 text-xs font-bold border border-slate-200 rounded-lg py-1.5 text-slate-600 bg-white hover:bg-slate-50">
-                        Close Ticket
-                      </button>
-                    ) : (
-                      <button onClick={() => changeStatus('open')}
-                        className="flex-1 text-xs font-bold border border-emerald-200 rounded-lg py-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">
-                        Reopen Ticket
-                      </button>
-                    )}
-                  </div>
-
                   {/* Reply preview */}
                   {replyMsg && (
                     <div className="flex items-center justify-between gap-3 mx-3 sm:mx-5 mt-3 px-3 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
@@ -1672,7 +1672,8 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="flex items-end gap-2 px-2 sm:px-3 py-2.5 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
+                  <div className="px-3 sm:px-5 py-3 bg-white">
+                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:bg-white focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1738,6 +1739,7 @@ export default function Messages() {
                       )}
                       <span className="hidden sm:inline">Send</span>
                     </button>
+                    </div>
                   </div>
 
                   {/* Shortcut hint */}
