@@ -71,7 +71,7 @@ export default function Modal({
             transition={{ type: 'spring', damping: 28, stiffness: 380 }}
             className={`
               bg-white rounded-3xl shadow-2xl w-full
-              max-h-[92vh] flex flex-col
+              max-h-[92vh] min-w-0 flex flex-col overflow-hidden
               ${SIZES[size] || SIZES.md}
               ${className}
             `}
@@ -110,13 +110,13 @@ export default function Modal({
             )}
 
             {/* ── Body ── */}
-            <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'px-6 py-5'}`}>
+            <div className={`flex-1 min-w-0 overflow-y-auto overflow-x-hidden ${noPadding ? '' : 'px-6 py-5'}`}>
               {children}
             </div>
 
             {/* ── Footer ── */}
             {footer && (
-              <div className="flex-shrink-0 px-6 py-4 border-t border-surface-100
+              <div className="flex-shrink-0 min-w-0 px-6 py-4 border-t border-surface-100
                               bg-surface-50 rounded-b-3xl">
                 {footer}
               </div>
