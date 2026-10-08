@@ -1624,6 +1624,32 @@ export default function Packages() {
                onChange={v => upd('cover_image_url', v)}
                folder="packages"
              />
+             <div className="input-group mt-5">
+               <label className="input-label">
+                 Destination <span className="text-red-500">*</span>
+               </label>
+               <select
+                 className="input"
+                 value={form.destination_id || ''}
+                 onChange={e => upd('destination_id', e.target.value)}
+                 required
+               >
+                 <option value="">Select the destination this package belongs to</option>
+                 {destinations.map(d => (
+                   <option key={d.id} value={d.id}>
+                     {d.name}{d.country_name ? ` — ${d.country_name}` : d.country ? ` — ${d.country}` : ''}
+                   </option>
+                 ))}
+               </select>
+               {!destinations.length && (
+                 <p className="text-xs text-amber-600 mt-2">
+                   No destinations are available. Create a destination first, then return here.
+                 </p>
+               )}
+               <p className="text-xs text-slate-400 mt-2">
+                 This links the package to the destination page and makes the package requestable.
+               </p>
+             </div>
            </Section>
 
            {/* Basic Info */}
