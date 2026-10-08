@@ -1414,8 +1414,8 @@ export default function Packages() {
               <button
                 onClick={() => handleTogglePublish(viewModal.data)}
                 className={viewModal.data?.is_published
-                  ? 'btn-warning btn-sm'
-                  : 'btn-success btn-sm'}
+                   ? 'btn-warning btn-sm font-bold min-w-[112px]'
+                   : 'btn-success btn-sm font-bold min-w-[112px] shadow-md'}
               >
                 {viewModal.data?.is_published
                   ? <><EyeOff size={13} /> Unpublish</>
@@ -1458,10 +1458,8 @@ export default function Packages() {
             <div className="flex gap-0.5 border-b border-slate-200
               overflow-x-auto pb-0">
               {[
-                { id: 'details',  label: 'Details',       icon: Package       },
-                { id: 'messages', label: 'Messages',      icon: MessageSquare },
-                { id: 'bookings', label: 'Bookings',      icon: BookOpen      },
-                { id: 'info',     label: 'Info Requests', icon: FileText      },
+                 { id: 'details', label: 'Overview', icon: Package },
+                 { id: 'bookings', label: 'Bookings', icon: BookOpen },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1479,101 +1477,26 @@ export default function Packages() {
               ))}
             </div>
 
-            {/* Details tab */}
-            {activeTab === 'details' && (
-              <div className="space-y-4">
-                <ModalSection title="Overview">
-                  <ModalGrid>
-                    <ModalField label="Category"     value={viewModal.data.category}    />
-                    <ModalField label="Destination"  value={viewModal.data.destination} />
-                    <ModalField label="Country"      value={viewModal.data.country}     />
-                    <ModalField
-                      label="Duration"
-                      value={
-                        viewModal.data.duration_days
-                          ? `${viewModal.data.duration_days}D / ${viewModal.data.duration_nights ?? ''}N`
-                          : '—'
-                      }
-                    />
-                    <ModalField
-                      label="Price"
-                      value={
-                        <span className="font-bold text-emerald-600">
-                          {fmtPrice(viewModal.data.price, viewModal.data.currency)}
-                          <span className="text-slate-400 font-normal text-xs ml-1.5">
-                            {viewModal.data.price_label}
-                          </span>
-                        </span>
-                      }
-                    />
-                    <ModalField
-                      label="Max Travelers"
-                      value={viewModal.data.max_travelers || '—'}
-                    />
-                    <ModalField
-                      label="Status"
-                      value={
-                        <Badge
-                          status={viewModal.data.is_published ? 'published' : 'draft'}
-                          label={viewModal.data.is_published ? 'Published' : 'Draft'}
-                        />
-                      }
-                    />
-                    <ModalField
-                      label="Views"
-                      value={formatNumber(viewModal.data.view_count || 0)}
-                    />
-                  </ModalGrid>
-                </ModalSection>
+             {/* Poster-first package overview: only the linked destination is shown. */}
+             {activeTab === 'details' && (
+               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
+                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">Destination</p>
+                 <div className="flex items-center gap-3">
+                   <div className="h-11 w-11 rounded-xl bg-white border border-emerald-100 grid place-items-center text-emerald-600"><MapPin size={19} /></div>
+                   <div className="min-w-0">
+                     <p className="text-base font-bold text-slate-800">
+                       {(() => {
+                         const raw = viewModal.data.destination_name || viewModal.data.destination;
+                         return typeof raw === 'string' ? raw : String(raw?.name || raw?.title || raw?.slug || 'Destination not linked');
+                       })()}
+                     </p>
+                     <p className="text-xs text-slate-400 mt-0.5">Linked destination for this package</p>
+                   </div>
+                 </div>
+               </div>
+             )}
 
-                {viewModal.data.short_description && (
-                  <ModalField
-                    label="Short Description"
-                    value={viewModal.data.short_description}
-                  />
-                )}
-
-                {parseJson(viewModal.data.features).length > 0 && (
-                  <ModalSection title="Features">
-                    <div className="flex flex-wrap gap-2">
-                      {parseJson(viewModal.data.features).map((f, i) => (
-                        <span key={i} className="badge-green text-xs">{f}</span>
-                      ))}
-                    </div>
-                  </ModalSection>
-                )}
-
-                {parseJson(viewModal.data.pricing_tiers).length > 0 && (
-                  <ModalSection title="Pricing Tiers">
-                    <div className="space-y-2">
-                      {parseJson(viewModal.data.pricing_tiers).map((t, i) => (
-                        <div key={i}
-                          className="flex items-center justify-between
-                            bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
-                          <div>
-                            <span className="font-semibold text-sm text-slate-700">
-                              {t.label}
-                            </span>
-                            {t.description && (
-                              <span className="text-xs text-slate-400 ml-2">
-                                {t.description}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-bold text-emerald-600">
-                            {fmtPrice(t.price, viewModal.data.currency)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </ModalSection>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'messages' && <TabMessages />}
-            {activeTab === 'bookings' && <TabBookings />}
-            {activeTab === 'info'     && <TabInfoRequests />}
+             {activeTab === 'bookings' && <TabBookings />}
           </div>
         )}
       </Modal>
