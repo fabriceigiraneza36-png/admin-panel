@@ -225,8 +225,19 @@ export default function Header({ onMenuClick, isMobileOpen, notificationBell }) 
 
   return (
     <>
-      <header className="flex-shrink-0 h-16 bg-white border-b border-gray-100
-                         flex items-center gap-4 px-4 md:px-6 z-30 relative">
+      <header
+        className="admin-top-navbar flex-shrink-0 bg-white border-b border-gray-100
+                   flex items-center gap-4 px-4 md:px-6 z-30 relative"
+        style={{
+          height: '64px',
+          minHeight: '64px',
+          width: '100%',
+          display: 'flex',
+          flexShrink: 0,
+          position: 'relative',
+          visibility: 'visible',
+        }}
+      >
 
          {/* Mobile menu button */}
          <AnimatedHamburger
