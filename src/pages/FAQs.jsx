@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 
 import { faqsAPI }         from '@api/faqs'
+import { packagesAPI }      from '@api/packages'
 import Modal               from '@components/common/Modal'
 import ConfirmDialog       from '@components/common/ConfirmDialog'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
@@ -265,6 +266,7 @@ export default function FAQs() {
   const deleteModal = useModal()
 
   const [items,     setItems]     = useState([])
+  const [packages,  setPackages]  = useState([])
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
   const [search,    setSearch]    = useState('')
@@ -302,6 +304,21 @@ export default function FAQs() {
   }, [pag.page, pag.limit, dSearch, catFilter])
 
   useEffect(() => { load() }, [load])
+
+  // Package FAQs use the existing category field (package:<id>), so this
+  // feature does not require a destructive schema change or a new data table.
+  useEffect(() => {
+    let alive = true
+    packagesAPI.getAll({ limit: 100, sort: 'latest' })
+      .then((response) => {
+        if (!alive) return
+        const body = response?.data || response
+        const rows = body?.data || body?.packages || []
+        setPackages(Array.isArray(rows) ? rows : [])
+      })
+      .catch(() => { if (alive) setPackages([]) })
+    return () => { alive = false }
+  }, [])
 
   /* ── Form ────────────────────────────────────────────────────────────── */
 
@@ -414,8 +431,12 @@ export default function FAQs() {
       ...CATEGORIES.map((c) => ({
         value: c, label: c.charAt(0).toUpperCase() + c.slice(1),
       })),
+      ...packages.map((pkg) => ({
+        value: `package:${pkg.id}`,
+        label: `Package: ${pkg.title || pkg.name || `#${pkg.id}`}`,
+      })),
     ],
-    []
+    [packages]
   )
 
   /* ─── Render ────────────────────────────────────────────────────────── */
@@ -648,6 +669,26 @@ export default function FAQs() {
                     >
                       No category / General
                     </button>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">
+                      Attach to a package (optional)
+                    </label>
+                    <select
+                      value={String(form.category || '').startsWith('package:') ? form.category : ''}
+                      onChange={(e) => upd('category', e.target.value || '')}
+                      className="input w-full text-sm"
+                    >
+                      <option value="">Not package-specific</option>
+                      {packages.map((pkg) => (
+                        <option key={pkg.id} value={`package:${pkg.id}`}>
+                          {pkg.title || pkg.name || `Package #${pkg.id}`}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Package-specific FAQs appear only on the matching public package page.
+                    </p>
                   </div>
                 </div>
 
