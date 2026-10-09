@@ -292,6 +292,15 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
               #{conv.bookingNumber}
             </span>
           )}
+          {conv.metadata?.context?.name && (
+            <span
+              title={`User selected ${conv.metadata.context.type}: ${conv.metadata.context.name}`}
+              className="inline-flex items-center gap-1 max-w-full text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full"
+            >
+              <span aria-hidden="true">↗</span>
+              <span className="truncate">{conv.metadata.context.type}: {conv.metadata.context.name}</span>
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -1538,6 +1547,12 @@ export default function Messages() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={activeConv.status} />
+                    {activeConv.metadata?.context?.name && (
+                      <span className="inline-flex items-center gap-1.5 max-w-[130px] sm:max-w-[240px] rounded-full border border-emerald-300 bg-emerald-50 px-2 sm:px-3 py-1 text-[10px] sm:text-[11px] font-bold text-emerald-800">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                        <span className="truncate">{activeConv.metadata.context.type}: {activeConv.metadata.context.name}</span>
+                      </span>
+                    )}
 
                   </div>
                 </div>
