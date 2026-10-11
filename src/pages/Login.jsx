@@ -363,8 +363,15 @@ export default function Login() {
 
     /* ── Email keydown ── */
     const handleEmailKey = useCallback((e) => {
+        // Complete the configured admin address on Tab when the field is empty or incomplete.
+        if (e.key === 'Tab' && suggestions.length > 0 && (!email.trim() || !emailValid)) {
+            e.preventDefault()
+            selectAdmin(suggestions[dropIdx] || suggestions[0])
+            return
+        }
+
         if (showDrop && suggestions.length > 0) {
-            if (e.key === 'Tab' || e.key === 'Enter') {
+            if (e.key === 'Enter') {
                 e.preventDefault()
                 selectAdmin(suggestions[dropIdx])
                 return
@@ -389,7 +396,7 @@ export default function Login() {
         if (e.key === 'Tab' && !showDrop) {
             /* natural tab behavior */
         }
-    }, [showDrop, suggestions, dropIdx, selectAdmin])
+    }, [showDrop, suggestions, dropIdx, selectAdmin, email, emailValid])
 
     /* ── Password keydown ── */
     const handlePassKey = useCallback((e) => {
