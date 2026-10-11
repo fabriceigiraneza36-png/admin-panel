@@ -249,7 +249,7 @@ function HeroImagePanel({ label, description, value, onChange, folder, allImages
             {!loaded&&!error&&<div className="absolute inset-0 flex items-center justify-center bg-gray-100"><div className={`w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin ${t.text}`}/></div>}
             {error&&<div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 text-red-400 gap-2"><AlertTriangle size={20}/><p className="text-xs">Failed to load</p></div>}
             {loaded&&!error&&(
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+              <div className="absolute inset-0 bg-black/35 sm:bg-black/0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:bg-black/50 transition-all flex items-center justify-center gap-2">
                 <button type="button" onClick={()=>onLightbox(allImages,allImages.findIndex(i=>i.url===preview))}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-gray-800 text-xs font-bold shadow hover:bg-gray-50"><Maximize2 size={11}/>View</button>
                 <button type="button" onClick={clear}
@@ -431,7 +431,7 @@ const addUpload = () => {
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
+                  <div className="absolute inset-0 bg-black/55 sm:bg-black/0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:bg-black/60 transition-all flex flex-col items-center justify-center gap-1.5">
                     <button type="button" onClick={()=>onLightbox(gallery.map(g=>({url:g.url,caption:g.caption,source:g.source})),index)}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-emerald-50"><Maximize2 size={10}/>View</button>
                     {!image.is_primary && (
@@ -684,7 +684,7 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
                   <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-violet-500 text-white shadow">
                     Lib
                   </div>
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
+                  <div className="absolute inset-0 bg-black/55 sm:bg-black/0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:bg-black/60 transition-all flex flex-col items-center justify-center gap-1.5">
                     <button type="button"
                       onClick={()=>onLightbox(libraryImages.map(li=>({url:li.url,caption:li.caption,source:'library'})),i)}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white text-gray-800 text-[10px] font-bold hover:bg-violet-50"><Maximize2 size={10}/>View</button>
@@ -2046,7 +2046,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                   <div className="relative rounded-2xl overflow-hidden group cursor-pointer" onClick={()=>openLightbox(viewImgs,0)}>
                     <img src={viewImgs[0].url} alt={d.name} className="w-full h-52 object-cover"
                       onError={e=>{e.target.src='https://placehold.co/800x400?text=No+Image'}}/>
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/25 sm:bg-black/0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:bg-black/30 transition-all flex items-center justify-center">
                       <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-gray-800 text-sm font-bold shadow-lg">
                         <Maximize2 size={14}/> View Full Size
                       </div>
@@ -2060,7 +2060,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                           className="shrink-0 relative group w-20 h-14 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all">
                           <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
                             onError={e=>{e.target.src='https://placehold.co/80x56?text=?'}}/>
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"><ZoomIn size={12} className="text-white"/></div>
+                          <div className="absolute inset-0 bg-black/25 sm:bg-black/0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:bg-black/30 flex items-center justify-center transition-all"><ZoomIn size={12} className="text-white"/></div>
                         </button>
                       ))}
                     </div>
