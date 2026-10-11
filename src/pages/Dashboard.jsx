@@ -134,7 +134,7 @@ export default function Dashboard() {
         bookingStatsRes,
       ] = await Promise.all([
         safeFetch(() => apiClient.get('/countries',    { params: { limit: 1, page: 1 } })),
-        safeFetch(() => apiClient.get('/destinations', { params: { limit: 100, page: 1, sortBy: 'name', order: 'asc' } })),
+        safeFetch(() => apiClient.get('/destinations', { params: { limit: 30, page: 1, sortBy: 'name', order: 'asc' } })),
         safeFetch(() => apiClient.get('/bookings',     { params: { limit: 8, page: 1, sortBy: 'created_at', order: 'desc' } })),
         safeFetch(() => apiClient.get('/users',        { params: { limit: 1, page: 1 } })),
         safeFetch(() => apiClient.get('/posts',        { params: { limit: 1, page: 1 } })),
