@@ -98,6 +98,8 @@ const isValidUrl = (str) => {
 const toSlug = (str = '') =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]/g, '').replace(/--+/g, '-')
 
+const imageUrlOf = (item) => String(typeof item === 'string' ? item : item?.url || item?.imageUrl || item?.image_url || '').trim()
+
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
 function Confetti({ active }) {
   const canvasRef = useRef(null)
@@ -1248,7 +1250,7 @@ const normaliseGalleries = (dest) => {
 
   const seenUrls = new Set()
   raw.forEach((g, i) => {
-    const url = String(g.imageUrl || g.url || '').trim()
+    const url = String(g.imageUrl || g.image_url || g.url || '').trim()
     if (!url || seenUrls.has(url)) return
     seenUrls.add(url)
     const entry = {
@@ -1335,7 +1337,9 @@ const normaliseGalleries = (dest) => {
       tags:               dest.tags               || [],
 
       hero_slides: gallery.slice(0, HERO_IMAGE_COUNT),
-      gallery: gallery.slice(HERO_IMAGE_COUNT),
+      // Keep every existing image visible/editable; hero_slides remains a
+      // reference to the first four slideshow images for validation.
+      gallery,
       library_images,
       itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
       faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
@@ -1392,9 +1396,10 @@ const normaliseGalleries = (dest) => {
       if (!form.category)      e.category   = 'Please select a category'
     }
     if (stepId === 'media') {
-      const heroCount = (form.hero_slides || []).filter(Boolean).length
-      const galleryCount = (form.gallery || []).filter(Boolean).length
-      const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
+      const heroCount = (form.hero_slides || []).filter(item => imageUrlOf(item)).length
+      const galleryCount = (form.gallery || []).filter(item => imageUrlOf(item)).length
+      const libraryCount = (form.library_images || []).filter(item => imageUrlOf(item)).length
+      const totalImages = editing ? galleryCount + libraryCount : heroCount + galleryCount + libraryCount
       const attractionItems = Array.isArray(form.attractions) ? form.attractions : []
       const completeAttractions = attractionItems.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
       if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 hero images are required for the destination slideshow'
@@ -1507,6 +1512,21 @@ const uniqueNewImages = allNewImages.filter(img => {
   seenUrls.add(img.url)
   return true
 })
+
+if (editing && savedDestination?.id) {
+  const retainedIds = new Set([...gallery, ...library_images]
+    .filter(image => image?.id != null)
+    .map(image => String(image.id)))
+  const retainedPrimaryUrls = new Set([form.hero_image, form.cover_image_url, form.image_url]
+    .map(value => String(value || '').trim()).filter(Boolean))
+  const originalMedia = normaliseGalleries(editing)
+  const removedIds = [...originalMedia.gallery, ...originalMedia.library_images]
+    .filter(image => image?.id != null && !retainedIds.has(String(image.id)) && !retainedPrimaryUrls.has(String(image.url || '').trim()))
+    .map(image => image.id)
+  if (removedIds.length) {
+    await Promise.all(removedIds.map(imageId => destinationsAPI.removeImage(savedDestination.id, imageId)))
+  }
+}
 
 if (editing && savedDestination?.id && uniqueNewImages.length) {
   const formData = new FormData()
