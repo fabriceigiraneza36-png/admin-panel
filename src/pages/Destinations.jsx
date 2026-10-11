@@ -292,81 +292,66 @@ function DestinationGallery({ gallery=[], onChange, onLightbox }) {
   const [editIdx,setEditIdx]     = useState(null)
   const [editCap,setEditCap]     = useState('')
   const [activeSlot,setActiveSlot] = useState(null)  // which placeholder is being filled
-    const [isAdding, setIsAdding] = useState(false);
+    const addLockRef = useRef(false);
 
   const remaining = MAX_GALLERY_IMAGES - gallery.length
   const isFull = remaining <= 0
   const nextSlot = gallery.length  // index of next empty slot
 
 const addUrl = () => {
-      if (isAdding) return;
-      setIsAdding(true);
-      const url = urlInput.trim()
-      if (!url || isFull) {
-        setIsAdding(false);
-        return
-      }
-      if (!isValidUrl(url)) { 
+      if (addLockRef.current) return;
+      addLockRef.current = true;
+      const release = () => { addLockRef.current = false };
+      const url = urlInput.trim();
+      if (!url || isFull) { release(); return; }
+      if (!isValidUrl(url)) {
         setUrlValid(false);
-        setIsAdding(false);
-        return 
+        release();
+        return;
       }
-      setUrlValid(true)
-      
-      // Check for duplicate URL in the current gallery
-      const isDuplicate = gallery.some(image => image.url === url)
+      setUrlValid(true);
+      const normalizedUrl = url;
+      const isDuplicate = gallery.some(image => String(image.url || '').trim() === normalizedUrl);
       if (isDuplicate) {
-        // Ignore duplicate
-        setUrlInput(''); setCaption(''); setActiveSlot(null)
-        setIsAdding(false);
-        return
+        setUrlInput(''); setCaption(''); setActiveSlot(null);
+        release();
+        return;
       }
-      
-      // Create new gallery array with all existing images having is_primary: false
-      const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
-      // Add the new image as primary
+      const newGallery = gallery.map(image => ({ ...image, is_primary: false }));
       newGallery.push({
-        url,
+        url: normalizedUrl,
         caption: caption.trim(),
         is_primary: true,
         sort_order: newGallery.length,
         source: 'url'
-      })
-      
-      onChange(newGallery)
-      setUrlInput(''); setCaption(''); setActiveSlot(null)
-      setIsAdding(false);
+      });
+      onChange(newGallery);
+      setUrlInput(''); setCaption(''); setActiveSlot(null);
+      Promise.resolve().then(release);
     }
 const addUpload = () => {
-      if (isAdding) return;
-      setIsAdding(true);
-      if (!uploaded || isFull) {
-        setIsAdding(false);
-        return
-      }
-      
-      // Check for duplicate URL in the current gallery
-      const isDuplicate = gallery.some(image => image.url === uploaded)
+      if (addLockRef.current) return;
+      addLockRef.current = true;
+      const release = () => { addLockRef.current = false };
+      if (!uploaded || isFull) { release(); return; }
+      const normalizedUrl = String(uploaded).trim();
+      const isDuplicate = gallery.some(image => String(image.url || '').trim() === normalizedUrl);
       if (isDuplicate) {
-        setUploaded(''); setCaption(''); setActiveSlot(null)
-        setIsAdding(false);
-        return
+        setUploaded(''); setCaption(''); setActiveSlot(null);
+        release();
+        return;
       }
-      
-      // Create new gallery array with all existing images having is_primary: false
-      const newGallery = gallery.map(image => ({ ...image, is_primary: false }))
-      // Add the new image as primary
+      const newGallery = gallery.map(image => ({ ...image, is_primary: false }));
       newGallery.push({
-        url: uploaded,
+        url: normalizedUrl,
         caption: caption.trim(),
         is_primary: true,
         sort_order: newGallery.length,
         source: 'upload'
-      })
-      
-      onChange(newGallery)
-      setUploaded(''); setCaption(''); setActiveSlot(null)
-      setIsAdding(false);
+      });
+      onChange(newGallery);
+      setUploaded(''); setCaption(''); setActiveSlot(null);
+      Promise.resolve().then(release);
     }
   const remove     = (i) => onChange(gallery.filter((_,idx)=>idx!==i))
   const moveUp     = (i) => { if(i===0) return; const g=[...gallery];[g[i-1],g[i]]=[g[i],g[i-1]];onChange(g) }
