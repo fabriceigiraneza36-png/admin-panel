@@ -1091,6 +1091,21 @@ export default function Messages() {
     if (conv?.id) openConversation(conv.id)
   }, [loadConversations, openConversation])
 
+  const handleDeleteConversation = useCallback(async () => {
+    if (!activeId || !window.confirm("Delete this conversation and hide its history from both inboxes?")) return
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}`, { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || "Failed to delete conversation")
+      setConversations(prev => prev.filter(c => String(c.id) !== String(activeId)))
+      setActiveId(null)
+      setActiveConv(null)
+      setMessages([])
+      toast.success("Conversation deleted")
+      loadConversations()
+    } catch (e) { toast.error(e.message) }
+  }, [activeId, toast, loadConversations])
+
   const handleClearAll = useCallback(async () => {
     setClearing(true)
     try {
@@ -1555,7 +1570,10 @@ export default function Messages() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={activeConv.status} />
-
+                    <button onClick={handleDeleteConversation} title="Delete conversation" aria-label="Delete conversation"
+                      className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
 
