@@ -877,6 +877,14 @@ export default function Messages() {
     if (target && String(target.id) !== String(activeId)) openConversation(target.id)
   }, [requestedConversationId, conversations, activeId, openConversation])
 
+  // Notification deep-links open the requested thread and focus the reply composer.
+  useEffect(() => {
+    if (!requestedConversationId || String(activeId) !== String(requestedConversationId)) return
+    if (loadingMsgs || !activeConv) return
+    setComposerVisible(true)
+    requestAnimationFrame(() => textareaRef.current?.focus())
+  }, [requestedConversationId, activeId, loadingMsgs, activeConv])
+
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current
     if (!el) return
@@ -1219,7 +1227,7 @@ export default function Messages() {
       scheduleConversationRefresh()
       if (document.hidden) {
         showDesktopNotif(
-          'New message from traveler',
+          `New message from ${payload.senderName || payload.message?.senderName || payload.senderEmail || 'traveler'}`,
           payload.message?.body?.slice(0, 120) || 'New message',
           payload.conversationId
         )
