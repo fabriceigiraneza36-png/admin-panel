@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useNavigate }         from 'react-router-dom'
-import { motion }              from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, Activity, Globe2, MapPin,
   CalendarCheck, Users, FileText, Mail,
@@ -43,7 +43,12 @@ const DashboardSection = ({ eyebrow, title, description, children, action }) => 
     <div className="relative flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
       <div>
         <p className="mb-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">{eyebrow}</p>
-        <h2 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">{title}</h2>
+        <motion.h2
+          initial={{ opacity: 0, y: 14, filter: 'blur(5px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+          className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl"
+        >{title}</motion.h2>
         <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500 sm:text-sm">{description}</p>
       </div>
       {action}
@@ -63,6 +68,7 @@ export default function Dashboard() {
   const [bookings,   setBookings]   = useState([])
   const [activities, setActivities] = useState([])
   const [destinations, setDestinations] = useState([])
+  const [activeDestinationIndex, setActiveDestinationIndex] = useState(0)
   const [lastRefresh, setLastRefresh] = useState(null)
 
   const load = useCallback(async () => {
@@ -159,6 +165,18 @@ export default function Dashboard() {
   }, [toastError])  // Now depends on stable toastError function
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    setActiveDestinationIndex(0)
+  }, [destinations.length])
+
+  useEffect(() => {
+    if (destinations.length < 2) return undefined
+    const timer = setInterval(() => {
+      setActiveDestinationIndex((current) => (current + 1) % destinations.length)
+    }, 4800)
+    return () => clearInterval(timer)
+  }, [destinations.length])
 
   /* ── Auto-refresh every 5 minutes ── */
   useEffect(() => {
@@ -357,47 +375,67 @@ export default function Dashboard() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-52 animate-pulse rounded-2xl bg-slate-100" />)}
           </div>
         ) : destinations.length ? (
-          <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3 sm:p-6">
-            {destinations.map((destination, index) => (
-              <motion.button
-                key={destination.id || destination._id || (getDestinationName(destination) + '-' + index)}
-                type="button"
-                onClick={() => navigate('/destinations')}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.18 }}
-                transition={{ duration: 0.45, delay: index * 0.06 }}
-                whileHover={{ y: -6 }}
-                whileTap={{ scale: 0.985 }}
-                className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 text-left shadow-sm transition-shadow duration-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
-              >
-                <div className="relative h-44 overflow-hidden">
-                  <img
-                    src={getDestinationImage(destination)}
-                    alt={getDestinationName(destination)}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    loading={index < 3 ? 'eager' : 'lazy'}
-                    onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=900&q=80' }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
-                  <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md">
-                    <MapPin size={11} /> Destination
-                  </div>
-                  <div className="absolute inset-x-3 bottom-3">
-                    <h3 className="truncate text-base font-black text-white">{getDestinationName(destination)}</h3>
-                    <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-white/75">
-                      <Globe2 size={11} /> {getDestinationLocation(destination)}
-                    </p>
-                  </div>
+          <div className="p-4 sm:p-6">
+            <div className="relative isolate overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_20px_55px_rgba(15,23,42,0.18)]">
+              <div className="relative min-h-[280px] sm:min-h-[360px]">
+                <AnimatePresence mode="wait">
+                  {destinations[activeDestinationIndex] && (
+                    <motion.button
+                      key={destinations[activeDestinationIndex].id || destinations[activeDestinationIndex]._id || getDestinationName(destinations[activeDestinationIndex])}
+                      type="button"
+                      onClick={() => navigate('/destinations')}
+                      initial={{ opacity: 0, x: 34, scale: 1.015 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -28, scale: 0.99 }}
+                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 h-full w-full text-left"
+                      aria-label={`Open destination manager for ${getDestinationName(destinations[activeDestinationIndex])}`}
+                    >
+                      <img
+                        src={getDestinationImage(destinations[activeDestinationIndex])}
+                        alt={getDestinationName(destinations[activeDestinationIndex])}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        loading="eager"
+                        onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1200&q=80' }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/35 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-slate-950/10" />
+                      <div className="absolute inset-x-5 bottom-7 max-w-2xl sm:inset-x-9 sm:bottom-10">
+                        <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100 backdrop-blur-md">
+                          <Globe2 size={13} /> Featured destination
+                        </span>
+                        <h3 className="text-2xl font-black tracking-tight text-white sm:text-4xl">
+                          {getDestinationName(destinations[activeDestinationIndex])}
+                        </h3>
+                        <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-white/80 sm:text-sm">
+                          <MapPin size={14} /> {getDestinationLocation(destinations[activeDestinationIndex])}
+                        </p>
+                        <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-800 shadow-lg">
+                          Open destination manager <TrendingUp size={14} />
+                        </span>
+                      </div>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+              {destinations.length > 1 && (
+                <div className="absolute bottom-3 right-4 z-10 flex items-center gap-2 sm:bottom-5 sm:right-6" aria-label="Choose featured destination">
+                  {destinations.map((destination, index) => (
+                    <button
+                      key={destination.id || destination._id || (getDestinationName(destination) + '-' + index)}
+                      type="button"
+                      onClick={() => setActiveDestinationIndex(index)}
+                      aria-label={`Show ${getDestinationName(destination)}`}
+                      aria-pressed={index === activeDestinationIndex}
+                      className={`h-2.5 rounded-full transition-all duration-300 ${index === activeDestinationIndex ? 'w-8 bg-white' : 'w-2.5 bg-white/55 hover:bg-white/85'}`}
+                    />
+                  ))}
                 </div>
-                <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-                  <span className="text-xs font-semibold text-slate-500">Open destination manager</span>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-600 group-hover:text-white">
-                    <TrendingUp size={14} />
-                  </span>
-                </div>
-              </motion.button>
-            ))}
+              )}
+              <div className="pointer-events-none absolute right-5 top-5 z-10 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold text-white/90 backdrop-blur-md">
+                {String(activeDestinationIndex + 1).padStart(2, '0')} / {String(destinations.length).padStart(2, '0')}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="p-8 text-center">
