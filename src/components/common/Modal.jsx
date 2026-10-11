@@ -88,7 +88,7 @@ export default function Modal({
                 )}
                 <div className="flex-1 min-w-0">
                   {title && (
-                    <h2 className="text-xl font-bold text-slate-800 leading-tight">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight break-words">
                       {title}
                     </h2>
                   )}
@@ -110,7 +110,7 @@ export default function Modal({
             )}
 
             {/* ── Body ── */}
-            <div className={`flex-1 min-w-0 overflow-y-auto overflow-x-hidden ${noPadding ? '' : 'px-6 py-5'}`}>
+            <div className={`flex-1 min-w-0 overflow-y-auto overflow-x-hidden ${noPadding ? '' : 'px-4 sm:px-6 py-4 sm:py-5'}`}>
               {children}
             </div>
 
