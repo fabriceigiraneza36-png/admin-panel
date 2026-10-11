@@ -899,6 +899,12 @@ export default function Countries() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [lightboxImages, setLightboxImages] = useState(null)
   const [lightboxStart, setLightboxStart] = useState(0)
+  const stepContentRef = useRef(null)
+
+  useEffect(() => {
+    const body = stepContentRef.current?.closest('[data-modal-body]')
+    if (body) body.scrollTo({ top: 0, behavior: 'auto' })
+  }, [step])
 
   const debouncedSearch = useDebounce(search, 400)
 
@@ -1011,7 +1017,14 @@ export default function Countries() {
   const stepIndex = STEP_IDS.indexOf(step)
 
   const goNext = () => {
-    if (!validateStep(step)) return
+    if (!validateStep(step)) {
+      if (step === 'media') {
+        const attractions = Array.isArray(form.attractions) ? form.attractions : []
+        const completeAttractions = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+        if (attractions.length < 4 || completeAttractions < 4) setStep('content')
+      }
+      return
+    }
     if (!completed.includes(step)) setCompleted(p => [...p, step])
     const next = STEP_IDS[stepIndex + 1]
     if (next) setStep(next)
@@ -1023,8 +1036,15 @@ export default function Countries() {
   }
 
   const handleSave = async () => {
+    if (savingRef.current) return
     if (!validateStep('identity')) { setStep('identity'); return }
-    if (!validateStep('media')) { setStep('media'); return }
+    if (!validateStep('media')) {
+      const attractions = Array.isArray(form.attractions) ? form.attractions : []
+      const completeAttractions = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+      setStep(attractions.length < 4 || completeAttractions < 4 ? 'content' : 'media')
+      return
+    }
+    savingRef.current = true
     setSaving(true)
     try {
       const payload = {
@@ -1054,6 +1074,7 @@ export default function Countries() {
     } catch (e) {
       toast.error(getErrorMessage(e))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -1622,26 +1643,26 @@ export default function Countries() {
         title={editing ? `Edit: ${editing.name}` : 'Add New Country'}
         size="xl" icon={<Globe2 size={20} />}
         footer={
-          <div className="flex items-center justify-between gap-3 w-full">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+            <div className="flex items-center justify-between sm:justify-start gap-1.5 min-w-0">
               {STEP_IDS.map((id) => (
                 <div key={id} className={`h-1.5 rounded-full transition-all duration-300
                   ${id === step ? 'w-8 bg-emerald-500' : completed.includes(id) ? 'w-4 bg-emerald-300' : 'w-4 bg-gray-200'}`} />
               ))}
-              <span className="text-xs text-gray-400 ml-1.5 hidden sm:inline">{stepIndex + 1}/{STEPS.length}</span>
+              <span className="text-[10px] sm:text-xs text-gray-400 ml-1.5">{stepIndex + 1}/{STEPS.length}</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               {stepIndex > 0 && (
-                <button onClick={goPrev} className="btn-secondary btn-sm" disabled={saving}>
+                <button onClick={goPrev} className="btn-secondary btn-sm flex-1 sm:flex-none justify-center" disabled={saving}>
                   <ChevronLeft size={15} /> <span className="hidden sm:inline">Back</span>
                 </button>
               )}
               {stepIndex < STEPS.length - 1 ? (
-                <motion.button whileTap={{ scale: 0.98 }} onClick={goNext} className="btn-primary btn-sm">
+                <motion.button whileTap={{ scale: 0.98 }} onClick={goNext} className="btn-primary btn-sm flex-1 sm:flex-none justify-center">
                   <span className="hidden sm:inline">Continue</span> <ChevronRight size={15} />
                 </motion.button>
               ) : (
-                <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} className="btn-primary" disabled={saving}>
+                <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} className="btn-primary flex-1 sm:flex-none justify-center" disabled={saving}>
                   {saving ? <><Spinner /> Saving…</>
                   : editing ? <><Check size={15} /> Update</>
                   : <><Check size={15} /> Create</>}
@@ -1651,9 +1672,9 @@ export default function Countries() {
           </div>
         }
       >
-        <div>
+        <div ref={stepContentRef} className="w-full min-w-0">
           <StepIndicator steps={STEPS} current={step} completed={completed} onGoTo={id => setStep(id)} />
-          <div className="min-h-[420px]">
+          <div className="min-h-[280px] sm:min-h-[420px] min-w-0">
             <AnimatePresence mode="wait">
               {renderStep()}
             </AnimatePresence>
