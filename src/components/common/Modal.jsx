@@ -61,7 +61,7 @@ export default function Modal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={handleOverlayClick}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4
                      bg-black/50 backdrop-blur-[2px]"
         >
           <motion.div
@@ -70,15 +70,15 @@ export default function Modal({
             exit={{   opacity: 0, scale: 0.96, y: 16  }}
             transition={{ type: 'spring', damping: 28, stiffness: 380 }}
             className={`
-              bg-white rounded-3xl shadow-2xl w-full
-              max-h-[92vh] min-w-0 flex flex-col overflow-hidden
+              bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full min-w-0 min-h-0 flex flex-col overflow-hidden
+              max-h-[calc(100dvh-1rem)] sm:max-h-[92vh]
               ${SIZES[size] || SIZES.md}
               ${className}
             `}
           >
             {/* ── Header ── */}
             {(title || closable) && (
-              <div className="flex items-start gap-3 px-6 pt-5 pb-4
+              <div className="flex items-start gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4
                               border-b border-surface-100 flex-shrink-0">
                 {icon && (
                   <div className="flex-shrink-0 w-10 h-10 rounded-2xl
@@ -88,7 +88,7 @@ export default function Modal({
                 )}
                 <div className="flex-1 min-w-0">
                   {title && (
-                    <h2 className="text-xl font-bold text-slate-800 leading-tight">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight break-words">
                       {title}
                     </h2>
                   )}
@@ -110,14 +110,14 @@ export default function Modal({
             )}
 
             {/* ── Body ── */}
-            <div className={`flex-1 min-w-0 overflow-y-auto overflow-x-hidden ${noPadding ? '' : 'px-6 py-5'}`}>
+            <div data-modal-body className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain ${noPadding ? '' : 'px-4 sm:px-6 py-4 sm:py-5'}`}>
               {children}
             </div>
 
             {/* ── Footer ── */}
             {footer && (
-              <div className="flex-shrink-0 min-w-0 px-6 py-4 border-t border-surface-100
-                              bg-surface-50 rounded-b-3xl">
+              <div className="flex-shrink-0 min-w-0 px-3 sm:px-6 py-3 sm:py-4 border-t border-surface-100
+                              bg-surface-50 rounded-b-2xl sm:rounded-b-3xl">
                 {footer}
               </div>
             )}
