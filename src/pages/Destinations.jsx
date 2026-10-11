@@ -414,7 +414,7 @@ const addUpload = () => {
       </div>
 
       {/* 10 Placeholder Slots Grid */}
-      <div className="p-5 space-y-4">
+      <div className="p-3 sm:p-5 space-y-4 min-w-0">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {slots.map(({ index, image, isNext }) => {
             if (image) {
@@ -659,9 +659,9 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
   }
 
   return (
-    <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/50 via-white to-purple-50/30 overflow-hidden">
+    <div className="w-full min-w-0 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-white to-green-50/30 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-white border-b-2 border-violet-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:px-5 sm:py-3.5 bg-white border-b-2 border-emerald-100 min-w-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-200">
             <Library size={18} className="text-white"/>
@@ -676,25 +676,25 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
             {libraryImages.length} imported
           </div>
           <button type="button" onClick={()=>setShowBrowser(v=>!v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold hover:from-violet-600 hover:to-purple-700 shadow-md shadow-violet-200 transition-all">
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all min-w-0 flex-1 sm:flex-none">
             <Library size={12}/> {showBrowser?'Hide Library':'Browse Library'}
           </button>
         </div>
       </div>
 
-      <div className="p-5 space-y-4">
+      <div className="p-3 sm:p-5 space-y-4 min-w-0">
         {/* Currently imported */}
         {libraryImages.length>0 ? (
           <div>
-            <p className="text-xs font-bold text-violet-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <CheckCircle2 size={11}/>Imported from library
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
               {libraryImages.map((img,i)=>(
-                <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-violet-200 bg-white aspect-square">
+                <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-emerald-200 bg-white aspect-square">
                   <img src={img.url} alt={img.caption||''} className="w-full h-full object-cover"
                     onError={e=>{e.target.src='https://placehold.co/150x150?text=?'}}/>
-                  <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-violet-500 text-white shadow">
+                  <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold uppercase bg-emerald-600 text-white shadow">
                     Lib
                   </div>
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-1.5">
@@ -709,7 +709,7 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 rounded-xl bg-white border-2 border-dashed border-violet-200 text-violet-400">
+          <div className="text-center py-6 rounded-xl bg-white border-2 border-dashed border-emerald-200 text-emerald-400">
             <Library size={32} className="mx-auto mb-2 opacity-40"/>
             <p className="text-sm font-medium text-gray-500">No library images imported</p>
             <p className="text-xs text-gray-400 mt-1">Click "Browse Library" above to select images</p>
@@ -721,25 +721,25 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
           {showBrowser && (
             <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
               className="overflow-hidden">
-              <div className="pt-4 border-t-2 border-violet-100 space-y-3">
+              <div className="pt-4 border-t-2 border-emerald-100 space-y-3">
                 <div className="relative">
-                  <Sparkles size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400"/>
+                  <Sparkles size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500"/>
                   <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
                     placeholder="Search library images by title or description…"
-                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border-2 border-violet-200 bg-white text-sm focus:outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"/>
+                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border-2 border-emerald-200 bg-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"/>
                 </div>
                 {loading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"/>
+                    <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"/>
                   </div>
                 ) : filtered.length ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2 max-h-80 overflow-y-auto p-2 rounded-xl bg-white border border-violet-100">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2 max-h-80 overflow-y-auto p-2 rounded-xl bg-white border border-emerald-100">
                     {filtered.map(item=>{
                       const url = item.image_url||item.url||item.imageUrl
                       const imported = isImported(item)
                       return (
                         <button key={item.id||url} type="button" onClick={()=>toggleImport(item)}
-                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${imported?'border-violet-500 ring-2 ring-violet-200 scale-95':'border-transparent hover:border-violet-400'}`}>
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${imported?'border-emerald-500 ring-2 ring-emerald-200 scale-95':'border-transparent hover:border-violet-400'}`}>
                           <img src={url} alt={item.title||'Library image'} className="w-full h-full object-cover"
                             onError={e=>{e.target.src='https://placehold.co/100x100?text=?'}}/>
                           {imported && (
@@ -2147,7 +2147,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
         title={editing?`Edit: ${editing.name}`:'Add New Destination'}
         size="xl" icon={<MapPin size={20}/>}
         footer={
-          <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full min-w-0">
             <div className="flex items-center gap-2">
               {STEP_IDS.map(id=>(
                 <div key={id} className={`h-1.5 rounded-full transition-all duration-300
