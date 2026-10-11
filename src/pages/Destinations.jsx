@@ -661,23 +661,23 @@ function LibraryImportPanel({ libraryImages=[], onChange, onLightbox }) {
   return (
     <div className="w-full min-w-0 rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 via-white to-green-50/30 overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:px-5 sm:py-3.5 bg-white border-b-2 border-emerald-100 min-w-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-200">
-            <Library size={18} className="text-white"/>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-3 sm:p-4 lg:px-5 lg:py-3.5 bg-white border-b-2 border-emerald-100 min-w-0 w-full">
+        <div className="flex items-start sm:items-center gap-3 min-w-0 w-full lg:flex-1">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <Library size={18}/>
           </div>
-          <div>
-            <p className="text-sm font-bold text-violet-900">Gallery Library Imports</p>
-            <p className="text-[11px] text-violet-600">Reuse images from your central gallery — unlimited</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-emerald-800 break-words">Gallery Library Imports</p>
+            <p className="text-[11px] leading-relaxed text-emerald-700 break-words">Reuse images from your central gallery — unlimited</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-xl bg-violet-100 text-violet-800 border border-violet-300 font-bold text-xs shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)] lg:flex lg:items-center gap-2 w-full lg:w-auto min-w-0">
+          <div className="w-full sm:w-auto px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs shadow-sm text-center whitespace-nowrap">
             {libraryImages.length} imported
           </div>
           <button type="button" onClick={()=>setShowBrowser(v=>!v)}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all min-w-0 flex-1 sm:flex-none">
-            <Library size={12}/> {showBrowser?'Hide Library':'Browse Library'}
+            className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all whitespace-normal break-words"> 
+            <Library size={12} className="shrink-0"/> {showBrowser?'Hide Library':'Browse Library'}
           </button>
         </div>
       </div>
@@ -2148,14 +2148,14 @@ if (savedDestination?.id && uniqueNewImages.length) {
         size="xl" icon={<MapPin size={20}/>}
         footer={
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
               {STEP_IDS.map(id=>(
                 <div key={id} className={`h-1.5 rounded-full transition-all duration-300
                   ${id===step?'w-8 bg-emerald-500':completed.includes(id)?'w-4 bg-emerald-300':'w-4 bg-gray-200'}`}/>
               ))}
               <span className="text-xs text-gray-400 ml-1">{stepIndex+1}/{STEPS.length}</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto min-w-0 flex-wrap sm:flex-nowrap justify-end">
               {stepIndex>0&&(
                 <button onClick={goPrev} className="btn-secondary btn-sm" disabled={saving}>
                   <ChevronLeft size={15}/> Back
