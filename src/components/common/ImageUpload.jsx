@@ -165,7 +165,7 @@ export default function ImageUpload({
                     <input {...getInputProps()} />
                     <button
                       type="button"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity
                                  duration-200 btn bg-white text-slate-700 hover:bg-slate-100 btn-sm"
                     >
                       {uploading
@@ -176,7 +176,7 @@ export default function ImageUpload({
                   <button
                     type="button"
                     onClick={clear}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity
                                duration-200 btn-danger btn-sm"
                   >
                     <X size={14} /> Remove
