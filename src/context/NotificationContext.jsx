@@ -315,9 +315,10 @@ export function NotificationProvider({ children }) {
         id: `message-${message.id || conversationId}`,
         type: "message_new",
         category: "message",
-        title: `New message from ${payload.senderName || message.senderName || "User"}`,
+        title: `New message from ${payload.senderName || message.senderName || payload.senderEmail || "User"}`,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
+        metadata: { conversationId, senderName: payload.senderName || message.senderName || payload.senderEmail || "User" },
         is_read: false,
         created_at: new Date().toISOString(),
       };
