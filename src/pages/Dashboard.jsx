@@ -26,10 +26,56 @@ const safeFetch = async (fn) => {
 }
 
 
-const getDestinationImage = (item) =>
-  item?.cover_image || item?.featured_image || item?.image_url || item?.image ||
-  item?.thumbnail || item?.images?.[0]?.url || item?.images?.[0] ||
-  'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=900&q=80'
+const getDestinationImage = (item) => {
+  const candidates = [
+    ...(Array.isArray(item?.heroImages) ? item.heroImages : []),
+    ...(Array.isArray(item?.hero_images) ? item.hero_images : []),
+    item?.hero_image, item?.cover_image, item?.featured_image, item?.image_url, item?.image,
+    item?.thumbnail, item?.images?.[0]?.url, item?.images?.[0],
+  ]
+  return candidates.find((value) => typeof value === 'string' && value.trim()) ||
+    'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=1200&q=80'
+}
+
+/* Forty distinct motion combinations: direction, scale, rotation and reveal vary by slide. */
+const SLIDE_DIRECTIONS = [
+  [0, 34], [0, -34], [34, 0], [-34, 0],
+  [0, 60], [0, -60], [60, 0], [-60, 0],
+]
+const getSlideMotion = (index) => {
+  const direction = SLIDE_DIRECTIONS[index % SLIDE_DIRECTIONS.length]
+  const variation = Math.floor(index / SLIDE_DIRECTIONS.length)
+  const scales = [1.12, 0.9, 1.06, 0.96, 1.16]
+  const rotations = [-1.5, 1.5, 0, -0.7, 0.7]
+  const reveals = [
+    'inset(0 0 100% 0)', 'inset(100% 0 0 0)', 'inset(0 100% 0 0)',
+    'inset(0 0 0 100%)', 'inset(50% 50% 50% 50%)',
+  ]
+  return {
+    initial: {
+      opacity: 0,
+      x: direction[0],
+      y: direction[1],
+      scale: scales[variation],
+      rotate: rotations[(index + variation) % rotations.length],
+      filter: variation % 2 ? 'blur(12px)' : 'blur(0px)',
+      clipPath: reveals[variation],
+    },
+    animate: {
+      opacity: 1, x: 0, y: 0, scale: 1, rotate: 0,
+      filter: 'blur(0px)', clipPath: 'inset(0 0 0 0)',
+    },
+    exit: {
+      opacity: 0,
+      x: -direction[0] * 0.45,
+      y: -direction[1] * 0.45,
+      scale: variation % 2 ? 1.04 : 0.97,
+      filter: 'blur(8px)',
+      clipPath: reveals[(variation + 2) % reveals.length],
+    },
+    transition: { duration: 1.15, ease: [0.22, 1, 0.36, 1] },
+  }
+}
 
 const getDestinationName = (item) =>
   item?.name || item?.title || item?.destination_name || 'Untitled destination'
@@ -88,7 +134,7 @@ export default function Dashboard() {
         bookingStatsRes,
       ] = await Promise.all([
         safeFetch(() => apiClient.get('/countries',    { params: { limit: 1, page: 1 } })),
-        safeFetch(() => apiClient.get('/destinations', { params: { limit: 1, page: 1 } })),
+        safeFetch(() => apiClient.get('/destinations', { params: { limit: 30, page: 1, sortBy: 'name', order: 'asc' } })),
         safeFetch(() => apiClient.get('/bookings',     { params: { limit: 8, page: 1, sortBy: 'created_at', order: 'desc' } })),
         safeFetch(() => apiClient.get('/users',        { params: { limit: 1, page: 1 } })),
         safeFetch(() => apiClient.get('/posts',        { params: { limit: 1, page: 1 } })),
@@ -126,7 +172,7 @@ export default function Dashboard() {
         destinationsRes?.data?.destinations ??
         destinationsRes?.data?.items ??
         []
-      setDestinations(Array.isArray(destinationRows) ? destinationRows.slice(0, 6) : [])
+      setDestinations(Array.isArray(destinationRows) ? destinationRows.filter(Boolean) : [])
 
       setStats({
         countries:       getTotal(countriesRes),
@@ -360,7 +406,7 @@ export default function Dashboard() {
       <DashboardSection
         eyebrow="Explore"
         title="Destinations at a glance"
-        description="A quick visual overview of the destinations currently available in your tourism platform."
+        description="A cinematic, hands-free tour through destinations in your tourism platform."
         action={
           <button
             onClick={() => navigate('/destinations')}
@@ -384,10 +430,7 @@ export default function Dashboard() {
                       key={destinations[activeDestinationIndex].id || destinations[activeDestinationIndex]._id || getDestinationName(destinations[activeDestinationIndex])}
                       type="button"
                       onClick={() => navigate('/destinations')}
-                      initial={{ opacity: 0, x: 34, scale: 1.015 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -28, scale: 0.99 }}
-                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      {...getSlideMotion(activeDestinationIndex)}
                       className="absolute inset-0 h-full w-full text-left"
                       aria-label={`Open destination manager for ${getDestinationName(destinations[activeDestinationIndex])}`}
                     >
@@ -418,20 +461,6 @@ export default function Dashboard() {
                   )}
                 </AnimatePresence>
               </div>
-              {destinations.length > 1 && (
-                <div className="absolute bottom-3 right-4 z-10 flex items-center gap-2 sm:bottom-5 sm:right-6" aria-label="Choose featured destination">
-                  {destinations.map((destination, index) => (
-                    <button
-                      key={destination.id || destination._id || (getDestinationName(destination) + '-' + index)}
-                      type="button"
-                      onClick={() => setActiveDestinationIndex(index)}
-                      aria-label={`Show ${getDestinationName(destination)}`}
-                      aria-pressed={index === activeDestinationIndex}
-                      className={`h-2.5 rounded-full transition-all duration-300 ${index === activeDestinationIndex ? 'w-8 bg-white' : 'w-2.5 bg-white/55 hover:bg-white/85'}`}
-                    />
-                  ))}
-                </div>
-              )}
               <div className="pointer-events-none absolute right-5 top-5 z-10 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold text-white/90 backdrop-blur-md">
                 {String(activeDestinationIndex + 1).padStart(2, '0')} / {String(destinations.length).padStart(2, '0')}
               </div>
