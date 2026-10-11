@@ -61,7 +61,7 @@ export default function Modal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={handleOverlayClick}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4
                      bg-black/50 backdrop-blur-[2px]"
         >
           <motion.div
@@ -78,8 +78,7 @@ export default function Modal({
           >
             {/* ── Header ── */}
             {(title || closable) && (
-              <div className="flex items-start gap-3 px-6 pt-5 pb-4
-                              border-b border-surface-100 flex-shrink-0">
+              <div className="flex items-start gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-4 border-b border-surface-100 flex-shrink-0 min-w-0">
                 {icon && (
                   <div className="flex-shrink-0 w-10 h-10 rounded-2xl
                                   bg-primary-50 flex items-center justify-center">
@@ -116,7 +115,7 @@ export default function Modal({
 
             {/* ── Footer ── */}
             {footer && (
-              <div className="flex-shrink-0 min-w-0 px-6 py-4 border-t border-surface-100
+              <div className="flex-shrink-0 min-w-0 px-3 sm:px-6 py-3 sm:py-4 border-t border-surface-100
                               bg-surface-50 rounded-b-3xl">
                 {footer}
               </div>
