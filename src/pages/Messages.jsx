@@ -177,16 +177,21 @@ function EmojiPicker({ onPick, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
     const h = e => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
+      const root = ref.current;
+      if (!root) return;
+      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+      if (path.includes(root) || root.contains(e.target)) return;
+      onClose();
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    document.addEventListener("pointerdown", h, true);
+    return () => document.removeEventListener("pointerdown", h, true);
   }, [onClose]);
 
   return (
     <div
       ref={ref}
       role="dialog"
+      onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       aria-label="Searchable emoji picker"
@@ -726,6 +731,8 @@ export default function Messages() {
   const [editText, setEditText] = useState("")
   const [atBottom, setAtBottom] = useState(true)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [composerVisible, setComposerVisible] = useState(true)
+  const lastScrollTopRef = useRef(0)
   const [newMsgsWhileScrolled, setNewMsgsWhileScrolled] = useState(0)
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
@@ -780,7 +787,11 @@ export default function Messages() {
       const n = new Notification(`Altuvera — ${title}`, {
         body, icon: '/favicon.ico', tag: `conv-${convId}`,
       })
-      n.onclick = () => { window.focus(); n.close() }
+      n.onclick = () => {
+        window.focus()
+        n.close()
+        if (convId) openConversation(convId)
+      }
       setTimeout(() => notifRef.current.delete(key), 30000)
     } catch { /* non-fatal */ }
   }, [])
@@ -835,6 +846,8 @@ export default function Messages() {
     setLoadingMsgs(true); setMessages([])
     setUserTyping(null); setAtBottom(true)
     setShowScrollBtn(false)
+    setComposerVisible(true)
+    lastScrollTopRef.current = 0
     setNewMsgsWhileScrolled(0)
 
     try {
@@ -873,6 +886,10 @@ export default function Messages() {
     const el = scrollRef.current
     if (!el) return
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    const previousTop = lastScrollTopRef.current
+    if (bottom || el.scrollTop < previousTop - 2) setComposerVisible(true)
+    else if (el.scrollTop > previousTop + 2) setComposerVisible(false)
+    lastScrollTopRef.current = el.scrollTop
     setAtBottom(bottom)
     atBottomRef.current = bottom
     setShowScrollBtn(!bottom)
@@ -1635,7 +1652,8 @@ export default function Messages() {
                   ═══════════════════════════════════════════════════════════
                 */}
                 <div className="flex-shrink-0 bg-white border-t border-slate-200
-                                shadow-[0_-2px_10px_-2px_rgba(0,0,0,0.04)] z-10">
+                                shadow-[0_-2px_10px_-2px_rgba(0,0,0,0.04)] z-10"
+                     style={{ transform: composerVisible ? "translateY(0)" : "translateY(110%)", opacity: composerVisible ? 1 : 0, pointerEvents: composerVisible ? "auto" : "none", transition: "transform 180ms ease, opacity 180ms ease" }}>
 
                   {/* Reply preview */}
                   {replyMsg && (
