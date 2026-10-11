@@ -180,31 +180,10 @@ function EmailDropdown({ items, inputValue, onSelect, activeIndex }) {
                             </p>
                         </div>
 
-                        {/* Tab badge */}
-                        {isActive && (
-                            <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5
-                               rounded uppercase"
-                                style={{ background: '#dcfce7', color: '#059669' }}>
-                                Tab
-                            </span>
-                        )}
                     </button>
                 )
             })}
 
-            {/* Footer */}
-            <div className="px-3.5 py-1.5"
-                style={{ background: '#fafffe', borderTop: '1px solid #f0fdf4' }}>
-                <p className="text-[10px]" style={{ color: '#94a3b8' }}>
-                    <kbd style={{ color: '#059669', fontWeight: 700 }}>Tab</kbd>
-                    {' '}or{' '}
-                    <kbd style={{ color: '#059669', fontWeight: 700 }}>Enter</kbd>
-                    {' '}to select
-                    {' · '}
-                    <kbd style={{ color: '#059669', fontWeight: 700 }}>↑ ↓</kbd>
-                    {' '}to navigate
-                </p>
-            </div>
         </motion.div>
     )
 }
