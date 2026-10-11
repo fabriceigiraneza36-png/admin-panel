@@ -718,6 +718,7 @@ export default function Messages() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
+  const [focusComposerOnOpen, setFocusComposerOnOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [presenceByConversation, setPresenceByConversation] = useState({})
   // Show every conversation by default so threads are never hidden by the initial filter.
@@ -790,7 +791,10 @@ export default function Messages() {
       n.onclick = () => {
         window.focus()
         n.close()
-        if (convId) openConversation(convId)
+        if (convId) {
+          setFocusComposerOnOpen(true)
+          openConversation(convId)
+        }
       }
       setTimeout(() => notifRef.current.delete(key), 30000)
     } catch { /* non-fatal */ }
@@ -884,6 +888,13 @@ export default function Messages() {
     setComposerVisible(true)
     requestAnimationFrame(() => textareaRef.current?.focus())
   }, [requestedConversationId, activeId, loadingMsgs, activeConv])
+
+  useEffect(() => {
+    if (!focusComposerOnOpen || loadingMsgs || !activeConv) return
+    setComposerVisible(true)
+    requestAnimationFrame(() => textareaRef.current?.focus())
+    setFocusComposerOnOpen(false)
+  }, [focusComposerOnOpen, loadingMsgs, activeConv])
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current
