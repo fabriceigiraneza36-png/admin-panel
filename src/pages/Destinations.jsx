@@ -903,7 +903,7 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
   const currentIdx = steps.findIndex(s=>s.id===current)
   return (
     <div className="relative mb-8 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
-      <div className="relative min-w-[520px] sm:min-w-0">
+      <div className="relative min-w-[340px] sm:min-w-0">
       <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-100 mx-8"/>
       <div className="absolute top-5 left-8 h-0.5 bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-700"
         style={{width:currentIdx===0?'0%':`calc(${(currentIdx/(steps.length-1))*100}% - 1px)`}}/>
@@ -915,7 +915,7 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
           return (
             <button key={s.id} type="button" onClick={()=>isAccessible&&onGoTo(s.id)} disabled={!isAccessible}
               className="flex flex-col items-center gap-2 group flex-1 disabled:cursor-not-allowed">
-              <div className={`relative w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 shadow-sm
+              <div className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border-2 flex items-center justify-center transition-all duration-300 shadow-sm
                 ${isDone?'bg-emerald-500 border-emerald-500 text-white shadow-emerald-200 shadow-md'
                 :isActive?'bg-white border-emerald-500 text-emerald-600 shadow-emerald-100 shadow-md scale-110'
                 :'bg-white border-gray-200 text-gray-300 group-hover:border-emerald-300 group-hover:text-emerald-400'}`}>
@@ -927,6 +927,7 @@ function StepIndicator({ steps, current, completed, onGoTo }) {
                 <p className={`text-[10px] font-bold uppercase tracking-wider ${isActive?'text-emerald-700':isDone?'text-emerald-500':'text-gray-400'}`}>{s.label}</p>
                 <p className={`text-[9px] mt-0.5 ${isActive?'text-emerald-500':'text-gray-300'}`}>{s.desc}</p>
               </div>
+              <p className={`text-[9px] font-bold sm:hidden ${isActive?'text-emerald-700':'text-gray-400'}`}>{s.label}</p>
             </button>
           )
         })}
@@ -1182,6 +1183,12 @@ export default function Destinations() {
   const [deleteOpen, setDeleteOpen]             = useState(false)
   const [lightboxImages, setLightboxImages]     = useState(null)
   const [lightboxStart, setLightboxStart]       = useState(0)
+  const stepContentRef = useRef(null)
+
+  useEffect(() => {
+    const body = stepContentRef.current?.closest('[data-modal-body]')
+    if (body) body.scrollTo({ top: 0, behavior: 'auto' })
+  }, [step])
 
   const debouncedSearch = useDebounce(search, 400)
 
@@ -2217,9 +2224,9 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
           </div>
         }
       >
-        <div>
+        <div ref={stepContentRef} className="w-full min-w-0">
           <StepIndicator steps={STEPS} current={step} completed={completed} onGoTo={id=>setStep(id)}/>
-          <div className="min-h-[400px]">
+          <div className="min-h-[280px] sm:min-h-[400px] min-w-0">
             <AnimatePresence mode="wait">
               {renderStep()}
             </AnimatePresence>
