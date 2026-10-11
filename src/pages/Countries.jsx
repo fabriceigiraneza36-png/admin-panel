@@ -882,6 +882,7 @@ export default function Countries() {
   const [countries, setCountries] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [search, setSearch] = useState('')
   const [continent, setContinent] = useState('')
   const [featured, setFeatured] = useState('')
@@ -1022,6 +1023,7 @@ export default function Countries() {
         const attractions = Array.isArray(form.attractions) ? form.attractions : []
         const completeAttractions = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
         if (attractions.length < 4 || completeAttractions < 4) setStep('content')
+        else if (!form.latitude || !form.longitude) setStep('geography')
       }
       return
     }
@@ -1041,7 +1043,7 @@ export default function Countries() {
     if (!validateStep('media')) {
       const attractions = Array.isArray(form.attractions) ? form.attractions : []
       const completeAttractions = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
-      setStep(attractions.length < 4 || completeAttractions < 4 ? 'content' : 'media')
+      setStep(attractions.length < 4 || completeAttractions < 4 ? 'content' : (!form.latitude || !form.longitude) ? 'geography' : 'media')
       return
     }
     savingRef.current = true
