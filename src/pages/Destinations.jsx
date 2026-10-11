@@ -570,7 +570,7 @@ const addUpload = () => {
 
 <button type="button"
                    onClick={mode==='url'?addUrl:addUpload}
-                   disabled={mode==='url'?!urlInput.trim():!uploaded || isAdding}
+                   disabled={mode==='url'?!urlInput.trim():!uploaded}
                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-sm font-bold hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-emerald-200">
                   <Plus size={14}/> Add to Slot #{activeSlot+1}
                 </button>
