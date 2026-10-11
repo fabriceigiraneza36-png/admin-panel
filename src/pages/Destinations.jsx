@@ -864,7 +864,7 @@ function FaqEditor({ faqs=[], onChange }) {
 }
 
 /* ─── Attraction Editor ─────────────────────────────────────────────────── */
-function AttractionEditor({ attractions = [], onChange }) {
+function AttractionEditor({ attractions = [], onChange, error }) {
   const update = (index, key, value) => onChange(attractions.map((item, i) => i === index ? { ...item, [key]: value } : item))
   const add = () => onChange([...attractions, { name: '', description: '', imageUrl: '', image_url: '' }])
   const remove = (index) => onChange(attractions.filter((_, i) => i !== index))
@@ -879,6 +879,7 @@ function AttractionEditor({ attractions = [], onChange }) {
           <Plus size={12}/> Add Attraction
         </button>
       </div>
+      {error && <p role="alert" className="text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>}
       {attractions.map((item, index) => (
         <div key={index} className="p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 space-y-3">
           <div className="flex items-center justify-between">
@@ -1072,8 +1073,9 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
     const [mode, setMode] = useState('upload');
     const [url, setUrl] = useState(value || '');
     const [invalid, setInvalid] = useState(false);
+    const [imageFailed, setImageFailed] = useState(false);
 
-    useEffect(() => { setUrl(value || ''); setInvalid(false) }, [value]);
+    useEffect(() => { setUrl(value || ''); setInvalid(false); setImageFailed(false) }, [value]);
 
     const apply = () => {
       const clean = url.trim();
@@ -1095,19 +1097,19 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
           </div>
         </div>
         <div className="p-3 space-y-2.5">
-          {value ? (
+          {value && mode === 'url' ? (
             <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-100 group">
-              <img src={value} alt={label} className="w-full h-full object-cover" onError={e=>{e.currentTarget.src='https://placehold.co/640x400?text=Image+error'}}/>
-              <button type="button" onClick={()=>onChange('')} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>
+              {imageFailed ? <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400 bg-slate-50 p-3 text-center"><Image size={24}/><p className="text-[10px]">Image could not be loaded. Try another link.</p></div> : <img src={value} alt={label} className="w-full h-full object-cover" onError={()=>setImageFailed(true)}/>}
+              <button type="button" onClick={()=>onChange('')} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={14}/></button>
               <div className="absolute left-2 bottom-2 px-2 py-1 rounded-md bg-black/55 text-white text-[9px] font-bold uppercase tracking-wider">Ready</div>
             </div>
-          ) : (
+          ) : !value ? (
             <div className="aspect-[16/10] rounded-xl bg-gradient-to-br from-slate-50 to-emerald-50/50 border border-slate-100 flex items-center justify-center">
               <div className="text-center"><ImagePlus size={24} className="mx-auto text-emerald-300 mb-1"/><p className="text-[10px] text-slate-400 font-semibold">Add image {number}</p></div>
             </div>
-          )}
+          ) : null}
           {mode==='upload' ? (
-            <ImageUpload label="" value="" onChange={v=>onChange(v)} folder={folder}/>
+            <ImageUpload label="" value={value} onChange={onChange} folder={folder}/>
           ) : (
             <div className="flex gap-2">
               <input value={url} onChange={e=>{setUrl(e.target.value);setInvalid(false)}} onKeyDown={e=>e.key==='Enter'&&apply()}
@@ -1182,6 +1184,7 @@ export default function Destinations() {
   const [sortOrder, setSortOrder]               = useState('asc')
   const [form, setForm]                         = useState(INITIAL_FORM)
   const [editing, setEditing]                   = useState(null)
+  const savingRef = useRef(false)
   const [step, setStep]                         = useState('identity')
   const [completed, setCompleted]               = useState([])
   const [errors, setErrors]                     = useState({})
@@ -1209,7 +1212,8 @@ export default function Destinations() {
     if (form.image_url)       imgs.push({ url: form.image_url,       caption: 'Main Image',  source: 'main'   })
     ;(form.gallery || []).forEach(g => imgs.push({ url: g.url, caption: g.caption || 'Gallery', source: 'gallery' }))
     ;(form.library_images || []).forEach(g => imgs.push({ url: g.url, caption: g.caption || 'Library', source: 'library' }))
-    return imgs.filter(i => i.url)
+    const seen = new Set()
+    return imgs.filter(i => i.url && !seen.has(i.url) && seen.add(i.url))
   }, [form.image_url, form.hero_image, form.cover_image_url, form.gallery, form.library_images])
 
   const openLightbox = (images, startIndex = 0) => {
@@ -1257,9 +1261,11 @@ const normaliseGalleries = (dest) => {
     return { gallery: images, library_images: [] }
   }
 
+  const seenUrls = new Set()
   raw.forEach((g, i) => {
-    const url = g.imageUrl || g.url || ''
-    if (!url) return
+    const url = String(g.imageUrl || g.url || '').trim()
+    if (!url || seenUrls.has(url)) return
+    seenUrls.add(url)
     const entry = {
       id: g.id, // Preserve the ID from the backend
       url,
@@ -1377,6 +1383,18 @@ const normaliseGalleries = (dest) => {
   }
 
   const upd = (k, v) => {
+    // Keep one record per image URL across the hero, gallery, and library slots.
+    if (['hero_slides', 'gallery', 'library_images'].includes(k) && Array.isArray(v)) {
+      const otherKeys = ['hero_slides', 'gallery', 'library_images'].filter(key => key !== k)
+      const existingUrls = new Set(otherKeys.flatMap(key => (form[key] || []).map(item =>
+        String(typeof item === 'string' ? item : item?.url || item?.imageUrl || '').trim()
+      )).filter(Boolean))
+      const nextUrls = v.map(item => String(typeof item === 'string' ? item : item?.url || item?.imageUrl || '').trim()).filter(Boolean)
+      if (new Set(nextUrls).size !== nextUrls.length || nextUrls.some(url => existingUrls.has(url))) {
+        toast.error('That image is already selected. Choose a different image to avoid duplicates.')
+        return
+      }
+    }
     setForm(p => ({ ...p, [k]: v }))
     if (errors[k]) setErrors(p => ({ ...p, [k]: undefined }))
   }
@@ -1406,7 +1424,16 @@ const normaliseGalleries = (dest) => {
   const stepIndex = STEP_IDS.indexOf(step)
 
   const goNext = () => {
-    if (!validateStep(step)) return
+    if (!validateStep(step)) {
+      // Attraction images are entered on Content, not Media. Guide the admin
+      // back to the step where the missing information can be corrected.
+      if (step === 'media') {
+        const attractions = Array.isArray(form.attractions) ? form.attractions : []
+        const complete = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+        if (attractions.length < 4 || complete < 4) setStep('content')
+      }
+      return
+    }
     if (!completed.includes(step)) setCompleted(p => [...p, step])
     const next = STEP_IDS[stepIndex + 1]
     if (next) setStep(next)
@@ -1419,8 +1446,15 @@ const normaliseGalleries = (dest) => {
 
   /* ── Save ─────────────────────────────────────────────────────────── */
   const handleSave = async () => {
+    if (savingRef.current) return
     if (!validateStep('identity')) { setStep('identity'); return }
-    if (!validateStep('media')) { setStep('media'); return }
+    if (!validateStep('media')) {
+      const attractions = Array.isArray(form.attractions) ? form.attractions : []
+      const complete = attractions.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
+      setStep(attractions.length < 4 || complete < 4 ? 'content' : 'media')
+      return
+    }
+    savingRef.current = true
     setSaving(true)
     try {
       const { gallery, library_images, hero_slides, itinerary, faqs, tags, local_tips, ...destinationFields } = form
@@ -1489,7 +1523,7 @@ const uniqueNewImages = allNewImages.filter(img => {
   return true
 })
 
-if (savedDestination?.id && uniqueNewImages.length) {
+if (editing && savedDestination?.id && uniqueNewImages.length) {
   const formData = new FormData()
   formData.append('image_urls', JSON.stringify(uniqueNewImages.map(image => image.url)))
   formData.append('image_meta', JSON.stringify(uniqueNewImages))
@@ -1527,6 +1561,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
     } catch (e) {
       toast.error(getErrorMessage(e))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -1724,7 +1759,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
              <Field label="Local Tips" icon={Coffee}><TagInput value={form.local_tips} onChange={v=>upd('local_tips',v)} /></Field>
            </div>
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
-             <AttractionEditor attractions={form.attractions} onChange={v=>upd('attractions',v)} />
+             <AttractionEditor attractions={form.attractions} onChange={v=>upd('attractions',v)} error={errors.attractions} />
            </div>
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
              <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
@@ -2147,7 +2182,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
         title={editing?`Edit: ${editing.name}`:'Add New Destination'}
         size="xl" icon={<MapPin size={20}/>}
         footer={
-          <div className="flex items-center justify-between gap-3 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
             <div className="flex items-center gap-2">
               {STEP_IDS.map(id=>(
                 <div key={id} className={`h-1.5 rounded-full transition-all duration-300
