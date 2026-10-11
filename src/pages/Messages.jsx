@@ -870,10 +870,12 @@ export default function Messages() {
   }, [])
 
   useEffect(() => {
-    if (requestedConversationId && conversations.some(c => String(c.id) === String(requestedConversationId))) {
-      openConversation(requestedConversationId)
-    }
-  }, [requestedConversationId, conversations, openConversation])
+    if (!conversations.length) return
+    const target = requestedConversationId
+      ? conversations.find(c => String(c.id) === String(requestedConversationId))
+      : conversations.find(c => String(c.id) === String(activeId)) || conversations[0]
+    if (target && String(target.id) !== String(activeId)) openConversation(target.id)
+  }, [requestedConversationId, conversations, activeId, openConversation])
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current
