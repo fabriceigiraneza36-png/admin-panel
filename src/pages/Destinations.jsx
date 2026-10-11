@@ -1062,6 +1062,7 @@ const selectClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg
 
 /* ─── NewDestinationMedia — create-only media workflow ───────────────────── */
 function NewDestinationMedia({ heroSlides = [], bannerSlides = [], gallery = [], onHeroChange, onBannerChange, onGalleryChange }) {
+  const [gallerySlots, setGallerySlots] = useState(Math.max(3, gallery.length));
   const setHero = (index, value) => {
     const next = [...heroSlides]; next[index] = value || ''; onHeroChange(next);
   };
@@ -1169,7 +1170,8 @@ function NewDestinationMedia({ heroSlides = [], bannerSlides = [], gallery = [],
       <section className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">Destination gallery — at least 3 images</h4><p className="text-[10px] text-slate-500">Use these for attraction views and supporting photos. Gallery images are never copied into hero or banner fields.</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[0,1,2].map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setUniqueImage(gallery,i,v,setGallery)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
+          {Array.from({ length: Math.min(MAX_GALLERY_IMAGES, Math.max(3, gallerySlots, gallery.length)) }, (_, i) => i).map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setUniqueImage(gallery,i,v,setGallery)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
+        {gallerySlots < MAX_GALLERY_IMAGES && <button type="button" onClick={() => setGallerySlots(n => Math.min(MAX_GALLERY_IMAGES, n + 1))} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-xs font-bold hover:bg-emerald-50">+ Add another gallery image</button>}
         </div>
         {galleryCount<3&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add at least 3 gallery images before continuing.</p>}
       </section>
@@ -1461,7 +1463,7 @@ const normaliseGalleries = (dest) => {
             url,
             is_primary: index === 0,
             sort_order: index,
-            source: index < HERO_IMAGE_COUNT ? 'hero' : 'attraction',
+            source: index < heroImages.length ? 'hero' : index < heroImages.length + bannerImages.length ? 'banner' : 'gallery',
           })),
           image_url: heroImages[0] || null,
           hero_image: heroImages[0] || null,
