@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, X, Image, Link2, Loader2, CheckCircle, Replace, Check, ImageOff } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -28,11 +28,14 @@ export default function ImageUpload({
   const [imgFailed, setImgFailed] = useState(false)
   const [editingLink, setEditingLink] = useState(false)
   const [linkDraft, setLinkDraft] = useState('')
+  const uploadLockRef = useRef(false)
 
   // Reset the broken-image flag whenever the value changes
   useEffect(() => { setImgFailed(false) }, [value])
 
   const uploadFile = useCallback(async (file) => {
+    if (!file || uploadLockRef.current) return
+    uploadLockRef.current = true
     setUploading(true)
     setError('')
     try {
@@ -45,12 +48,13 @@ export default function ImageUpload({
         timeout: 120_000,
       })
 
-      const url = data.data?.url || data.url || data.secure_url
+      const url = data.data?.url || data.data?.secureUrl || data.data?.imageUrl || data.url || data.secure_url
       if (!url) throw new Error('No URL returned from server')
       onChange(url)
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Upload failed')
     } finally {
+      uploadLockRef.current = false
       setUploading(false)
     }
   }, [folder, onChange])
