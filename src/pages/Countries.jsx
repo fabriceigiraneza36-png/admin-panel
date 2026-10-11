@@ -370,15 +370,18 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
   }
 
   const addFromUrl = () => {
-    if (!urlInput.trim() || gallery.length >= MAX_COUNTRY_IMAGES) return
-    if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
+    const url = urlInput.trim()
+    if (!url || gallery.length >= MAX_COUNTRY_IMAGES) return
+    if (!isValidUrl(url)) { setUrlValid(false); return }
+    if (gallery.some(image => image.url === url)) { setUrlValid(false); return }
     setUrlValid(true)
-    onChange([...gallery, { url: urlInput.trim(), caption: captionInput.trim(), source: 'url' }])
+    onChange([...gallery, { url, caption: captionInput.trim(), source: 'url' }])
     setUrlInput(''); setCaptionInput('')
   }
 
   const addFromUpload = () => {
     if (!uploadedUrl || gallery.length >= MAX_COUNTRY_IMAGES) return
+    if (gallery.some(image => image.url === uploadedUrl)) { setUploadedUrl(''); return }
     onChange([...gallery, { url: uploadedUrl, caption: captionInput.trim(), source: 'upload' }])
     setUploadedUrl(''); setCaptionInput('')
   }
@@ -949,7 +952,7 @@ export default function Countries() {
       url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
       caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
       source: 'upload',
-    })).filter(image => image.url)
+    })).filter(image => image.url).filter((image, index, all) => all.findIndex(item => item.url === image.url) === index)
 
     return {
       gallery,
@@ -1029,11 +1032,11 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
-          url: image.url || image.imageUrl,
-          caption: image.caption || '',
-        })).filter(image => image.url),
-        images: (form.gallery || []).map(image => image.url || image.imageUrl).filter(Boolean),
+        hero_images: [...new Set((form.gallery || []).map(image => image.url || image.imageUrl).filter(Boolean))].slice(0, HERO_COUNTRY_IMAGE_COUNT).map((url, index) => ({
+          url,
+          caption: (form.gallery || []).find(image => (image.url || image.imageUrl) === url)?.caption || '',
+        })),
+        images: [...new Set((form.gallery || []).map(image => image.url || image.imageUrl).filter(Boolean))],
         attractions: form.attractions || [],
         population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
