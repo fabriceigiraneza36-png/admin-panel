@@ -17,14 +17,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const isProd = mode === "production";
 
-  // Validate required environment variables
-  const requiredEnvVars = ["VITE_API_URL", "VITE_SOCKET_URL"];
-  for (const varName of requiredEnvVars) {
-    if (!env[varName]) {
-      console.error(`��❌ Missing required environment variable: ${varName}`);
-      process.exit(1);
-    }
-  }
+  // Public defaults keep local/CI builds functional; production Vercel settings override these.
+  const apiUrl = (env.VITE_API_URL || "https://backend-jd8f.onrender.com").replace(/\/+$/, "");
+  const socketUrl = (env.VITE_SOCKET_URL || apiUrl.replace(/\/api$/, "")).replace(/\/+$/, "");
 
   return {
     plugins: [react()],
@@ -69,7 +64,7 @@ export default defineConfig(({ mode }) => {
          * Forwards: VITE_API_URL + "/api/messages/users"
          */
         "/api": {
-          target:       env.VITE_API_URL.replace(/\/api$/, ""),
+          target:       apiUrl.replace(/\/api$/, ""),
           changeOrigin: true,
           secure:       true,
         },
@@ -78,7 +73,7 @@ export default defineConfig(({ mode }) => {
          * Socket.IO proxy — WS upgrade + polling
          */
         "/socket.io": {
-          target:       env.VITE_SOCKET_URL,
+          target:       socketUrl,
           changeOrigin: true,
           ws:           true,
           secure:       true,
