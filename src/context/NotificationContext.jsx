@@ -56,7 +56,9 @@ const messageIdOf = (notification) => {
 };
 
 const isSameNotification = (left, right) => {
-  if (String(left?.id ?? "") === String(right?.id ?? "")) return true;
+  const leftId = left?.id;
+  const rightId = right?.id;
+  if (leftId != null && rightId != null && String(leftId) === String(rightId)) return true;
   const leftMessageId = messageIdOf(left);
   const rightMessageId = messageIdOf(right);
   return Boolean(leftMessageId && rightMessageId && leftMessageId === rightMessageId);
