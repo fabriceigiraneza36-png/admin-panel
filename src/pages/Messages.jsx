@@ -11,6 +11,7 @@ import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
   PanelLeftClose, PanelLeftOpen, MoreHorizontal, Edit3, Pin, Highlighter, Undo2,
+  Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
@@ -130,7 +131,8 @@ function StatusBadge({ status }) {
   const map = {
     open:    'bg-emerald-50 text-emerald-700 border-emerald-200',
     closed:  'bg-slate-100 text-slate-500 border-slate-200',
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
+    pending:  'bg-amber-50 text-amber-700 border-amber-200',
+    archived: 'bg-slate-100 text-slate-600 border-slate-200',
   }
   const dot = { open: 'bg-emerald-500', closed: 'bg-slate-400', pending: 'bg-amber-500' }
   return (
@@ -308,7 +310,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
 const MsgBubble = React.memo(function MsgBubble({
   message, mine, replyTo, onReact, onReply, now,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
-  onUnsend, onPin, onHighlight, canModerate,
+  onUnsend, onPin, onHighlight, onForward, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const reactions = useMemo(() => {
@@ -369,6 +371,7 @@ const MsgBubble = React.memo(function MsgBubble({
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm hover:bg-slate-50">{e}<span className="text-xs text-slate-500">React</span></button>
                   ))}
                   <button onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  <button onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
                   {(mine || canModerate) && <>
                     <button onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Edit3 size={15}/> Edit</button>
                     <button onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend</button>
@@ -701,6 +704,89 @@ function GroupChatModal({ onClose, onCreated }) {
   )
 }
 
+/* ─── Forward Message Modal ─────────────────────────────────────────────────── */
+
+function ForwardMessageModal({ message, conversations, onClose, onForward, sending }) {
+  const [search, setSearch] = useState('')
+  const [targetId, setTargetId] = useState('')
+  const query = search.trim().toLowerCase()
+  const options = conversations.filter(conv => {
+    if (String(conv.id) === String(message?.conversationId)) return false
+    if (conv.status === 'archived') return false
+    const haystack = [conv.subject, conv.guestName, conv.guestEmail, conv.lastMessage, conv.destinationName]
+      .filter(Boolean).join(' ').toLowerCase()
+    return !query || haystack.includes(query)
+  })
+
+  useEffect(() => {
+    const onKeyDown = event => { if (event.key === 'Escape' && !sending) onClose() }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose, sending])
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-slate-950/50 backdrop-blur-sm p-0 sm:p-5"
+      role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !sending) onClose() }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="forward-message-title"
+        className="w-full max-w-lg overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white border border-white shadow-2xl">
+        <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[.18em] text-emerald-700 font-bold">Share with a traveler</p>
+            <h2 id="forward-message-title" className="text-lg font-bold text-slate-900 mt-1">Forward message</h2>
+          </div>
+          <button type="button" onClick={onClose} disabled={sending} aria-label="Close forward dialog"
+            className="h-9 w-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 disabled:opacity-50"><X size={17}/></button>
+        </header>
+        <div className="px-5 pt-4">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Forwarding {message?.senderName || 'message'}</p>
+            <p className="text-sm text-slate-700 mt-1 line-clamp-3 whitespace-pre-wrap break-words">{message?.body || 'This message has no text.'}</p>
+          </div>
+          <label htmlFor="forward-chat-search" className="text-xs font-bold text-slate-600">Choose a conversation</label>
+          <div className="relative mt-1.5 mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input id="forward-chat-search" autoFocus value={search} onChange={event => setSearch(event.target.value)}
+              placeholder="Search traveler, subject or message…"
+              className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"/>
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-1 pb-2">
+            {options.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-500">No other conversations match.</div>
+            ) : options.slice(0, 80).map(conv => {
+              const selected = String(targetId) === String(conv.id)
+              return (
+                <button type="button" key={conv.id} onClick={() => setTargetId(String(conv.id))}
+                  aria-pressed={selected}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}>
+                  <span className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-bold flex items-center justify-center">
+                    {(conv.guestName || conv.guestEmail || conv.subject || 'C').trim().slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-slate-800 truncate">{conv.subject || conv.guestName || conv.guestEmail || 'Conversation'}</span>
+                    <span className="block text-xs text-slate-500 truncate">{conv.guestName && conv.subject ? conv.guestName + ' · ' : ''}{conv.lastMessage || conv.guestEmail || 'No messages yet'}</span>
+                  </span>
+                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${selected ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
+                    {selected && <Check size={10} className="text-white"/>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <footer className="flex gap-2 px-5 py-4 bg-slate-50 border-t border-slate-100">
+          <button type="button" onClick={onClose} disabled={sending}
+            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={() => onForward(targetId)} disabled={!targetId || sending}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
+            {sending ? <RefreshCw size={15} className="animate-spin"/> : <Forward size={15}/>}
+            {sending ? 'Forwarding…' : 'Forward message'}
+          </button>
+        </footer>
+      </section>
+    </div>
+  )
+}
+
 /* ─── Main Component ───────────────────────────────────────────────────────── */
 
 export default function Messages() {
@@ -728,6 +814,8 @@ export default function Messages() {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
   const [showGroupChat, setShowGroupChat] = useState(false)
+  const [forwardMessage, setForwardMessage] = useState(null)
+  const [forwarding, setForwarding] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState(null)
   const [editText, setEditText] = useState("")
   const [atBottom, setAtBottom] = useState(true)
@@ -759,6 +847,7 @@ export default function Messages() {
 
   const scrollRef = useRef(null)
   const textareaRef = useRef(null)
+  const conversationSearchRef = useRef(null)
   const notifRef = useRef(new Set())
   const typingTimers = useRef({})
   const isAdminTypingRef = useRef(false)
@@ -771,6 +860,25 @@ export default function Messages() {
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
   useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
+
+  // Ctrl/⌘+K focuses inbox search; Ctrl/⌘+N starts a separate conversation.
+  useEffect(() => {
+    const handleShortcut = event => {
+      const command = event.ctrlKey || event.metaKey
+      if (!command || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        conversationSearchRef.current?.focus()
+        conversationSearchRef.current?.select()
+      } else if (key === 'n') {
+        event.preventDefault()
+        setShowNewChat(true)
+      }
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [])
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -1112,6 +1220,55 @@ export default function Messages() {
     if (conv?.id) openConversation(conv.id)
   }, [loadConversations, openConversation])
 
+  const handleForwardToConversation = useCallback(async (targetId) => {
+    if (!forwardMessage || !targetId || forwarding) return
+    const forwardedBody = `↪ Forwarded message from ${forwardMessage.senderName || (forwardMessage.senderType === 'admin' ? 'Altuvera Support' : 'Traveler')}:
+
+${String(forwardMessage.body || '').trim()}`
+    if (!forwardedBody.trim()) return
+    setForwarding(true)
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(targetId)}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body: forwardedBody }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'The message could not be forwarded.')
+      setForwardMessage(null)
+      toast.success('Message forwarded')
+      loadConversations()
+    } catch (error) {
+      toast.error(error.message || 'The message could not be forwarded.')
+    } finally {
+      setForwarding(false)
+    }
+  }, [forwardMessage, forwarding, toast, loadConversations])
+
+  const handleToggleArchive = useCallback(async () => {
+    if (!activeId || !activeConv) return
+    const nextStatus = activeConv.status === 'archived' ? 'open' : 'archived'
+    try {
+      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(activeId)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || `Could not ${nextStatus === 'archived' ? 'archive' : 'restore'} this conversation.`)
+      const updated = data.data || { ...activeConv, status: nextStatus }
+      setActiveConv(prev => prev ? { ...prev, ...updated, status: nextStatus } : prev)
+      setConversations(prev => prev.map(conv => String(conv.id) === String(activeId) ? { ...conv, ...updated, status: nextStatus } : conv))
+      toast.success(nextStatus === 'archived' ? 'Conversation archived' : 'Conversation restored')
+      if (nextStatus === 'archived' && filter !== 'all' && filter !== 'archived') {
+        setActiveId(null)
+        setActiveConv(null)
+        setMessages([])
+      }
+      await loadConversations()
+    } catch (error) {
+      toast.error(error.message || 'Conversation status could not be updated.')
+    }
+  }, [activeId, activeConv, filter, toast, loadConversations])
+
   const handleDeleteConversation = useCallback(async () => {
     if (!activeId || !window.confirm("Delete this conversation and hide its history from both inboxes?")) return
     try {
@@ -1362,6 +1519,15 @@ export default function Messages() {
       {showNewChat && (
         <NewChatModal onClose={() => setShowNewChat(false)} onCreated={handleNewConvCreated} />
       )}
+      {forwardMessage && (
+        <ForwardMessageModal
+          message={{ ...forwardMessage, conversationId: activeId || forwardMessage.conversationId }}
+          conversations={conversations}
+          onClose={() => { if (!forwarding) setForwardMessage(null) }}
+          onForward={handleForwardToConversation}
+          sending={forwarding}
+        />
+      )}
       {showGroupChat && (
         <GroupChatModal
           onClose={() => setShowGroupChat(false)}
@@ -1455,14 +1621,14 @@ export default function Messages() {
             <div className="flex-shrink-0 p-3 border-b border-slate-100 space-y-2.5 bg-white">
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search…"
+                <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search people, destinations or messages…"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
               </div>
 
-              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg" role="tablist">
-                {['open', 'closed', 'all'].map(f => (
+              <div className="grid grid-cols-5 gap-1 p-1 bg-slate-100 rounded-lg" role="tablist" aria-label="Filter conversations by status">
+                {['open', 'pending', 'closed', 'archived', 'all'].map(f => (
                   <button key={f} onClick={() => setFilter(f)}
                     className={`py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all
                                 ${filter === f
@@ -1591,6 +1757,10 @@ export default function Messages() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={activeConv.status} />
+                    <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
+                      className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
+                      {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                    </button>
                     <button onClick={handleDeleteConversation} title="Delete conversation" aria-label="Delete conversation"
                       className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
                       <Trash2 size={16} />
@@ -1662,6 +1832,7 @@ export default function Messages() {
                             onUnsend={unsendMessage}
                             onPin={(id, value) => setMessageFlag(id, 'pin', value)}
                             onHighlight={(id, value) => setMessageFlag(id, 'highlight', value)}
+                            onForward={(message) => setForwardMessage({ ...message, conversationId: activeId })}
                             canModerate={true}
                           />
                         )
