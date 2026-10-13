@@ -48,6 +48,20 @@ const authFetch = (url, opts = {}) => {
   });
 };
 
+const messageIdOf = (notification) => {
+  const id = notification?.metadata?.messageId ?? notification?.metadata?.message_id;
+  if (id != null) return String(id);
+  const ownId = String(notification?.id ?? "");
+  return ownId.startsWith("message-") ? ownId.slice("message-".length) : null;
+};
+
+const isSameNotification = (left, right) => {
+  if (String(left?.id ?? "") === String(right?.id ?? "")) return true;
+  const leftMessageId = messageIdOf(left);
+  const rightMessageId = messageIdOf(right);
+  return Boolean(leftMessageId && rightMessageId && leftMessageId === rightMessageId);
+};
+
 /* ─────────────────────────────────────────────────────────────
    PROVIDER
 ───────────────────────────────────────────────────────────────*/
@@ -58,6 +72,7 @@ export function NotificationProvider({ children }) {
   const abortRef    = useRef(null);
 
   const [notifications, setNotifications] = useState([]);
+  const notificationsRef = useRef([]);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState(null);
@@ -110,9 +125,10 @@ export function NotificationProvider({ children }) {
       failsRef.current = 0;   // reset on success
 
       const rows = data.data || [];
-      setNotifications((prev) =>
-        pageNum === 1 ? rows : [...prev, ...rows],
-      );
+      notificationsRef.current = pageNum === 1
+        ? rows
+        : [...notificationsRef.current, ...rows.filter(row => !notificationsRef.current.some(existing => isSameNotification(existing, row)))];
+      setNotifications(notificationsRef.current);
       setUnreadCount(data.unread_count ?? data.unreadCount ?? 0);
       setTotal(data.pagination?.total ?? 0);
       setTotalPages(data.pagination?.total_pages ?? 1);
@@ -287,11 +303,19 @@ export function NotificationProvider({ children }) {
     if (!socketOn || !socketOff) return;
 
     const onNew = (notif) => {
-      if (!mountedRef.current) return;
-      setNotifications((prev) => {
-        if (prev.some((n) => n.id === notif.id)) return prev;
-        return [notif, ...prev];
-      });
+      if (!mountedRef.current || !notif) return;
+      const existingIndex = notificationsRef.current.findIndex(existing => isSameNotification(existing, notif));
+      if (existingIndex >= 0) {
+        // A real-time message alert may already have created a temporary inbox row.
+        // Replace it with the durable API notification without counting it twice.
+        const next = [...notificationsRef.current];
+        next[existingIndex] = { ...next[existingIndex], ...notif };
+        notificationsRef.current = next;
+        setNotifications(next);
+        return;
+      }
+      notificationsRef.current = [notif, ...notificationsRef.current];
+      setNotifications(notificationsRef.current);
       setUnreadCount((c) => c + 1);
       setTotal((c) => c + 1);
     };
@@ -311,18 +335,25 @@ export function NotificationProvider({ children }) {
       const message = payload.message || {};
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
+      const messageId = message.id || payload.messageId || null;
       const notification = {
-        id: `message-${message.id || conversationId}`,
+        id: `message-${messageId || conversationId}`,
         type: "message_new",
         category: "message",
         title: `New message from ${payload.senderName || message.senderName || payload.senderEmail || "User"}`,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
-        metadata: { conversationId, senderName: payload.senderName || message.senderName || payload.senderEmail || "User" },
+        metadata: {
+          conversationId,
+          ...(messageId ? { messageId: String(messageId) } : {}),
+          senderName: payload.senderName || message.senderName || payload.senderEmail || "User",
+        },
         is_read: false,
         created_at: new Date().toISOString(),
       };
-      setNotifications((prev) => [notification, ...prev.filter((n) => n.id !== notification.id)]);
+      if (notificationsRef.current.some(existing => isSameNotification(existing, notification))) return;
+      notificationsRef.current = [notification, ...notificationsRef.current];
+      setNotifications(notificationsRef.current);
       setUnreadCount((count) => count + 1);
       setTotal((count) => count + 1);
     };
@@ -350,6 +381,10 @@ export function NotificationProvider({ children }) {
       socketOff("msg:new-from-user", onMessage);
     };
   }, [socketOn, socketOff]);
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   /* ══════════════════════════════════════════════════════════
      LIFECYCLE
