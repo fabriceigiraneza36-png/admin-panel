@@ -1256,12 +1256,16 @@ ${String(forwardMessage.body || '').trim()}`
       if (!res.ok) throw new Error(data.message || `Could not ${nextStatus === 'archived' ? 'archive' : 'restore'} this conversation.`)
       const updated = data.data || { ...activeConv, status: nextStatus }
       setActiveConv(prev => prev ? { ...prev, ...updated, status: nextStatus } : prev)
-      setConversations(prev => prev.map(conv => String(conv.id) === String(activeId) ? { ...conv, ...updated, status: nextStatus } : conv))
       toast.success(nextStatus === 'archived' ? 'Conversation archived' : 'Conversation restored')
-      if (nextStatus === 'archived' && filter !== 'all' && filter !== 'archived') {
+      if (filter !== 'all' && filter !== nextStatus) {
+        // Remove a thread immediately when its new status no longer matches
+        // the selected filter, avoiding a stale row re-opening during refresh.
+        setConversations(prev => prev.filter(conv => String(conv.id) !== String(activeId)))
         setActiveId(null)
         setActiveConv(null)
         setMessages([])
+      } else {
+        setConversations(prev => prev.map(conv => String(conv.id) === String(activeId) ? { ...conv, ...updated, status: nextStatus } : conv))
       }
       await loadConversations()
     } catch (error) {
