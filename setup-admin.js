@@ -1,33 +1,37 @@
 import bcrypt from 'bcryptjs'
 import pg from 'pg'
-import fetch from 'node-fetch'
 
-const CONFIG = {
-  dbUrl:
-    'postgresql://neondb_owner:npg_tHirA2BjhbJ3@ep-gentle-butterfly-aii8023t-pooler.c-4.us-east-1.aws.neon.tech/altuvera?sslmode=require&channel_binding=require',
-  apiUrl: 'https://backend-jd8f.onrender.com/api',
-  email: 'admin@altuvera.com',
-  username: 'admin',
-  password: 'altuvera',
-  fullName: 'Super Admin',
-  role: 'admin',
+const required = [
+  'DATABASE_URL',
+  'ADMIN_EMAIL',
+  'ADMIN_USERNAME',
+  'ADMIN_PASSWORD',
+]
+
+const missing = required.filter((key) => !process.env[key])
+if (missing.length) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}`)
+  console.error('Set them in your local environment before running this script.')
+  process.exit(1)
+}
+
+const config = {
+  dbUrl: process.env.DATABASE_URL,
+  email: process.env.ADMIN_EMAIL,
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
+  fullName: process.env.ADMIN_FULL_NAME || 'Super Admin',
+  role: process.env.ADMIN_ROLE || 'admin',
 }
 
 async function run() {
-  console.log('\n🚀 ALTUVERA ADMIN SETUP\n====================\n')
-
-  // 1. HASH PASSWORD
-  console.log('[1/3] Generating bcrypt hash...')
-  const hash = await bcrypt.hash(CONFIG.password, 12)
-  console.log('✔ Hash generated')
-
+  const hash = await bcrypt.hash(config.password, 12)
   const client = new pg.Client({
-    connectionString: CONFIG.dbUrl,
+    connectionString: config.dbUrl,
     ssl: { rejectUnauthorized: false },
   })
 
   try {
-    console.log('\n[2/3] Connecting DB...')
     await client.connect()
 
     const sql = `
@@ -45,38 +49,30 @@ async function run() {
       RETURNING id, username, email, role, is_active;
     `
 
-    const res = await client.query(sql, [
-      CONFIG.username,
-      CONFIG.email,
+    const result = await client.query(sql, [
+      config.username,
+      config.email,
       hash,
-      CONFIG.fullName,
-      CONFIG.role,
+      config.fullName,
+      config.role,
     ])
 
-    console.log('✔ Admin saved:', res.rows[0])
-  } catch (err) {
-    console.error('DB ERROR:', err.message)
+    const admin = result.rows[0]
+    console.log('Admin account configured:', {
+      id: admin.id,
+      username: admin.username,
+      role: admin.role,
+      active: admin.is_active,
+    })
+  } catch (error) {
+    console.error('Admin setup failed:', error.message)
+    process.exitCode = 1
   } finally {
     await client.end().catch(() => {})
   }
-
-  console.log('\n[3/3] Testing login...')
-
-  try {
-    const res = await fetch(CONFIG.apiUrl + '/admin/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: CONFIG.email,
-        password: CONFIG.password,
-      }),
-    })
-
-    const data = await res.json()
-    console.log('\nLOGIN RESPONSE:\n', data)
-  } catch (err) {
-    console.error('Login error:', err.message)
-  }
 }
 
-run()
+run().catch((error) => {
+  console.error('Admin setup failed:', error.message)
+  process.exitCode = 1
+})
