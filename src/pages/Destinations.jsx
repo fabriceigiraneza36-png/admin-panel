@@ -1100,7 +1100,7 @@ function DestinationMediaPicker({ open, onClose, section, current, capacity, onA
   };
   const confirmLibrary = () => {
     if (!selected.length) { setError('Select at least one image.'); return; }
-    addItems(selected.map(index=>filtered[index]));
+    addItems(selected.map(url=>filtered.find(item=>item.url===url)).filter(Boolean));
   };
   const addLinks = () => {
     const links = [...new Set(urlText.split(/[\n,;]+/).map(value=>value.trim()).filter(Boolean))];
@@ -1124,7 +1124,7 @@ function DestinationMediaPicker({ open, onClose, section, current, capacity, onA
           {loading ? <div className="py-12 text-center text-sm text-slate-500">Loading image storage…</div>
           : filtered.length===0 ? <div className="py-12 text-center text-sm text-slate-500">No stored images found.</div>
           : <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {filtered.map((item,index)=>{const active=selected.includes(index);return <button type="button" key={item.url} onClick={()=>setSelected(prev=>active?prev.filter(i=>i!==index):prev.length<remaining?[...prev,index]:prev)} className={`min-w-0 overflow-hidden rounded-xl border-2 text-left ${active?'border-emerald-500 ring-2 ring-emerald-100':'border-slate-200 hover:border-emerald-300'}`}>
+            {filtered.map((item,index)=>{const active=selected.includes(item.url);return <button type="button" key={item.url} onClick={()=>setSelected(prev=>active?prev.filter(url=>url!==item.url):prev.length<remaining?[...prev,item.url]:prev)} className={`min-w-0 overflow-hidden rounded-xl border-2 text-left ${active?'border-emerald-500 ring-2 ring-emerald-100':'border-slate-200 hover:border-emerald-300'}`}>
               <div className="relative aspect-[4/3] bg-slate-100"><img src={item.url} alt={item.caption||'Stored image'} loading="lazy" className="h-full w-full object-cover"/><span className={`absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${active?'bg-emerald-600 text-white':'bg-white/90 text-slate-500'}`}>{active?<Check size={12}/>:''}</span></div>
               <p className="truncate px-2 py-1.5 text-[11px] font-medium text-slate-600">{item.caption||'Stored image'}</p>
             </button>})}
@@ -1427,6 +1427,8 @@ const normaliseGalleries = (dest) => {
       if (galleryCount < 5) e.gallery = `${5 - galleryCount} attraction image${5 - galleryCount === 1 ? '' : 's'} missing`
     }
     setErrors(e)
+    if (e.hero_slides) toast.error(e.hero_slides)
+    if (e.gallery) toast.error(e.gallery)
     return Object.keys(e).length === 0
   }
 
