@@ -50,7 +50,7 @@ const authFetch = (url, opts = {}) => {
 /* ─── Constants & Formatting ───────────────────────────────────────────────── */
 
 const QUICK_EMOJIS = ['👍','❤️','😂','🎉','👏','😮','👎','🔥','🙏','✨','😊','😢']
-const INLINE_REACTION_EMOJIS = ['👍','❤️','😂','🎉']
+const QUICK_REACTIONS = ['👍','❤️','😂','🎉','👏','😮','🙏','🔥']
 
 const fmtRelative = (d) => {
   if (!d) return ''
@@ -315,7 +315,8 @@ const MsgBubble = React.memo(function MsgBubble({
   onUnsend, onPin, onHighlight, onForward, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const reactions = useMemo(() => {
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
+  const reactions = useMemo(() => {}
     const r = message.reactions || {}
     return Object.entries(r).filter(([, ids]) => ids?.length > 0)
   }, [message.reactions])
@@ -367,15 +368,20 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className={`absolute top-full mt-1 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
-                  {INLINE_REACTION_EMOJIS.map(e => (
-                    <button key={e} onClick={() => { onReact(message.id, e); setMenuOpen(false) }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm hover:bg-slate-50">{e}<span className="text-xs text-slate-500">React</span></button>
-                  ))}
-                  <button onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
-                  <button onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
-                  {/* Admins preserve the original conversation record; reply or forward instead of editing history. */}
-                  {/* The admin inbox is read-only for existing message records. */}
+                <div className={`absolute top-full mt-1 z-40 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
+                  <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
+                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
+                </div>
+              )}
+              {reactionPickerOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/25 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setReactionPickerOpen(false) }}>
+                  <section role="dialog" aria-modal="true" aria-label="Choose a reaction" className="w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                    <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-800">React to message</span><button type="button" aria-label="Close reactions" onClick={() => setReactionPickerOpen(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><X size={15}/></button></div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {QUICK_REACTIONS.map(emoji => <button type="button" key={emoji} aria-label={`React with ${emoji}`} onClick={() => { onReact(message.id, emoji); setReactionPickerOpen(false) }} className="flex h-10 items-center justify-center rounded-xl border border-slate-100 text-xl transition hover:border-emerald-300 hover:bg-emerald-50 active:scale-95">{emoji}</button>)}
+                    </div>
+                  </section>
                 </div>
               )}
             </div>
@@ -1995,7 +2001,7 @@ export default function Messages() {
                         }
                       }}
                       rows={1}
-                      placeholder="Write a message…"
+                      placeholder="Message traveller…"
                       aria-label="Type a message"
                       className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
                                  bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
