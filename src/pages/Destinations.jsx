@@ -2096,6 +2096,28 @@ if (savedDestination?.id && uniqueNewImages.length) {
                 </ModalSection>
               )}
 
+              {Array.isArray(d.attractions)&&d.attractions.length>0&&(
+                <ModalSection title="Attractions">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {d.attractions.map((item,index)=>{
+                      const name = typeof item === 'string' ? item : item.name || item.title || `Attraction ${index+1}`
+                      const image = typeof item === 'object' ? item.imageUrl || item.image_url || item.image || item.url : ''
+                      const description = typeof item === 'object' ? item.description || item.summary || '' : ''
+                      return <article key={item.id || `${name}-${index}`} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        {image && <img src={image} alt={name} className="w-full aspect-[16/9] object-cover" onError={e=>{e.currentTarget.style.display='none'}}/>}
+                        <div className="p-3"><h4 className="text-sm font-bold text-slate-800 break-words">{name}</h4>{description && <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap break-words">{description}</p>}</div>
+                      </article>
+                    })}
+                  </div>
+                </ModalSection>
+              )}
+
+              {Array.isArray(d.tags)&&d.tags.length>0&&(
+                <ModalSection title="Tags">
+                  <div className="flex flex-wrap gap-2">{d.tags.map((tag,index)=><span key={tag.id || index} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{typeof tag==='string'?tag:tag.name || tag.label || JSON.stringify(tag)}</span>)}</div>
+                </ModalSection>
+              )}
+
               {Array.isArray(d.activities)&&d.activities.length>0&&(
                 <ModalSection title="Activities">
                   <div className="flex flex-wrap gap-2">
