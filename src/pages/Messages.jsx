@@ -352,7 +352,7 @@ const MsgBubble = React.memo(function MsgBubble({
             <div className={`px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap rounded-2xl shadow-sm
               ${mine ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-md' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-md'}
               ${isPending ? 'opacity-60' : ''} ${isDeleted ? 'italic opacity-60' : ''} transition-all`}
-              style={{ wordBreak: 'break-word' }}>
+              style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', maxWidth: '100%' }}>
               {isDeleted ? 'This message was unsent' : message.body}
               {message.edited && !isDeleted && <span className={`ml-2 text-[9px] ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>edited</span>}
             </div>
@@ -790,7 +790,7 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
 /* ─── Main Component ───────────────────────────────────────────────────────── */
 
 export default function Messages() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const requestedConversationId = searchParams.get('conversationId')
   const { user } = useAuth()
   const { connected, on, off, emit } = useSocket()
@@ -981,12 +981,26 @@ export default function Messages() {
     }
   }, [])
 
+  const returnToConversationList = useCallback(() => {
+    openConversation(null)
+    setSearchParams(current => {
+      const next = new URLSearchParams(current)
+      next.delete('conversationId')
+      return next
+    }, { replace: true })
+  }, [openConversation, setSearchParams])
+
+  // Deep links may open a requested thread, but the inbox must never silently
+  // select the first conversation when an admin opens Messages.
   useEffect(() => {
-    if (!conversations.length) return
-    const target = requestedConversationId
-      ? conversations.find(c => String(c.id) === String(requestedConversationId))
-      : conversations.find(c => String(c.id) === String(activeId)) || conversations[0]
-    if (target && String(target.id) !== String(activeId)) openConversation(target.id)
+    if (requestedConversationId) {
+      const target = conversations.find(c => String(c.id) === String(requestedConversationId))
+      if (target && String(target.id) !== String(activeId)) openConversation(target.id)
+      return
+    }
+    if (activeId && !conversations.some(c => String(c.id) === String(activeId))) {
+      openConversation(null)
+    }
   }, [requestedConversationId, conversations, activeId, openConversation])
 
   // Notification deep-links open the requested thread and focus the reply composer.
@@ -1280,13 +1294,11 @@ ${String(forwardMessage.body || '').trim()}`
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message || "Failed to delete conversation")
       setConversations(prev => prev.filter(c => String(c.id) !== String(activeId)))
-      setActiveId(null)
-      setActiveConv(null)
-      setMessages([])
+      returnToConversationList()
       toast.success("Conversation deleted")
       loadConversations()
     } catch (e) { toast.error(e.message) }
-  }, [activeId, toast, loadConversations])
+  }, [activeId, toast, loadConversations, returnToConversationList])
 
   const handleClearAll = useCallback(async () => {
     setClearing(true)
@@ -1655,7 +1667,7 @@ ${String(forwardMessage.body || '').trim()}`
             </div>
 
             {/* SCROLLABLE list */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
               {loadingList && conversations.length === 0 ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 border-b border-slate-100 animate-pulse">
@@ -1720,11 +1732,11 @@ ${String(forwardMessage.body || '').trim()}`
             ) : (
               <>
                 {/* ═══ CHAT HEADER (fixed, non-scrolling) ═══ */}
-                <div className="flex-shrink-0 min-w-0 flex items-center justify-between px-3 sm:px-5 py-3
+                <div className="flex-shrink-0 min-w-0 flex items-center justify-between gap-2 px-2.5 sm:px-5 py-3
                                 bg-white border-b border-slate-200 z-10">
                   <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                    <button onClick={() => openConversation(null)} aria-label="Back"
-                      className="md:hidden -ml-1 p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition">
+                    <button onClick={returnToConversationList} aria-label="Back to conversations" title="Back to conversations"
+                      className="-ml-1 p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition flex-shrink-0">
                       <ArrowLeft size={18} />
                     </button>
 
@@ -1759,14 +1771,14 @@ ${String(forwardMessage.body || '').trim()}`
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <StatusBadge status={activeConv.status} />
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <div className="hidden sm:block"><StatusBadge status={activeConv.status} /></div>
                     <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
-                      className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
                       {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
                     </button>
                     <button onClick={handleDeleteConversation} title="Delete conversation" aria-label="Delete conversation"
-                      className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
                       <Trash2 size={16} />
                     </button>
                   </div>
