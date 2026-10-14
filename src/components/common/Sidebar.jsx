@@ -1275,6 +1275,41 @@ export function AdminLayout() {
 
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
+  // Edge-swipe gesture: a rightward finger swipe from the left screen edge
+  // opens the mobile drawer; a leftward swipe closes it. Desktop is untouched.
+  const sidebarTouchStart = useRef(null)
+  useEffect(() => {
+    const onTouchStart = (event) => {
+      if (window.innerWidth >= 1024) return
+      const touch = event.changedTouches?.[0]
+      if (!touch) return
+      sidebarTouchStart.current = { x: touch.clientX, y: touch.clientY }
+    }
+
+    const onTouchEnd = (event) => {
+      const start = sidebarTouchStart.current
+      sidebarTouchStart.current = null
+      if (!start || window.innerWidth >= 1024) return
+
+      const touch = event.changedTouches?.[0]
+      if (!touch) return
+      const dx = touch.clientX - start.x
+      const dy = touch.clientY - start.y
+      // Ignore taps and vertical page scrolling.
+      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.25) return
+
+      if (!mobileOpen && start.x <= 28 && dx > 0) setMobileOpen(true)
+      else if (mobileOpen && dx < 0) setMobileOpen(false)
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [mobileOpen])
+
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 1024) setCollapsed(false) }
     window.addEventListener('resize', onResize)
