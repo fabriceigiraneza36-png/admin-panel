@@ -238,7 +238,7 @@ function HeroImagePanel({ label, description, value, onChange, folder, allImages
       </div>
 
       <div className="p-4 space-y-3">
-        {preview&&(
+        {preview && mode !== 'upload' && (
           <div className={`relative group rounded-xl overflow-hidden border-2 ${t.border} bg-gray-50`}>
             <img src={preview} alt={label}
               className={`w-full h-40 object-cover transition-opacity duration-300 ${loaded?'opacity-100':'opacity-0'}`}
@@ -1388,7 +1388,9 @@ const normaliseGalleries = (dest) => {
       if (!form.country_id)    e.country_id = 'Please select a country'
       if (!form.category)      e.category   = 'Please select a category'
     }
-    if (stepId === 'media') {
+    // Existing destinations may predate the current media requirements. Keep them editable;
+    // enforce the full media checklist when creating a new destination.
+    if (stepId === 'media' && !editing) {
       const heroCount = (form.hero_slides || []).filter(Boolean).length
       const galleryCount = (form.gallery || []).filter(Boolean).length
       const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
