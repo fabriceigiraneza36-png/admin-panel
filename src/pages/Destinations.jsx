@@ -1059,111 +1059,133 @@ const textareaClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 
 const selectClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm text-gray-800 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 transition-all duration-200 hover:border-gray-300`
 
 
-/* ─── NewDestinationMedia — create-only media workflow ───────────────────── */
-function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGalleryChange, heroTitle = 'Banner / card slideshow', heroDescription = 'Images that rotate in destination cards and destination slideshows.', galleryTitle = 'Attraction & other images' }) {
-  const setHero = (index, value) => {
-    const next = [...heroSlides]; next[index] = value || ''; onHeroChange(next);
+/* ─── Compact ordered destination media manager + shared picker ─────────── */
+function DestinationMediaPicker({ open, onClose, section, current, capacity, onAdd }) {
+  const [tab,setTab] = useState('library');
+  const [items,setItems] = useState([]);
+  const [loading,setLoading] = useState(false);
+  const [selected,setSelected] = useState([]);
+  const [query,setQuery] = useState('');
+  const [urlText,setUrlText] = useState('');
+  const [uploaded,setUploaded] = useState('');
+  const [error,setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setSelected([]); setError(''); setQuery(''); setUrlText(''); setUploaded(''); setTab('library');
+    setLoading(true);
+    galleryAPI.getAll({ limit: 500 }).then(({data}) => {
+      const rows = data?.data || data?.gallery || data?.images || [];
+      setItems(rows.map((item,index)=>({
+        url: item.image_url || item.imageUrl || item.url || item.image || '',
+        caption: item.title || item.caption || item.description || '',
+        source: 'library',
+        library_id: item.id || item._id || null,
+      })).filter(item=>item.url));
+    }).catch(()=>setError('Could not load image storage. Try uploading or adding an image URL.'))
+      .finally(()=>setLoading(false));
+  },[open]);
+
+  if (!open) return null;
+  const remaining = Math.max(0, capacity - current.length);
+  const filtered = items.filter(item => !query.trim() || item.caption.toLowerCase().includes(query.toLowerCase()) || item.url.toLowerCase().includes(query.toLowerCase()));
+  const addItems = (incoming) => {
+    const unique = incoming.filter(item=>item?.url && !current.some(old => (typeof old === 'string' ? old : old?.url || old?.image_url) === item.url));
+    const accepted = unique.slice(0,remaining);
+    const rejected = unique.length - accepted.length;
+    if (accepted.length) onAdd(accepted);
+    if (rejected) setError(`${rejected} image${rejected===1?'':'s'} not added: this section has room for only ${remaining} more.`);
+    else onClose();
   };
-  const setGallery = (index, value) => {
-    const next = [...gallery]; next[index] = value || ''; onGalleryChange(next);
+  const confirmLibrary = () => {
+    if (!selected.length) { setError('Select at least one image.'); return; }
+    addItems(selected.map(index=>filtered[index]));
   };
-
-  const Slot = ({ value, onChange, folder, label, number }) => {
-    const [mode, setMode] = useState('upload');
-    const [url, setUrl] = useState(value || '');
-    const [invalid, setInvalid] = useState(false);
-
-    useEffect(() => { setUrl(value || ''); setInvalid(false) }, [value]);
-
-    const apply = () => {
-      const clean = url.trim();
-      if (!clean || !isValidUrl(clean)) { setInvalid(true); return; }
-      setInvalid(false); onChange(clean);
-    };
-
-    return (
-      <motion.div layout initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}
-        className={`rounded-2xl border-2 overflow-hidden bg-white ${value ? 'border-emerald-300 shadow-sm shadow-emerald-100' : 'border-dashed border-slate-200'}`}>
-        <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-slate-100">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black ${value ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>{number}</span>
-            <span className="text-xs font-bold text-slate-700 truncate">{label}</span>
-          </div>
-          <div className="flex rounded-lg bg-slate-100 p-0.5 shrink-0">
-            <button type="button" onClick={()=>setMode('upload')} className={`px-2 py-1 rounded-md text-[10px] font-bold ${mode==='upload'?'bg-white text-emerald-700 shadow-sm':'text-slate-400'}`}>Upload</button>
-            <button type="button" onClick={()=>setMode('url')} className={`px-2 py-1 rounded-md text-[10px] font-bold ${mode==='url'?'bg-white text-emerald-700 shadow-sm':'text-slate-400'}`}>URL</button>
-          </div>
-        </div>
-        <div className="p-3 space-y-2.5">
-          {value ? (
-            <div className="relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-100 group">
-              <img src={value} alt={label} className="w-full h-full object-cover" onError={e=>{e.currentTarget.src='https://placehold.co/640x400?text=Image+error'}}/>
-              <button type="button" onClick={()=>onChange('')} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>
-              <div className="absolute left-2 bottom-2 px-2 py-1 rounded-md bg-black/55 text-white text-[9px] font-bold uppercase tracking-wider">Ready</div>
-            </div>
-          ) : (
-            <div className="aspect-[16/10] rounded-xl bg-gradient-to-br from-emerald-50 via-white to-slate-50 border border-dashed border-emerald-200 flex items-center justify-center p-4">
-              <div className="text-center">
-                <div className="w-11 h-11 rounded-2xl bg-white border border-emerald-100 shadow-sm flex items-center justify-center mx-auto mb-2">
-                  <ImagePlus size={21} className="text-emerald-500"/>
-                </div>
-                <p className="text-xs text-slate-600 font-bold">Image {number}</p>
-                <p className="text-[10px] text-slate-400 mt-1">Upload a photo or add a URL</p>
-              </div>
-            </div>
-          )}
-          {mode==='upload' ? (
-            <ImageUpload label="" value="" onChange={v=>onChange(v)} folder={folder}/>
-          ) : (
-            <div className="flex gap-2">
-              <input value={url} onChange={e=>{setUrl(e.target.value);setInvalid(false)}} onKeyDown={e=>e.key==='Enter'&&apply()}
-                className={`flex-1 min-w-0 px-3 py-2 rounded-xl border-2 text-xs outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 ${invalid?'border-red-400':'border-slate-200'}`} placeholder="https://image-url.jpg"/>
-              <button type="button" onClick={apply} className="px-3 rounded-xl bg-emerald-500 text-white text-[10px] font-bold">Use</button>
-            </div>
-          )}
-          {invalid&&<p className="text-[10px] text-red-500 font-medium">Enter a valid image URL.</p>}
-        </div>
-      </motion.div>
-    );
+  const addLinks = () => {
+    const links = [...new Set(urlText.split(/[\n,;]+/).map(value=>value.trim()).filter(Boolean))];
+    const invalid = links.filter(url=>!isValidUrl(url));
+    if (invalid.length) { setError(`${invalid.length} invalid image URL${invalid.length===1?'':'s'}; use http://, https://, or an uploads path.`); return; }
+    if (!links.length) { setError('Paste at least one image URL.'); return; }
+    addItems(links.map(url=>({url,caption:'',source:'url'})));
   };
-
-  const heroCount = heroSlides.filter(Boolean).length;
-  const galleryCount = gallery.filter(Boolean).length;
-
-  return (
-    <div className="space-y-5">
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-800 text-white shadow-xl shadow-emerald-900/10">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0"><Camera size={18}/></div>
-          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Add 4 banner/card slideshow images plus at least 5 attraction or supporting photos. The main hero image is managed separately.</p></div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-          {[['Banner slides',heroCount,4],['Other photos',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
-            <div key={label} className="rounded-xl bg-white/10 border border-white/10 p-2.5">
-              <p className="text-[9px] uppercase tracking-wider text-emerald-200 font-bold">{label}</p>
-              <p className="text-sm font-black mt-0.5">{max?`${value} / ${max}`:value}</p>
-            </div>
-          ))}
-        </div>
+  return <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
+    <div role="dialog" aria-modal="true" aria-label={`Add images to ${section}`} className="w-full max-w-4xl max-h-[90dvh] overflow-hidden rounded-2xl bg-white shadow-2xl flex flex-col">
+      <header className="flex items-start gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <div className="min-w-0 flex-1"><h3 className="text-base font-extrabold text-slate-900">Add images</h3><p className="mt-0.5 text-xs text-slate-500">Adding to <strong>{section}</strong> · {remaining} slot{remaining===1?'':'s'} available</p></div>
+        <button type="button" aria-label="Close image picker" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><X size={17}/></button>
+      </header>
+      <nav className="flex gap-1 border-b border-slate-100 px-3 py-2 overflow-x-auto">
+        {[['library','Image storage'],['upload','Upload image'],['url','Image URL']].map(([id,label])=><button key={id} type="button" onClick={()=>{setTab(id);setError('')}} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-bold ${tab===id?'bg-emerald-50 text-emerald-700':'text-slate-500 hover:bg-slate-50'}`}>{label}</button>)}
+      </nav>
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
+        {tab==='library' && <div className="space-y-3">
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search stored images…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400"/>
+          {loading ? <div className="py-12 text-center text-sm text-slate-500">Loading image storage…</div>
+          : filtered.length===0 ? <div className="py-12 text-center text-sm text-slate-500">No stored images found.</div>
+          : <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {filtered.map((item,index)=>{const active=selected.includes(index);return <button type="button" key={item.url} onClick={()=>setSelected(prev=>active?prev.filter(i=>i!==index):prev.length<remaining?[...prev,index]:prev)} className={`min-w-0 overflow-hidden rounded-xl border-2 text-left ${active?'border-emerald-500 ring-2 ring-emerald-100':'border-slate-200 hover:border-emerald-300'}`}>
+              <div className="relative aspect-[4/3] bg-slate-100"><img src={item.url} alt={item.caption||'Stored image'} loading="lazy" className="h-full w-full object-cover"/><span className={`absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${active?'bg-emerald-600 text-white':'bg-white/90 text-slate-500'}`}>{active?<Check size={12}/>:''}</span></div>
+              <p className="truncate px-2 py-1.5 text-[11px] font-medium text-slate-600">{item.caption||'Stored image'}</p>
+            </button>})}
+          </div>}
+          <p className="text-[11px] text-slate-500">{selected.length} selected · Select multiple images, up to the remaining capacity.</p>
+        </div>}
+        {tab==='upload' && <div className="mx-auto max-w-lg space-y-3"><p className="text-sm text-slate-600">Upload an image to storage, then add it to this section. Repeat to add more than one.</p><ImageUpload label="Upload image" value={uploaded} onChange={setUploaded} folder={section.toLowerCase().includes('hero')?'destinations/hero':section.toLowerCase().includes('banner')?'destinations/banner-slides':'destinations/gallery'}/></div>}
+        {tab==='url' && <div className="space-y-2"><label className="text-xs font-bold text-slate-700">Paste one or more image URLs</label><textarea rows={5} value={urlText} onChange={e=>setUrlText(e.target.value)} placeholder={'https://example.com/photo-1.jpg\nhttps://example.com/photo-2.jpg'} className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-emerald-400"/><p className="text-[11px] text-slate-500">Use a new line or comma between URLs.</p></div>}
+        {error && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</p>}
       </div>
-
-      <section className="rounded-2xl border-2 border-amber-100 bg-amber-50/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">{heroTitle} — 4 images required</h4><p className="text-[10px] text-slate-500">{heroDescription}</p></div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/banner-slides" label={`Banner slide ${i+1}`} number={i+1}/>)}
-        </div>
-        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 banner/card slideshow images before continuing.</p>}
-      </section>
-
-      <section className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">{galleryTitle} — 5+ images required</h4><p className="text-[10px] text-slate-500">Use these for attraction photos and the destination’s supporting visual gallery.</p></div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {[0,1,2,3,4].map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setGallery(i,v)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
-        </div>
-        {galleryCount<5&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add at least 5 attraction/other images before continuing.</p>}
-      </section>
+      <footer className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:px-5">
+        <button type="button" onClick={onClose} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50">Cancel</button>
+        <button type="button" onClick={()=>tab==='library'?confirmLibrary():tab==='url'?addLinks():uploaded?addItems([{url:uploaded,caption:'',source:'upload'}]):setError('Upload an image first.')} disabled={remaining===0 || (tab==='library' && selected.length===0) || (tab==='upload' && !uploaded) || (tab==='url' && !urlText.trim())} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">{tab==='library'? `Add ${selected.length||''} selected`:tab==='url'?'Add URLs':'Add uploaded image'}</button>
+      </footer>
     </div>
-  );
+  </div>;
+}
+
+function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHeroChange, onBannerChange, onGalleryChange }) {
+  const [picker,setPicker] = useState(null);
+  const [sectionError,setSectionError] = useState('');
+  const normalize = item => typeof item==='string'?{url:item,source:'upload'}:({...item,url:item?.url||item?.image_url||item?.imageUrl||''});
+  const setList = (key,list,callback) => callback(list.map(normalize).filter(item=>item.url));
+  const removeAt = (list,index,callback) => callback(list.filter((_,i)=>i!==index));
+  const move = (list,index,delta,callback) => { const next=[...list]; const target=index+delta; if(target<0||target>=next.length)return; [next[index],next[target]]=[next[target],next[index]]; callback(next); };
+  const add = (key,items) => {
+    const current = key==='hero'?heroSlides:key==='banner'?bannerSlides:gallery;
+    const max = key==='hero'||key==='banner'?4:MAX_GALLERY_IMAGES;
+    const existing = current.map(item=>typeof item==='string'?item:item?.url||item?.image_url||'');
+    const unique = items.filter(item=>item.url&&!existing.includes(item.url));
+    const accepted=unique.slice(0,Math.max(0,max-current.length));
+    if(key==='hero') onHeroChange([...current,...accepted].slice(0,max));
+    else if(key==='banner') onBannerChange([...current,...accepted].slice(0,max));
+    else onGalleryChange([...current,...accepted].slice(0,max));
+    const missing=unique.length-accepted.length;
+    if(missing) setSectionError(`${missing} image${missing===1?'':'s'} not added: section capacity reached.`);
+    else setSectionError('');
+    if(accepted.length) setPicker(null);
+  };
+  const Section = ({id,title,description,items,limit,accent}) => <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 space-y-3">
+    <div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${accent}`}><Camera size={17}/></div><div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">{title}</h4><p className="mt-0.5 text-xs text-slate-500">{description}</p></div><span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">{items.length}/{limit}</span></div>
+    <div className="space-y-2">
+      {items.map((raw,index)=>{const item=normalize(raw);return <div key={item.url||index} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 p-2">
+        <span className="w-5 shrink-0 text-center text-xs font-extrabold text-slate-400">{index+1}</span>
+        <img src={item.url} alt={item.caption||`${title} ${index+1}`} className="h-14 w-20 shrink-0 rounded-lg bg-slate-100 object-cover sm:h-16 sm:w-24" onError={e=>{e.currentTarget.style.opacity='.3'}}/>
+        <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-700">{item.caption||`Image ${index+1}`}</p><p className="truncate text-[10px] text-slate-400">{item.source||'image'}</p></div>
+        <div className="flex shrink-0 flex-col gap-1"><button type="button" aria-label="Move image up" disabled={index===0} onClick={()=>move(items,index,-1,id==='hero'?onHeroChange:id==='banner'?onBannerChange:onGalleryChange)} className="rounded-md border border-slate-200 p-1 text-slate-500 disabled:opacity-25"><ChevronUp size={12}/></button><button type="button" aria-label="Move image down" disabled={index===items.length-1} onClick={()=>move(items,index,1,id==='hero'?onHeroChange:id==='banner'?onBannerChange:onGalleryChange)} className="rounded-md border border-slate-200 p-1 text-slate-500 disabled:opacity-25"><ChevronDown size={12}/></button></div>
+        <button type="button" aria-label="Remove image" onClick={()=>removeAt(items,index,id==='hero'?onHeroChange:id==='banner'?onBannerChange:onGalleryChange)} className="shrink-0 rounded-lg p-2 text-rose-500 hover:bg-rose-50"><Trash2 size={15}/></button>
+      </div>})}
+      {items.length===0 && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-xs text-slate-400">No images added yet.</div>}
+    </div>
+    {items.length<limit && <button type="button" onClick={()=>{setSectionError('');setPicker({id,title,items,limit})}} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 px-3 py-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"><Plus size={15}/>Add image{items.length===0?'':'s'} from storage, upload or URL</button>}
+    {id==='hero'&&items.length<4&&<p className="text-[11px] font-semibold text-amber-700">{4-items.length} image{4-items.length===1?'':'s'} missing on hero slideshow.</p>}
+  </section>;
+  return <div className="space-y-4">
+    <div className="rounded-xl bg-emerald-950 px-4 py-3 text-white"><p className="text-sm font-extrabold">Destination images</p><p className="mt-1 text-xs text-emerald-100">Add images in one compact place per section. Use the arrows to set the display order.</p></div>
+    <Section id="hero" title="Hero slideshow" description="Exactly four ordered images for the destination hero." items={heroSlides} limit={4} accent="bg-amber-50 text-amber-600"/>
+    <Section id="banner" title="Banner / card slideshow" description="Up to four images used for destination cards." items={bannerSlides} limit={4} accent="bg-sky-50 text-sky-600"/>
+    <Section id="gallery" title="Attractions & other images" description="Gallery imports are added directly to this collection." items={gallery} limit={MAX_GALLERY_IMAGES} accent="bg-emerald-50 text-emerald-600"/>
+    {sectionError&&<p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{sectionError}</p>}
+    <DestinationMediaPicker open={Boolean(picker)} onClose={()=>setPicker(null)} section={picker?.title||''} current={picker?.items||[]} capacity={picker?.limit||MAX_GALLERY_IMAGES} onAdd={items=>picker&&add(picker.id,items)}/>
+  </div>;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
