@@ -1747,6 +1747,14 @@ if (savedDestination?.id && uniqueNewImages.length) {
               onHeroChange={v=>upd('hero_slides',v)}
               onGalleryChange={v=>upd('gallery',v)}
             />
+            {(errors.hero_slides || errors.gallery || errors.attractions) && (
+              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
+                <p className="font-bold">Complete the media checklist to continue:</p>
+                {errors.hero_slides && <p>• {errors.hero_slides}</p>}
+                {errors.gallery && <p>• {errors.gallery}</p>}
+                {errors.attractions && <p>• {errors.attractions} — return to the Content step to add them.</p>}
+              </div>
+            )}
           </motion.div>
         ) : (
 <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-6">
