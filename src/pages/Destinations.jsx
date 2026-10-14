@@ -1478,13 +1478,13 @@ const normaliseGalleries = (dest) => {
           image_urls: newDestinationImages,
           image_meta: newDestinationImages.map((url, index) => ({
             url,
-            is_primary: index === 0,
+            is_primary: Boolean(primaryHeroImage && url === primaryHeroImage) || (!primaryHeroImage && index === 0),
             sort_order: index,
-            source: index === 0 && primaryHeroImage ? 'hero' : (index <= HERO_IMAGE_COUNT && primaryHeroImage ? 'banner' : (index < HERO_IMAGE_COUNT ? 'banner' : 'attraction')),
+            source: heroImages.includes(url) ? 'hero' : bannerImages.includes(url) ? 'banner' : primaryHeroImage && url === primaryHeroImage ? 'hero' : 'attraction',
           })),
           image_url: primaryHeroImage || heroImages[0] || null,
           hero_image: primaryHeroImage || heroImages[0] || null,
-          cover_image_url: form.cover_image_url || heroImages[0] || galleryImages[0] || primaryHeroImage || null,
+          cover_image_url: form.cover_image_url || bannerImages[0] || heroImages[0] || galleryImages[0] || primaryHeroImage || null,
         }),
       }
 
@@ -1551,7 +1551,7 @@ const uniqueNewImages = allNewImages.filter(img => {
   return true
 })
 
-if (savedDestination?.id && uniqueNewImages.length) {
+if (editing && savedDestination?.id && uniqueNewImages.length) {
   const formData = new FormData()
   formData.append('image_urls', JSON.stringify(uniqueNewImages.map(image => image.url)))
   formData.append('image_meta', JSON.stringify(uniqueNewImages))
