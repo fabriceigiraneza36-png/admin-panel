@@ -1060,7 +1060,7 @@ const selectClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg
 
 
 /* ─── NewDestinationMedia — create-only media workflow ───────────────────── */
-function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGalleryChange }) {
+function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGalleryChange, heroTitle = 'Banner / card slideshow', heroDescription = 'Images that rotate in destination cards and destination slideshows.', galleryTitle = 'Attraction & other images' }) {
   const setHero = (index, value) => {
     const next = [...heroSlides]; next[index] = value || ''; onHeroChange(next);
   };
@@ -1135,10 +1135,10 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-800 text-white shadow-xl shadow-emerald-900/10">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0"><Camera size={18}/></div>
-          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Every destination needs 4 hero images for the automatic hero slideshow plus at least 5 additional attraction/gallery photos.</p></div>
+          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Add 4 banner/card slideshow images plus at least 5 attraction or supporting photos. The main hero image is managed separately.</p></div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-          {[['Hero',heroCount,4],['Gallery',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
+          {[['Banner slides',heroCount,4],['Other photos',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
             <div key={label} className="rounded-xl bg-white/10 border border-white/10 p-2.5">
               <p className="text-[9px] uppercase tracking-wider text-emerald-200 font-bold">{label}</p>
               <p className="text-sm font-black mt-0.5">{max?`${value} / ${max}`:value}</p>
@@ -1148,19 +1148,19 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       </div>
 
       <section className="rounded-2xl border-2 border-amber-100 bg-amber-50/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">Hero slideshow — 4 images required</h4><p className="text-[10px] text-slate-500">These four images rotate automatically at the top of the destination detail page.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">{heroTitle} — 4 images required</h4><p className="text-[10px] text-slate-500">{heroDescription}</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/hero" label={`Hero image ${i+1}`} number={i+1}/>)}
+          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/banner-slides" label={`Banner slide ${i+1}`} number={i+1}/>)}
         </div>
-        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 hero images before continuing.</p>}
+        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 banner/card slideshow images before continuing.</p>}
       </section>
 
       <section className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">Attraction / gallery media — 5+ images required</h4><p className="text-[10px] text-slate-500">These images should showcase attractions and supporting visual stories.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">{galleryTitle} — 5+ images required</h4><p className="text-[10px] text-slate-500">Use these for attraction photos and the destination’s supporting visual gallery.</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {[0,1,2,3,4].map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setGallery(i,v)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
         </div>
-        {galleryCount<5&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add all 5 gallery images before continuing.</p>}
+        {galleryCount<5&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add at least 5 attraction/other images before continuing.</p>}
       </section>
     </div>
   );
@@ -1444,7 +1444,8 @@ const normaliseGalleries = (dest) => {
       }
       const heroImages = (hero_slides || []).map(getImageUrl).filter(Boolean)
       const galleryImages = (gallery || []).map(getImageUrl).filter(Boolean)
-      const newDestinationImages = [...new Set([...heroImages, ...galleryImages])]
+      const primaryHeroImage = getImageUrl(form.hero_image)
+      const newDestinationImages = [...new Set([primaryHeroImage, ...heroImages, ...galleryImages].filter(Boolean))]
       const payload = {
         ...destinationFields,
         slug:         form.slug || toSlug(form.name),
@@ -1455,11 +1456,11 @@ const normaliseGalleries = (dest) => {
             url,
             is_primary: index === 0,
             sort_order: index,
-            source: index < HERO_IMAGE_COUNT ? 'hero' : 'attraction',
+            source: index === 0 && primaryHeroImage ? 'hero' : (index <= HERO_IMAGE_COUNT && primaryHeroImage ? 'banner' : (index < HERO_IMAGE_COUNT ? 'banner' : 'attraction')),
           })),
-          image_url: heroImages[0] || null,
-          hero_image: heroImages[0] || null,
-          cover_image_url: heroImages[0] || galleryImages[0] || null,
+          image_url: primaryHeroImage || heroImages[0] || null,
+          hero_image: primaryHeroImage || heroImages[0] || null,
+          cover_image_url: form.cover_image_url || heroImages[0] || galleryImages[0] || primaryHeroImage || null,
         }),
       }
 
@@ -1478,20 +1479,37 @@ const normaliseGalleries = (dest) => {
 // Only send images without ID (new images) to be created via addImages endpoint
 // Images with ID are existing images - to modify existing images, 
 // use the dedicated image management endpoints (not implemented in this form)
+const existingImageUrls = new Set([
+  ...(editing?.images || []),
+  ...(editing?.image_urls || []),
+  ...(editing?.imageUrls || []),
+  ...(editing?.gallery || []).map(getImageUrl),
+  editing?.hero_image,
+  editing?.heroImage,
+  editing?.cover_image_url,
+  editing?.coverImageUrl,
+].map(getImageUrl).filter(Boolean))
 const allNewImages = [
   ...((editing
     ? (gallery || [])
     : [
-        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'hero' })),
-        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'gallery' })),
+        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'banner' })),
+        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'attraction' })),
       ]
-  ).filter(image => !image.id && image.url).map(image => ({
-    url: image.url,
+  ).filter(image => !image.id && getImageUrl(image) && !existingImageUrls.has(getImageUrl(image))).map((image, index) => ({
+    url: getImageUrl(image),
     caption: image.caption,
     is_primary: image.is_primary,
-    sort_order: image.sort_order,
+    sort_order: image.sort_order ?? index,
     source: image.source,
   }))),
+  ...((editing ? (hero_slides || []) : []).map((image, index) => ({
+    url: getImageUrl(image),
+    caption: image?.caption || `Banner slide ${index + 1}`,
+    is_primary: false,
+    sort_order: index,
+    source: 'banner',
+  })).filter(image => image.url && !existingImageUrls.has(image.url))),
   ...(library_images || []).filter(image => !image.id && getImageUrl(image)).map(image => ({
     url: getImageUrl(image),
     caption: image.caption,
@@ -1757,11 +1775,18 @@ if (savedDestination?.id && uniqueNewImages.length) {
       case 'media': return (
         !editing ? (
           <motion.div key="media-new" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
+            <section className="space-y-3">
+              <div className="flex items-center gap-2"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-extrabold text-slate-800">Hero image</h4><p className="text-xs text-slate-500">The main visual for the destination detail page.</p></div></div>
+              <HeroImagePanel label="Hero image" description="Main destination page visual" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
+            </section>
             <NewDestinationMedia
               heroSlides={form.hero_slides}
               gallery={form.gallery}
               onHeroChange={v=>upd('hero_slides',v)}
               onGalleryChange={v=>upd('gallery',v)}
+              heroTitle="Banner / card slideshow"
+              heroDescription="These images rotate on destination cards throughout the traveller-facing site."
+              galleryTitle="Attraction & other images"
             />
             {(errors.hero_slides || errors.gallery || errors.attractions) && (
               <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
