@@ -832,7 +832,7 @@ export default function Bookings() {
       key: 'full_name', label: 'Guest', sortable: true,
       render: (_, r) => (
         <div className="flex items-center gap-3">
-          <Avatar name={r.full_name} size="sm" rounded="lg" />
+          <Avatar src={r.user_avatar_url || r.user_avatar || r.avatar_url} name={r.full_name} size="sm" rounded="lg" />
           <div>
             <p className="font-semibold text-slate-800 text-sm leading-tight">{r.full_name}</p>
             <p className="text-xs text-slate-400">{r.email}</p>
@@ -1569,7 +1569,7 @@ export default function Bookings() {
               {selected.user_name && (
                 <SectionCard title="Linked Account">
                   <div className="flex items-center gap-3">
-                    <Avatar name={selected.user_name} size="sm" rounded="lg" />
+                    <Avatar src={selected.user_avatar_url || selected.user_avatar || selected.avatar_url} name={selected.user_name} size="sm" rounded="lg" />
                     <div>
                       <p className="text-sm font-bold text-slate-800">{selected.user_name}</p>
                       <p className="text-xs text-slate-500">{selected.user_email}</p>
