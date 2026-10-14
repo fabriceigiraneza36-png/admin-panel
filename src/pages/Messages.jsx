@@ -1667,7 +1667,7 @@ ${String(forwardMessage.body || '').trim()}`
             </div>
 
             {/* SCROLLABLE list */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
               {loadingList && conversations.length === 0 ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 border-b border-slate-100 animate-pulse">
@@ -1732,7 +1732,7 @@ ${String(forwardMessage.body || '').trim()}`
             ) : (
               <>
                 {/* ═══ CHAT HEADER (fixed, non-scrolling) ═══ */}
-                <div className="flex-shrink-0 min-w-0 flex items-center justify-between px-3 sm:px-5 py-3
+                <div className="flex-shrink-0 min-w-0 flex items-center justify-between gap-2 px-2.5 sm:px-5 py-3
                                 bg-white border-b border-slate-200 z-10">
                   <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                     <button onClick={returnToConversationList} aria-label="Back to conversations" title="Back to conversations"
@@ -1771,14 +1771,14 @@ ${String(forwardMessage.body || '').trim()}`
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <StatusBadge status={activeConv.status} />
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <div className="hidden sm:block"><StatusBadge status={activeConv.status} /></div>
                     <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
-                      className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
                       {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
                     </button>
                     <button onClick={handleDeleteConversation} title="Delete conversation" aria-label="Delete conversation"
-                      className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
                       <Trash2 size={16} />
                     </button>
                   </div>
