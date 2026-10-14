@@ -981,11 +981,11 @@ export default function Messages() {
     }
   }, [])
 
+  // Admins land in the inbox first. Only notification/deep links may open a
+  // conversation automatically; never silently choose the first traveler chat.
   useEffect(() => {
-    if (!conversations.length) return
-    const target = requestedConversationId
-      ? conversations.find(c => String(c.id) === String(requestedConversationId))
-      : conversations.find(c => String(c.id) === String(activeId)) || conversations[0]
+    if (!requestedConversationId || !conversations.length) return
+    const target = conversations.find(c => String(c.id) === String(requestedConversationId))
     if (target && String(target.id) !== String(activeId)) openConversation(target.id)
   }, [requestedConversationId, conversations, activeId, openConversation])
 
