@@ -1792,106 +1792,19 @@ if (savedDestination?.id && uniqueNewImages.length) {
 
       /* ─── MEDIA ─────────────────────────────────────────────────── */
       case 'media': return (
-        !editing ? (
-          <motion.div key="media-new" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-            <section className="space-y-3">
-              <div className="flex items-center gap-2"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-extrabold text-slate-800">Hero image</h4><p className="text-xs text-slate-500">The main visual for the destination detail page.</p></div></div>
-              <HeroImagePanel label="Hero image" description="Main destination page visual" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
-            </section>
-            <NewDestinationMedia
-              heroSlides={form.hero_slides}
-              gallery={form.gallery}
-              onHeroChange={v=>upd('hero_slides',v)}
-              onGalleryChange={v=>upd('gallery',v)}
-              heroTitle="Banner / card slideshow"
-              heroDescription="These images rotate on destination cards throughout the traveller-facing site."
-              galleryTitle="Attraction & other images"
-            />
-            {(errors.hero_slides || errors.gallery || errors.attractions) && (
-              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
-                <p className="font-bold">Complete the media checklist to continue:</p>
-                {errors.hero_slides && <p>• {errors.hero_slides}</p>}
-                {errors.gallery && <p>• {errors.gallery}</p>}
-                {errors.attractions && <p>• {errors.attractions} — return to the Content step to add them.</p>}
-              </div>
-            )}
-          </motion.div>
-        ) : (
-<motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-6">
-          {/* Header banner */}
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 border border-emerald-100">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center"><Camera size={18} className="text-emerald-600"/></div>
-            <div className="flex-1">
-              <h3 className="text-sm font-bold text-emerald-800">Media Library</h3>
-              <p className="text-xs text-emerald-600">Manage hero images, banners, gallery uploads and library imports</p>
-            </div>
-            {allImgs.length>0 && (
-              <button type="button" onClick={()=>openLightbox(allImgs,0)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 transition-all shadow-sm">
-                <Maximize2 size={11}/>View all {allImgs.length}
-              </button>
-            )}
-          </div>
-
-          {/* 1. Hero image: the main destination detail-page image */}
+        <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-4">
           <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Sun size={15} className="text-amber-500"/>
-              <div><h4 className="text-sm font-extrabold text-slate-800">Hero image</h4><p className="text-xs text-slate-500">The primary image shown first on the destination detail page.</p></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <HeroImagePanel label="Hero image" description="Main destination page visual" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
-              <HeroImagePanel label="Main image fallback" description="Used when the hero image is unavailable" value={form.image_url} onChange={v=>upd('image_url',v)} folder="destinations/main" theme="emerald" icon={Image} allImages={allImgs} onLightbox={openLightbox}/>
-            </div>
+            <div className="flex items-center gap-2"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-extrabold text-slate-800">Primary destination image</h4><p className="text-xs text-slate-500">Fallback image used when no slideshow image is available.</p></div></div>
+            <HeroImagePanel label="Primary image" description="Fallback image" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
           </section>
-
-          {/* 2. Banner/card slideshow images */}
-          <section className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4 sm:p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><Layers size={17}/></div>
-              <div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">Banner / card slideshow images</h4><p className="text-xs text-slate-600 mt-1">These images rotate in destination cards across the traveller-facing site. Add up to four slides; each slot has its own preview and upload control.</p></div>
-              <span className="shrink-0 rounded-full bg-white border border-sky-200 px-2.5 py-1 text-xs font-bold text-sky-700">{(form.hero_slides||[]).filter(Boolean).length}/4</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              {[0,1,2,3].map((index)=>{
-                const slide=form.hero_slides?.[index]||'';
-                return <div key={index} className="rounded-xl border border-sky-200 bg-white p-3 space-y-3 min-w-0">
-                  <div className="flex items-center justify-between gap-2"><span className="text-xs font-bold text-slate-700">Banner slide {index+1}</span><span className={`text-[10px] font-semibold ${slide?'text-emerald-600':'text-slate-400'}`}>{slide?'Ready':'Empty slot'}</span></div>
-                  <div className="aspect-[16/10] rounded-lg overflow-hidden bg-slate-50 border border-dashed border-sky-200 flex items-center justify-center">
-                    {slide?<img src={typeof slide==='string'?slide:(slide.url||slide.image_url||'')} alt={`Banner slide ${index+1}`} className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.opacity='.25'}}/>:<div className="text-center p-3"><ImagePlus size={22} className="mx-auto text-sky-400"/><p className="text-xs text-slate-500 mt-2">Image preview appears here</p></div>}
-                  </div>
-                  <ImageUpload label="" value="" onChange={value=>{const next=[...(form.hero_slides||[])];next[index]=value||'';upd('hero_slides',next)}} folder="destinations/banner-slides"/>
-                  {slide&&<button type="button" onClick={()=>{const next=[...(form.hero_slides||[])];next[index]='';upd('hero_slides',next)}} className="text-xs font-semibold text-rose-600 hover:text-rose-700">Remove slide</button>}
-                </div>
-              })}
-            </div>
-            <HeroImagePanel label="Card cover / fallback banner" description="Fallback thumbnail if no slideshow image is available" value={form.cover_image_url} onChange={v=>upd('cover_image_url',v)} folder="destinations/cover" theme="sky" icon={Palette} allImages={allImgs} onLightbox={openLightbox}/>
-          </section>
-
-          {/* 3. Attraction and other destination images */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Camera size={15} className="text-emerald-600"/>
-              <div><h4 className="text-sm font-extrabold text-slate-800">Attraction & other images</h4><p className="text-xs text-slate-500">Supporting photos shown in the destination gallery and attraction sections.</p></div>
-              <span className="ml-auto shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-700">{(form.gallery||[]).length} photos</span>
-            </div>
-            <DestinationGallery gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
-          </section>
-
-          {/* Section 3: Library Imports (unlimited) */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Library size={14} className="text-violet-500"/>
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Library Imports</h4>
-              <div className="flex-1 h-px bg-gray-200"/>
-              <span className="text-[10px] text-gray-400 font-medium">Reused from central gallery — unlimited</span>
-            </div>
-            <LibraryImportPanel libraryImages={form.library_images} onChange={v=>upd('library_images',v)} onLightbox={openLightbox}/>
-          </div>
-
-
+          <NewDestinationMedia heroSlides={form.hero_slides} bannerSlides={form.banner_slides} gallery={[...(form.gallery||[]), ...(form.library_images||[])]}
+            onHeroChange={v=>upd('hero_slides',v)} onBannerChange={v=>upd('banner_slides',v)}
+            onGalleryChange={v=>{upd('gallery',v);upd('library_images',[]);}}/>
+          {(errors.hero_slides || errors.gallery) && <div role="alert" className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            {errors.hero_slides && <p>{errors.hero_slides}</p>}
+            {errors.gallery && <p>{errors.gallery}</p>}
+          </div>}
         </motion.div>
-        )
       )
 
       /* ─── SETTINGS ──────────────────────────────────────────────── */
