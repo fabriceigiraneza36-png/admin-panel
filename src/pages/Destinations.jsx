@@ -8,7 +8,7 @@ import {
   X, ZoomIn, ExternalLink, CheckCircle2, ImagePlus, Maximize2,
   ChevronDown, ChevronUp, Eye as EyeIcon, Globe2, Mountain,
   Hash, FileText, List, Tag, Flag,
-  Video, Globe, Calendar, TrendingUp, Award,
+  Globe, Calendar, TrendingUp, Award,
   Compass, TreePine, Coffee, Activity, Sparkles, Library,
   Layers, Palette, Sun,
 } from 'lucide-react'
@@ -1060,7 +1060,7 @@ const selectClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 bg
 
 
 /* ─── NewDestinationMedia — create-only media workflow ───────────────────── */
-function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGalleryChange }) {
+function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGalleryChange, heroTitle = 'Banner / card slideshow', heroDescription = 'Images that rotate in destination cards and destination slideshows.', galleryTitle = 'Attraction & other images' }) {
   const setHero = (index, value) => {
     const next = [...heroSlides]; next[index] = value || ''; onHeroChange(next);
   };
@@ -1135,10 +1135,10 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-800 text-white shadow-xl shadow-emerald-900/10">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0"><Camera size={18}/></div>
-          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Every destination needs 4 hero images for the automatic hero slideshow plus at least 5 additional attraction/gallery photos.</p></div>
+          <div><p className="text-sm font-black">New destination visual story</p><p className="text-xs text-emerald-100/75 mt-1 leading-relaxed">Add 4 banner/card slideshow images plus at least 5 attraction or supporting photos. The main hero image is managed separately.</p></div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-          {[['Hero',heroCount,4],['Gallery',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
+          {[['Banner slides',heroCount,4],['Other photos',galleryCount,5],['Total',heroCount+galleryCount,9],['Status',heroCount>=4&&galleryCount>=5?'Ready':'Incomplete','']].map(([label,value,max])=>(
             <div key={label} className="rounded-xl bg-white/10 border border-white/10 p-2.5">
               <p className="text-[9px] uppercase tracking-wider text-emerald-200 font-bold">{label}</p>
               <p className="text-sm font-black mt-0.5">{max?`${value} / ${max}`:value}</p>
@@ -1148,19 +1148,19 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
       </div>
 
       <section className="rounded-2xl border-2 border-amber-100 bg-amber-50/40 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">Hero slideshow — 4 images required</h4><p className="text-[10px] text-slate-500">These four images rotate automatically at the top of the destination detail page.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-black text-slate-800">{heroTitle} — 4 images required</h4><p className="text-[10px] text-slate-500">{heroDescription}</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/hero" label={`Hero image ${i+1}`} number={i+1}/>)}
+          {[0,1,2,3].map(i=><Slot key={i} value={heroSlides[i]||''} onChange={v=>setHero(i,v)} folder="destinations/banner-slides" label={`Banner slide ${i+1}`} number={i+1}/>)}
         </div>
-        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 hero images before continuing.</p>}
+        {heroCount<4&&<p className="mt-3 text-xs font-semibold text-amber-700">Add all 4 banner/card slideshow images before continuing.</p>}
       </section>
 
       <section className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">Attraction / gallery media — 5+ images required</h4><p className="text-[10px] text-slate-500">These images should showcase attractions and supporting visual stories.</p></div></div>
+        <div className="flex items-center gap-2 mb-4"><Image size={15} className="text-emerald-500"/><div><h4 className="text-sm font-black text-slate-800">{galleryTitle} — 5+ images required</h4><p className="text-[10px] text-slate-500">Use these for attraction photos and the destination’s supporting visual gallery.</p></div></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {[0,1,2,3,4].map(i=><Slot key={i} value={gallery[i]||''} onChange={v=>setGallery(i,v)} folder="destinations/gallery" label={`Gallery image ${i+1}`} number={i+1}/>)}
         </div>
-        {galleryCount<5&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add all 5 gallery images before continuing.</p>}
+        {galleryCount<5&&<p className="mt-3 text-xs font-semibold text-emerald-700">Add at least 5 attraction/other images before continuing.</p>}
       </section>
     </div>
   );
@@ -1402,8 +1402,8 @@ const normaliseGalleries = (dest) => {
       const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
       const attractionItems = Array.isArray(form.attractions) ? form.attractions : []
       const completeAttractions = attractionItems.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
-      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 hero images are required for the destination slideshow'
-      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 destination images are required (4 hero + attraction/gallery images)'
+      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 banner/card slideshow images are required'
+      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 banner/card slideshow and attraction/gallery images are required'
       if (attractionItems.length < 4) e.attractions = 'Add at least 4 attractions'
       else if (completeAttractions < 4) e.attractions = 'Every attraction must have a name and image'
     }
@@ -1444,7 +1444,8 @@ const normaliseGalleries = (dest) => {
       }
       const heroImages = (hero_slides || []).map(getImageUrl).filter(Boolean)
       const galleryImages = (gallery || []).map(getImageUrl).filter(Boolean)
-      const newDestinationImages = [...new Set([...heroImages, ...galleryImages])]
+      const primaryHeroImage = getImageUrl(form.hero_image)
+      const newDestinationImages = [...new Set([primaryHeroImage, ...heroImages, ...galleryImages].filter(Boolean))]
       const payload = {
         ...destinationFields,
         slug:         form.slug || toSlug(form.name),
@@ -1455,11 +1456,11 @@ const normaliseGalleries = (dest) => {
             url,
             is_primary: index === 0,
             sort_order: index,
-            source: index < HERO_IMAGE_COUNT ? 'hero' : 'attraction',
+            source: index === 0 && primaryHeroImage ? 'hero' : (index <= HERO_IMAGE_COUNT && primaryHeroImage ? 'banner' : (index < HERO_IMAGE_COUNT ? 'banner' : 'attraction')),
           })),
-          image_url: heroImages[0] || null,
-          hero_image: heroImages[0] || null,
-          cover_image_url: heroImages[0] || galleryImages[0] || null,
+          image_url: primaryHeroImage || heroImages[0] || null,
+          hero_image: primaryHeroImage || heroImages[0] || null,
+          cover_image_url: form.cover_image_url || heroImages[0] || galleryImages[0] || primaryHeroImage || null,
         }),
       }
 
@@ -1478,20 +1479,37 @@ const normaliseGalleries = (dest) => {
 // Only send images without ID (new images) to be created via addImages endpoint
 // Images with ID are existing images - to modify existing images, 
 // use the dedicated image management endpoints (not implemented in this form)
+const existingImageUrls = new Set([
+  ...(editing?.images || []),
+  ...(editing?.image_urls || []),
+  ...(editing?.imageUrls || []),
+  ...(editing?.gallery || []).map(getImageUrl),
+  editing?.hero_image,
+  editing?.heroImage,
+  editing?.cover_image_url,
+  editing?.coverImageUrl,
+].map(getImageUrl).filter(Boolean))
 const allNewImages = [
   ...((editing
     ? (gallery || [])
     : [
-        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'hero' })),
-        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'gallery' })),
+        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'banner' })),
+        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'attraction' })),
       ]
-  ).filter(image => !image.id && image.url).map(image => ({
-    url: image.url,
+  ).filter(image => !image.id && getImageUrl(image) && !existingImageUrls.has(getImageUrl(image))).map((image, index) => ({
+    url: getImageUrl(image),
     caption: image.caption,
     is_primary: image.is_primary,
-    sort_order: image.sort_order,
+    sort_order: image.sort_order ?? index,
     source: image.source,
   }))),
+  ...((editing ? (hero_slides || []) : []).map((image, index) => ({
+    url: getImageUrl(image),
+    caption: image?.caption || `Banner slide ${index + 1}`,
+    is_primary: false,
+    sort_order: index,
+    source: 'banner',
+  })).filter(image => image.url && !existingImageUrls.has(image.url))),
   ...(library_images || []).filter(image => !image.id && getImageUrl(image)).map(image => ({
     url: getImageUrl(image),
     caption: image.caption,
@@ -1757,11 +1775,18 @@ if (savedDestination?.id && uniqueNewImages.length) {
       case 'media': return (
         !editing ? (
           <motion.div key="media-new" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
+            <section className="space-y-3">
+              <div className="flex items-center gap-2"><Sun size={15} className="text-amber-500"/><div><h4 className="text-sm font-extrabold text-slate-800">Hero image</h4><p className="text-xs text-slate-500">The main visual for the destination detail page.</p></div></div>
+              <HeroImagePanel label="Hero image" description="Main destination page visual" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
+            </section>
             <NewDestinationMedia
               heroSlides={form.hero_slides}
               gallery={form.gallery}
               onHeroChange={v=>upd('hero_slides',v)}
               onGalleryChange={v=>upd('gallery',v)}
+              heroTitle="Banner / card slideshow"
+              heroDescription="These images rotate on destination cards throughout the traveller-facing site."
+              galleryTitle="Attraction & other images"
             />
             {(errors.hero_slides || errors.gallery || errors.attractions) && (
               <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
@@ -1789,43 +1814,50 @@ if (savedDestination?.id && uniqueNewImages.length) {
             )}
           </div>
 
-          {/* Section 1: Hero, Cover, Main */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Layers size={14} className="text-gray-500"/>
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Featured Images</h4>
-              <div className="flex-1 h-px bg-gray-200"/>
-              <span className="text-[10px] text-gray-400 font-medium">Primary display images</span>
+          {/* 1. Hero image: the main destination detail-page image */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Sun size={15} className="text-amber-500"/>
+              <div><h4 className="text-sm font-extrabold text-slate-800">Hero image</h4><p className="text-xs text-slate-500">The primary image shown first on the destination detail page.</p></div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <HeroImagePanel
-                label="Hero Image" description="Top banner on destination page"
-                value={form.hero_image} onChange={v=>upd('hero_image',v)}
-                folder="destinations/hero" theme="amber" icon={Sun}
-                allImages={allImgs} onLightbox={openLightbox}/>
-              <HeroImagePanel
-                label="Cover Banner" description="Card thumbnail & listings"
-                value={form.cover_image_url} onChange={v=>upd('cover_image_url',v)}
-                folder="destinations/cover" theme="sky" icon={Palette}
-                allImages={allImgs} onLightbox={openLightbox}/>
-              <HeroImagePanel
-                label="Main Image" description="Default fallback image"
-                value={form.image_url} onChange={v=>upd('image_url',v)}
-                folder="destinations/main" theme="emerald" icon={Image}
-                allImages={allImgs} onLightbox={openLightbox}/>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <HeroImagePanel label="Hero image" description="Main destination page visual" value={form.hero_image} onChange={v=>upd('hero_image',v)} folder="destinations/hero" theme="amber" icon={Sun} allImages={allImgs} onLightbox={openLightbox}/>
+              <HeroImagePanel label="Main image fallback" description="Used when the hero image is unavailable" value={form.image_url} onChange={v=>upd('image_url',v)} folder="destinations/main" theme="emerald" icon={Image} allImages={allImgs} onLightbox={openLightbox}/>
             </div>
-          </div>
+          </section>
 
-          {/* Section 2: Destination Gallery (uploaded/URL, max 10) */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Camera size={14} className="text-emerald-500"/>
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Destination Gallery</h4>
-              <div className="flex-1 h-px bg-gray-200"/>
-              <span className="text-[10px] text-gray-400 font-medium">Own photos — max {MAX_GALLERY_IMAGES}</span>
+          {/* 2. Banner/card slideshow images */}
+          <section className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4 sm:p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><Layers size={17}/></div>
+              <div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">Banner / card slideshow images</h4><p className="text-xs text-slate-600 mt-1">These images rotate in destination cards across the traveller-facing site. Add up to four slides; each slot has its own preview and upload control.</p></div>
+              <span className="shrink-0 rounded-full bg-white border border-sky-200 px-2.5 py-1 text-xs font-bold text-sky-700">{(form.hero_slides||[]).filter(Boolean).length}/4</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {[0,1,2,3].map((index)=>{
+                const slide=form.hero_slides?.[index]||'';
+                return <div key={index} className="rounded-xl border border-sky-200 bg-white p-3 space-y-3 min-w-0">
+                  <div className="flex items-center justify-between gap-2"><span className="text-xs font-bold text-slate-700">Banner slide {index+1}</span><span className={`text-[10px] font-semibold ${slide?'text-emerald-600':'text-slate-400'}`}>{slide?'Ready':'Empty slot'}</span></div>
+                  <div className="aspect-[16/10] rounded-lg overflow-hidden bg-slate-50 border border-dashed border-sky-200 flex items-center justify-center">
+                    {slide?<img src={typeof slide==='string'?slide:(slide.url||slide.image_url||'')} alt={`Banner slide ${index+1}`} className="w-full h-full object-cover" onError={e=>{e.currentTarget.style.opacity='.25'}}/>:<div className="text-center p-3"><ImagePlus size={22} className="mx-auto text-sky-400"/><p className="text-xs text-slate-500 mt-2">Image preview appears here</p></div>}
+                  </div>
+                  <ImageUpload label="" value="" onChange={value=>{const next=[...(form.hero_slides||[])];next[index]=value||'';upd('hero_slides',next)}} folder="destinations/banner-slides"/>
+                  {slide&&<button type="button" onClick={()=>{const next=[...(form.hero_slides||[])];next[index]='';upd('hero_slides',next)}} className="text-xs font-semibold text-rose-600 hover:text-rose-700">Remove slide</button>}
+                </div>
+              })}
+            </div>
+            <HeroImagePanel label="Card cover / fallback banner" description="Fallback thumbnail if no slideshow image is available" value={form.cover_image_url} onChange={v=>upd('cover_image_url',v)} folder="destinations/cover" theme="sky" icon={Palette} allImages={allImgs} onLightbox={openLightbox}/>
+          </section>
+
+          {/* 3. Attraction and other destination images */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Camera size={15} className="text-emerald-600"/>
+              <div><h4 className="text-sm font-extrabold text-slate-800">Attraction & other images</h4><p className="text-xs text-slate-500">Supporting photos shown in the destination gallery and attraction sections.</p></div>
+              <span className="ml-auto shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-700">{(form.gallery||[]).length} photos</span>
             </div>
             <DestinationGallery gallery={form.gallery} onChange={v=>upd('gallery',v)} onLightbox={openLightbox}/>
-          </div>
+          </section>
 
           {/* Section 3: Library Imports (unlimited) */}
           <div>
@@ -1838,22 +1870,7 @@ if (savedDestination?.id && uniqueNewImages.length) {
             <LibraryImportPanel libraryImages={form.library_images} onChange={v=>upd('library_images',v)} onLightbox={openLightbox}/>
           </div>
 
-          {/* Section 4: Video / Virtual Tour */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Video size={14} className="text-rose-500"/>
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Video & Virtual Tour</h4>
-              <div className="flex-1 h-px bg-gray-200"/>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl border-2 border-rose-100 bg-gradient-to-br from-rose-50/40 via-white to-pink-50/30">
-              <Field label="Video URL" icon={Video} hint="YouTube, Vimeo or direct MP4">
-                <input className={inputClass} type="url" value={form.video_url} onChange={e=>upd('video_url',e.target.value)} placeholder="https://youtube.com/watch?v=…"/>
-              </Field>
-              <Field label="Virtual Tour URL" icon={Globe2} hint="360° tour or Matterport link">
-                <input className={inputClass} type="url" value={form.virtual_tour_url} onChange={e=>upd('virtual_tour_url',e.target.value)} placeholder="https://…"/>
-              </Field>
-            </div>
-          </div>
+
         </motion.div>
         )
       )
@@ -2079,6 +2096,28 @@ if (savedDestination?.id && uniqueNewImages.length) {
                 </ModalSection>
               )}
 
+              {Array.isArray(d.attractions)&&d.attractions.length>0&&(
+                <ModalSection title="Attractions">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {d.attractions.map((item,index)=>{
+                      const name = typeof item === 'string' ? item : item.name || item.title || `Attraction ${index+1}`
+                      const image = typeof item === 'object' ? item.imageUrl || item.image_url || item.image || item.url : ''
+                      const description = typeof item === 'object' ? item.description || item.summary || '' : ''
+                      return <article key={item.id || `${name}-${index}`} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        {image && <img src={image} alt={name} className="w-full aspect-[16/9] object-cover" onError={e=>{e.currentTarget.style.display='none'}}/>}
+                        <div className="p-3"><h4 className="text-sm font-bold text-slate-800 break-words">{name}</h4>{description && <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap break-words">{description}</p>}</div>
+                      </article>
+                    })}
+                  </div>
+                </ModalSection>
+              )}
+
+              {Array.isArray(d.tags)&&d.tags.length>0&&(
+                <ModalSection title="Tags">
+                  <div className="flex flex-wrap gap-2">{d.tags.map((tag,index)=><span key={tag.id || index} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{typeof tag==='string'?tag:tag.name || tag.label || JSON.stringify(tag)}</span>)}</div>
+                </ModalSection>
+              )}
+
               {Array.isArray(d.activities)&&d.activities.length>0&&(
                 <ModalSection title="Activities">
                   <div className="flex flex-wrap gap-2">
@@ -2143,6 +2182,27 @@ if (savedDestination?.id && uniqueNewImages.length) {
                   </div>
                 </ModalSection>
               )}
+
+              <ModalSection title="All saved destination details">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {Object.entries(d).filter(([key, value]) =>
+                    !['gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','attractions','highlights','activities','wildlife','local_tips','localTips','faqs','itinerary','tags'].includes(key) &&
+                    value !== null && value !== undefined && value !== '' &&
+                    !(typeof value === 'boolean' && !value)
+                  ).map(([key, value]) => {
+                    const label = key.replace(/([A-Z])/g, ' $1').replace(/[_-]+/g, ' ').replace(/^./, ch => ch.toUpperCase()).trim()
+                    const rendered = Array.isArray(value)
+                      ? value.map(item => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(' · ')
+                      : typeof value === 'object'
+                        ? JSON.stringify(value, null, 2)
+                        : String(value)
+                    return <div key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">{label}</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed">{rendered}</p>
+                    </div>
+                  })}
+                </div>
+              </ModalSection>
 
               <ModalSection title="Stats & Flags">
                 <ModalGrid>
