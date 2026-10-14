@@ -479,9 +479,10 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
         onClick={() => setExpanded(v => !v)}
       >
         <StatusIcon status={booking.status} size={16} />
+        <Avatar src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url} name={booking.full_name || booking.user_name || booking.user_full_name} size="sm" rounded="full" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-800 text-sm truncate">
-            {booking.full_name || booking.user_full_name || '—'}
+            {booking.full_name || booking.user_name || booking.user_full_name || '—'}
           </p>
           <p className="text-xs text-slate-400 truncate">
             {booking.email || '—'}
