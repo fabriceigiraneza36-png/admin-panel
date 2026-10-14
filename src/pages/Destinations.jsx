@@ -1092,11 +1092,10 @@ function DestinationMediaPicker({ open, onClose, section, current, capacity, onA
   const filtered = items.filter(item => !query.trim() || item.caption.toLowerCase().includes(query.toLowerCase()) || item.url.toLowerCase().includes(query.toLowerCase()));
   const addItems = (incoming) => {
     const unique = incoming.filter(item=>item?.url && !current.some(old => (typeof old === 'string' ? old : old?.url || old?.image_url) === item.url));
-    const accepted = unique.slice(0,remaining);
-    const rejected = unique.length - accepted.length;
-    if (accepted.length) onAdd(accepted);
-    if (rejected) setError(`${rejected} image${rejected===1?'':'s'} not added: this section has room for only ${remaining} more.`);
-    else onClose();
+    if (!unique.length) { setError('Those images are already in this section.'); return; }
+    onAdd(unique);
+    if (unique.length <= remaining) onClose();
+    else setError(`${unique.length - remaining} image${unique.length - remaining===1?'':'s'} exceed this section's remaining capacity.`);
   };
   const confirmLibrary = () => {
     if (!selected.length) { setError('Select at least one image.'); return; }
@@ -1161,6 +1160,7 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
     else onGalleryChange([...current,...accepted].slice(0,max));
     const missing=unique.length-accepted.length;
     if(missing) setSectionError(`${missing} image${missing===1?'':'s'} not added: section capacity reached.`);
+    else if(!accepted.length) setSectionError('Those images are already in this section.');
     else setSectionError('');
     if(accepted.length) setPicker(null);
   };
