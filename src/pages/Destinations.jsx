@@ -8,7 +8,7 @@ import {
   X, ZoomIn, ExternalLink, CheckCircle2, ImagePlus, Maximize2,
   ChevronDown, ChevronUp, Eye as EyeIcon, Globe2, Mountain,
   Hash, FileText, List, Tag, Flag,
-  Video, Globe, Calendar, TrendingUp, Award,
+  Globe, Calendar, TrendingUp, Award,
   Compass, TreePine, Coffee, Activity, Sparkles, Library,
   Layers, Palette, Sun,
 } from 'lucide-react'
@@ -1402,8 +1402,8 @@ const normaliseGalleries = (dest) => {
       const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
       const attractionItems = Array.isArray(form.attractions) ? form.attractions : []
       const completeAttractions = attractionItems.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
-      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 hero images are required for the destination slideshow'
-      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 destination images are required (4 hero + attraction/gallery images)'
+      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 banner/card slideshow images are required'
+      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 banner/card slideshow and attraction/gallery images are required'
       if (attractionItems.length < 4) e.attractions = 'Add at least 4 attractions'
       else if (completeAttractions < 4) e.attractions = 'Every attraction must have a name and image'
     }
