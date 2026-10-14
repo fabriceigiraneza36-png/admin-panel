@@ -10,7 +10,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
-  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Edit3, Pin, Highlighter, Undo2,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
@@ -101,6 +101,7 @@ const groupMessages = (messages) => {
 
 function Avatar({ name = '', src, size = 'md', online = false }) {
   const [imageFailed, setImageFailed] = useState(false)
+  useEffect(() => setImageFailed(false), [src])
   const sz = {
     xs: 'w-6 h-6 text-[9px]',
     sm: 'w-8 h-8 text-[10px]',
@@ -215,10 +216,10 @@ function EmojiPicker({ onPick, onClose }) {
     </div>
   );
 }
-function ScrollBtn({ visible, onClick, unread = 0 }) {
+function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
   return (
     <button onClick={onClick} aria-label="Scroll to latest"
-      className={`absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white border border-slate-200
+      className={`absolute ${composerVisible ? 'bottom-24' : 'bottom-4'} right-4 w-10 h-10 rounded-full bg-white border border-slate-200
                  text-emerald-600 shadow-lg flex items-center justify-center transition-all duration-300 z-20
                  hover:bg-emerald-50 active:scale-95
                  ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
@@ -1916,6 +1917,7 @@ export default function Messages() {
                   visible={showScrollBtn}
                   onClick={() => scrollToBottom(true)}
                   unread={newMsgsWhileScrolled}
+                  composerVisible={composerVisible}
                 />
 
                 {/*
@@ -1952,7 +1954,7 @@ export default function Messages() {
 
                   {/* Input row */}
                   <div className="px-3 sm:px-5 py-3 bg-white">
-                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:bg-white focus-within:shadow-md transition-all">
+                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-transparent bg-white p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1996,9 +1998,8 @@ export default function Messages() {
                       rows={1}
                       placeholder="Write a message…"
                       aria-label="Type a message"
-                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-100
-                                 bg-slate-50/70 outline-none leading-relaxed transition-all
-                                 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100
+                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
+                                 bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
                                  placeholder:text-slate-400"
                       style={{ minHeight: 40, maxHeight: 120 }}
                     />
