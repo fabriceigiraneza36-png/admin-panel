@@ -1102,8 +1102,14 @@ function NewDestinationMedia({ heroSlides = [], gallery = [], onHeroChange, onGa
               <div className="absolute left-2 bottom-2 px-2 py-1 rounded-md bg-black/55 text-white text-[9px] font-bold uppercase tracking-wider">Ready</div>
             </div>
           ) : (
-            <div className="aspect-[16/10] rounded-xl bg-gradient-to-br from-slate-50 to-emerald-50/50 border border-slate-100 flex items-center justify-center">
-              <div className="text-center"><ImagePlus size={24} className="mx-auto text-emerald-300 mb-1"/><p className="text-[10px] text-slate-400 font-semibold">Add image {number}</p></div>
+            <div className="aspect-[16/10] rounded-xl bg-gradient-to-br from-emerald-50 via-white to-slate-50 border border-dashed border-emerald-200 flex items-center justify-center p-4">
+              <div className="text-center">
+                <div className="w-11 h-11 rounded-2xl bg-white border border-emerald-100 shadow-sm flex items-center justify-center mx-auto mb-2">
+                  <ImagePlus size={21} className="text-emerald-500"/>
+                </div>
+                <p className="text-xs text-slate-600 font-bold">Image {number}</p>
+                <p className="text-[10px] text-slate-400 mt-1">Upload a photo or add a URL</p>
+              </div>
             </div>
           )}
           {mode==='upload' ? (
