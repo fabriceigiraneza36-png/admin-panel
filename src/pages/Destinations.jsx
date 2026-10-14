@@ -57,8 +57,9 @@ const INITIAL_FORM = {
 
   // Media - Galleries (separated)
   gallery: [],          // uploaded/URL — max 10
-  library_images: [],   // imported from central gallery library — unlimited
-  hero_slides: [],      // first 4 images: destination hero slideshow
+  library_images: [],   // legacy imported images
+  hero_slides: [],      // ordered destination hero slideshow (4 required)
+  banner_slides: [],    // optional card/banner slideshow (up to 4)
 
   // Arrays / lists
   activities: [], attractions: [], highlights: [], wildlife: [],
@@ -1371,9 +1372,10 @@ const normaliseGalleries = (dest) => {
       local_tips:         normaliseTips(dest),
       tags:               dest.tags               || [],
 
-      hero_slides: gallery.slice(0, HERO_IMAGE_COUNT),
-      gallery: gallery.slice(HERO_IMAGE_COUNT),
-      library_images,
+      hero_slides: Array.isArray(dest.hero_slides || dest.heroSlides) ? (dest.hero_slides || dest.heroSlides).slice(0, HERO_IMAGE_COUNT) : gallery.slice(0, HERO_IMAGE_COUNT),
+      banner_slides: Array.isArray(dest.banner_slides || dest.bannerSlides) ? (dest.banner_slides || dest.bannerSlides).slice(0, 4) : [],
+      gallery: [...gallery.slice(HERO_IMAGE_COUNT), ...library_images],
+      library_images: [],
       itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
       faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
 
@@ -1418,16 +1420,11 @@ const normaliseGalleries = (dest) => {
     }
     // Existing destinations may predate the current media requirements. Keep them editable;
     // enforce the full media checklist when creating a new destination.
-    if (stepId === 'media' && !editing) {
+    if (stepId === 'media') {
       const heroCount = (form.hero_slides || []).filter(Boolean).length
-      const galleryCount = (form.gallery || []).filter(Boolean).length
-      const totalImages = heroCount + galleryCount + (form.library_images || []).filter(Boolean).length
-      const attractionItems = Array.isArray(form.attractions) ? form.attractions : []
-      const completeAttractions = attractionItems.filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
-      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = 'Exactly 4 banner/card slideshow images are required'
-      if (totalImages < MIN_TOTAL_DESTINATION_IMAGES) e.gallery = 'At least 9 banner/card slideshow and attraction/gallery images are required'
-      if (attractionItems.length < 4) e.attractions = 'Add at least 4 attractions'
-      else if (completeAttractions < 4) e.attractions = 'Every attraction must have a name and image'
+      const galleryCount = (form.gallery || []).filter(Boolean).length + (form.library_images || []).filter(Boolean).length
+      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = `${HERO_IMAGE_COUNT - heroCount} image${HERO_IMAGE_COUNT - heroCount === 1 ? '' : 's'} missing on hero slideshow`
+      if (galleryCount < 5) e.gallery = `${5 - galleryCount} attraction image${5 - galleryCount === 1 ? '' : 's'} missing`
     }
     setErrors(e)
     return Object.keys(e).length === 0
