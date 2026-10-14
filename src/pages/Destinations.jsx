@@ -1450,7 +1450,7 @@ const normaliseGalleries = (dest) => {
     if (!validateStep('media')) { setStep('media'); return }
     setSaving(true)
     try {
-      const { gallery, library_images, hero_slides, itinerary, faqs, tags, local_tips, ...destinationFields } = form
+      const { gallery, library_images, hero_slides, banner_slides, itinerary, faqs, tags, local_tips, ...destinationFields } = form
       // Existing gallery entries are objects ({ url, id, caption, ... }) while
       // new-destination slots are plain URL strings. Normalize both shapes before
       // building API payloads so object values never leak into URL columns.
@@ -1462,13 +1462,16 @@ const normaliseGalleries = (dest) => {
         return ''
       }
       const heroImages = (hero_slides || []).map(getImageUrl).filter(Boolean)
+      const bannerImages = (banner_slides || []).map(getImageUrl).filter(Boolean)
       const galleryImages = (gallery || []).map(getImageUrl).filter(Boolean)
       const primaryHeroImage = getImageUrl(form.hero_image)
-      const newDestinationImages = [...new Set([primaryHeroImage, ...heroImages, ...galleryImages].filter(Boolean))]
+      const newDestinationImages = [...new Set([primaryHeroImage, ...heroImages, ...bannerImages, ...galleryImages].filter(Boolean))]
       const payload = {
         ...destinationFields,
         slug:         form.slug || toSlug(form.name),
         country_id:   form.country_id ? Number(form.country_id) : null,
+        hero_slides: heroImages,
+        banner_slides: bannerImages,
         ...(editing ? {} : {
           image_urls: newDestinationImages,
           image_meta: newDestinationImages.map((url, index) => ({
@@ -1512,8 +1515,9 @@ const allNewImages = [
   ...((editing
     ? (gallery || [])
     : [
-        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'banner' })),
-        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 3, source: 'attraction' })),
+        ...(heroImages || []).map((url, index) => ({ url, is_primary: index === 0, sort_order: index, source: 'hero' })),
+        ...(bannerImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index, source: 'banner' })),
+        ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 7, source: 'attraction' })),
       ]
   ).filter(image => !image.id && getImageUrl(image) && !existingImageUrls.has(getImageUrl(image))).map((image, index) => ({
     url: getImageUrl(image),
@@ -1523,11 +1527,12 @@ const allNewImages = [
     source: image.source,
   }))),
   ...((editing ? (hero_slides || []) : []).map((image, index) => ({
-    url: getImageUrl(image),
-    caption: image?.caption || `Banner slide ${index + 1}`,
-    is_primary: false,
-    sort_order: index,
-    source: 'banner',
+    url: getImageUrl(image), caption: image?.caption || `Hero slide ${index + 1}`,
+    is_primary: index === 0, sort_order: index, source: 'hero',
+  })).filter(image => image.url && !existingImageUrls.has(image.url))),
+  ...((banner_slides || []).map((image, index) => ({
+    url: getImageUrl(image), caption: image?.caption || `Banner slide ${index + 1}`,
+    is_primary: false, sort_order: index, source: 'banner',
   })).filter(image => image.url && !existingImageUrls.has(image.url))),
   ...(library_images || []).filter(image => !image.id && getImageUrl(image)).map(image => ({
     url: getImageUrl(image),
