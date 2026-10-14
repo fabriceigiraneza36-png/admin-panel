@@ -982,10 +982,11 @@ export default function Messages() {
   }, [])
 
   useEffect(() => {
-    if (!conversations.length) return
-    const target = requestedConversationId
-      ? conversations.find(c => String(c.id) === String(requestedConversationId))
-      : conversations.find(c => String(c.id) === String(activeId)) || conversations[0]
+    // Open a thread automatically only for an explicit deep link. The admin
+    // inbox must remain the first screen on a normal visit; selecting a row
+    // is what opens a conversation.
+    if (!requestedConversationId || !conversations.length) return
+    const target = conversations.find(c => String(c.id) === String(requestedConversationId))
     if (target && String(target.id) !== String(activeId)) openConversation(target.id)
   }, [requestedConversationId, conversations, activeId, openConversation])
 
