@@ -1432,8 +1432,18 @@ const normaliseGalleries = (dest) => {
     setSaving(true)
     try {
       const { gallery, library_images, hero_slides, itinerary, faqs, tags, local_tips, ...destinationFields } = form
-      const heroImages = (hero_slides || []).filter(Boolean)
-      const galleryImages = (gallery || []).filter(Boolean)
+      // Existing gallery entries are objects ({ url, id, caption, ... }) while
+      // new-destination slots are plain URL strings. Normalize both shapes before
+      // building API payloads so object values never leak into URL columns.
+      const getImageUrl = (image) => {
+        if (typeof image === 'string') return image.trim()
+        if (image && typeof image === 'object') {
+          return String(image.url || image.imageUrl || image.image_url || '').trim()
+        }
+        return ''
+      }
+      const heroImages = (hero_slides || []).map(getImageUrl).filter(Boolean)
+      const galleryImages = (gallery || []).map(getImageUrl).filter(Boolean)
       const newDestinationImages = [...new Set([...heroImages, ...galleryImages])]
       const payload = {
         ...destinationFields,
@@ -1482,8 +1492,8 @@ const allNewImages = [
     sort_order: image.sort_order,
     source: image.source,
   }))),
-  ...(library_images || []).filter(image => !image.id && image.url).map(image => ({
-    url: image.url,
+  ...(library_images || []).filter(image => !image.id && getImageUrl(image)).map(image => ({
+    url: getImageUrl(image),
     caption: image.caption,
     library_id: image.library_id,
     source: 'library',
