@@ -2161,6 +2161,27 @@ if (savedDestination?.id && uniqueNewImages.length) {
                 </ModalSection>
               )}
 
+              <ModalSection title="All saved destination details">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {Object.entries(d).filter(([key, value]) =>
+                    !['gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','attractions','highlights','activities','wildlife','local_tips','localTips','faqs','itinerary','tags'].includes(key) &&
+                    value !== null && value !== undefined && value !== '' &&
+                    !(typeof value === 'boolean' && !value)
+                  ).map(([key, value]) => {
+                    const label = key.replace(/([A-Z])/g, ' $1').replace(/[_-]+/g, ' ').replace(/^./, ch => ch.toUpperCase()).trim()
+                    const rendered = Array.isArray(value)
+                      ? value.map(item => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(' · ')
+                      : typeof value === 'object'
+                        ? JSON.stringify(value, null, 2)
+                        : String(value)
+                    return <div key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">{label}</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed">{rendered}</p>
+                    </div>
+                  })}
+                </div>
+              </ModalSection>
+
               <ModalSection title="Stats & Flags">
                 <ModalGrid>
                   <ModalField label="Featured"        value={<BooleanBadge value={d.isFeatured||d.is_featured}/>}/>
