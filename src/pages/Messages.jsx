@@ -100,6 +100,7 @@ const groupMessages = (messages) => {
 /* ─── UI Primitives ────────────────────────────────────────────────────────── */
 
 function Avatar({ name = '', src, size = 'md', online = false }) {
+  const [imageFailed, setImageFailed] = useState(false)
   const sz = {
     xs: 'w-6 h-6 text-[9px]',
     sm: 'w-8 h-8 text-[10px]',
@@ -110,9 +111,9 @@ function Avatar({ name = '', src, size = 'md', online = false }) {
   const ini = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
   return (
     <div className="relative flex-shrink-0 select-none">
-      {src ? (
+      {src && !imageFailed ? (
         <img src={src} alt={name}
-          onError={e => { e.target.style.display = 'none' }}
+          onError={() => setImageFailed(true)}
           className={`${cls} rounded-full object-cover border-2 border-white ring-1 ring-slate-100`} />
       ) : (
         <div className={`${cls} rounded-full bg-gradient-to-br from-emerald-500 to-teal-600
@@ -323,7 +324,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} size="xs" /></div>}
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
         {!mine && <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">{message.senderName || 'User'}</span>}
@@ -372,10 +373,7 @@ const MsgBubble = React.memo(function MsgBubble({
                   ))}
                   <button onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
                   <button onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
-                  {(mine || canModerate) && <>
-                    <button onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Edit3 size={15}/> Edit</button>
-                    <button onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend</button>
-                  </>}
+                  {/* Admins preserve the original conversation record; reply or forward instead of editing history. */}
                   <button onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin'}</button>
                   <button onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
                 </div>
@@ -802,6 +800,9 @@ export default function Messages() {
   const [messages, setMessages] = useState([])
   const [loadingList, setLoadingList] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const loadingOlderRef = useRef(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
   const [focusComposerOnOpen, setFocusComposerOnOpen] = useState(false)
@@ -951,10 +952,12 @@ export default function Messages() {
     if (!id) {
       setActiveId(null); setActiveConv(null)
       setMessages([]); setReplyToId(null)
+      setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
       setUserTyping(null); return
     }
     setActiveId(id)
     setReplyToId(null); setDraft('')
+    setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
     setLoadingMsgs(true); setMessages([])
     setUserTyping(null); setAtBottom(true)
     setShowScrollBtn(false)
@@ -963,11 +966,13 @@ export default function Messages() {
     setNewMsgsWhileScrolled(0)
 
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${id}`)
+      const res = await authFetch(`${API_BASE}/messages/conversations/${id}?limit=10`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
+      if (String(activeIdRef.current) !== String(id)) return
       setActiveConv(data.data)
       setMessages(data.data?.messages || [])
+      setHasMoreMessages(Boolean(data.data?.hasMoreMessages))
 
       authFetch(`${API_BASE}/messages/conversations/${id}/read`, { method: 'PATCH' }).catch(() => {})
 
@@ -980,6 +985,34 @@ export default function Messages() {
       setLoadingMsgs(false)
     }
   }, [])
+
+  const loadOlderMessages = useCallback(async () => {
+    const conversationId = activeIdRef.current
+    if (!conversationId || !hasMoreMessages || loadingOlderRef.current || !messages.length) return
+    const oldest = messages[0]
+    if (oldest?.id == null) return
+
+    loadingOlderRef.current = true
+    setLoadingOlderMessages(true)
+    try {
+      const params = new URLSearchParams({ limit: '10', beforeId: String(oldest.id) })
+      const res = await authFetch(`${API_BASE}/messages/conversations/${conversationId}?${params.toString()}`)
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload.message || 'Could not load earlier messages')
+      if (String(activeIdRef.current) !== String(conversationId)) return
+      const older = Array.isArray(payload.data?.messages) ? payload.data.messages : []
+      setMessages(current => {
+        const ids = new Set(current.map(message => String(message.id)))
+        return [...older.filter(message => !ids.has(String(message.id))), ...current]
+      })
+      setHasMoreMessages(Boolean(payload.data?.hasMoreMessages))
+    } catch (error) {
+      toast.error(error.message || 'Could not load earlier messages')
+    } finally {
+      loadingOlderRef.current = false
+      setLoadingOlderMessages(false)
+    }
+  }, [hasMoreMessages, messages, toast])
 
   useEffect(() => {
     if (!conversations.length) return
@@ -1023,7 +1056,19 @@ export default function Messages() {
     atBottomRef.current = bottom
     setShowScrollBtn(!bottom)
     if (bottom) setNewMsgsWhileScrolled(0)
-  }, [])
+
+    if (el.scrollTop <= 48 && hasMoreMessages && !loadingOlderRef.current) {
+      const previousHeight = el.scrollHeight
+      setAtBottom(false)
+      atBottomRef.current = false
+      loadOlderMessages().then(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const current = scrollRef.current
+          if (current) current.scrollTop = current.scrollHeight - previousHeight
+        }))
+      })
+    }
+  }, [hasMoreMessages, loadOlderMessages])
 
   // Auto-scroll on message load
   useEffect(() => {
@@ -1222,10 +1267,10 @@ export default function Messages() {
 
   const handleForwardToConversation = useCallback(async (targetId) => {
     if (!forwardMessage || !targetId || forwarding) return
-    const forwardedBody = `↪ Forwarded message from ${forwardMessage.senderName || (forwardMessage.senderType === 'admin' ? 'Altuvera Support' : 'Traveler')}:
-
-${String(forwardMessage.body || '').trim()}`
-    if (!forwardedBody.trim()) return
+    // Forward the text as a fresh admin-authored reply. The traveler sees the
+    // content and the authenticated admin's profile, not internal forward labels.
+    const forwardedBody = String(forwardMessage.body || '').trim()
+    if (!forwardedBody) return
     setForwarding(true)
     try {
       const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(targetId)}/messages`, {
@@ -1815,7 +1860,22 @@ ${String(forwardMessage.body || '').trim()}`
                     </div>
                   ) : (
                     <>
-                      {msgGroups.map(item =>
+                      {loadingOlderMessages && (
+                    <div className="flex justify-center py-2" aria-live="polite">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm">
+                        <RefreshCw size={12} className="animate-spin" /> Loading earlier messages…
+                      </span>
+                    </div>
+                  )}
+                  {hasMoreMessages && !loadingOlderMessages && (
+                    <div className="flex justify-center py-2">
+                      <button type="button" onClick={loadOlderMessages}
+                        className="rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-700 shadow-sm hover:bg-emerald-50">
+                        Load earlier messages
+                      </button>
+                    </div>
+                  )}
+                  {msgGroups.map(item =>
                         item.type === 'sep' ? (
                           <DateSep key={item.key} label={item.label} />
                         ) : (
@@ -1851,7 +1911,7 @@ ${String(forwardMessage.body || '').trim()}`
                   )}
                 </div>
 
-                {/* Floating scroll-to-bottom button */}
+                {/* Floating scroll-to-bottom button, kept above the fixed composer */}
                 <ScrollBtn
                   visible={showScrollBtn}
                   onClick={() => scrollToBottom(true)}
