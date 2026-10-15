@@ -952,7 +952,7 @@ export default function Messages() {
     if (firstLoad) setLoadingList(true)
 
     try {
-      const p = new URLSearchParams({ limit: '100', active: 'all' })
+      const p = new URLSearchParams({ limit: '1000', active: 'all' })
       if (filter !== 'all') p.set('status', filter)
       if (search.trim()) p.set('search', search.trim())
       const res = await authFetch(`${API_BASE}/messages/conversations?${p}`)
