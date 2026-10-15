@@ -10,7 +10,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
-  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Edit3, Pin, Highlighter, Undo2,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
@@ -50,7 +50,7 @@ const authFetch = (url, opts = {}) => {
 /* ─── Constants & Formatting ───────────────────────────────────────────────── */
 
 const QUICK_EMOJIS = ['👍','❤️','😂','🎉','👏','😮','👎','🔥','🙏','✨','😊','😢']
-const INLINE_REACTION_EMOJIS = ['👍','❤️','😂','🎉']
+const QUICK_REACTIONS = ['👍','❤️','😂','🎉','👏','😮','🙏','🔥']
 
 const fmtRelative = (d) => {
   if (!d) return ''
@@ -100,6 +100,8 @@ const groupMessages = (messages) => {
 /* ─── UI Primitives ────────────────────────────────────────────────────────── */
 
 function Avatar({ name = '', src, size = 'md', online = false }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  useEffect(() => setImageFailed(false), [src])
   const sz = {
     xs: 'w-6 h-6 text-[9px]',
     sm: 'w-8 h-8 text-[10px]',
@@ -110,9 +112,9 @@ function Avatar({ name = '', src, size = 'md', online = false }) {
   const ini = name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
   return (
     <div className="relative flex-shrink-0 select-none">
-      {src ? (
+      {src && !imageFailed ? (
         <img src={src} alt={name}
-          onError={e => { e.target.style.display = 'none' }}
+          onError={() => setImageFailed(true)}
           className={`${cls} rounded-full object-cover border-2 border-white ring-1 ring-slate-100`} />
       ) : (
         <div className={`${cls} rounded-full bg-gradient-to-br from-emerald-500 to-teal-600
@@ -214,10 +216,10 @@ function EmojiPicker({ onPick, onClose }) {
     </div>
   );
 }
-function ScrollBtn({ visible, onClick, unread = 0 }) {
+function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
   return (
     <button onClick={onClick} aria-label="Scroll to latest"
-      className={`absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white border border-slate-200
+      className={`absolute ${composerVisible ? 'bottom-24' : 'bottom-4'} right-4 w-10 h-10 rounded-full bg-white border border-slate-200
                  text-emerald-600 shadow-lg flex items-center justify-center transition-all duration-300 z-20
                  hover:bg-emerald-50 active:scale-95
                  ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
@@ -313,6 +315,7 @@ const MsgBubble = React.memo(function MsgBubble({
   onUnsend, onPin, onHighlight, onForward, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
   const reactions = useMemo(() => {
     const r = message.reactions || {}
     return Object.entries(r).filter(([, ids]) => ids?.length > 0)
@@ -322,8 +325,8 @@ const MsgBubble = React.memo(function MsgBubble({
   const isEditing = String(editingId) === String(message.id)
 
   return (
-    <div className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} size="xs" /></div>}
+    <div data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full`}>
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
         {!mine && <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">{message.senderName || 'User'}</span>}
@@ -365,19 +368,20 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className={`absolute top-full mt-1 z-40 w-48 rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
-                  {INLINE_REACTION_EMOJIS.map(e => (
-                    <button key={e} onClick={() => { onReact(message.id, e); setMenuOpen(false) }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm hover:bg-slate-50">{e}<span className="text-xs text-slate-500">React</span></button>
-                  ))}
-                  <button onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
-                  <button onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
-                  {(mine || canModerate) && <>
-                    <button onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Edit3 size={15}/> Edit</button>
-                    <button onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend</button>
-                  </>}
-                  <button onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin'}</button>
-                  <button onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
+                <div className={`absolute top-full mt-1 z-40 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
+                  <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
+                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
+                </div>
+              )}
+              {reactionPickerOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/25 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setReactionPickerOpen(false) }}>
+                  <section role="dialog" aria-modal="true" aria-label="Choose a reaction" className="w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                    <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold text-slate-800">React to message</span><button type="button" aria-label="Close reactions" onClick={() => setReactionPickerOpen(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><X size={15}/></button></div>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {QUICK_REACTIONS.map(emoji => <button type="button" key={emoji} aria-label={`React with ${emoji}`} onClick={() => { onReact(message.id, emoji); setReactionPickerOpen(false) }} className="flex h-10 items-center justify-center rounded-xl border border-slate-100 text-xl transition hover:border-emerald-300 hover:bg-emerald-50 active:scale-95">{emoji}</button>)}
+                    </div>
+                  </section>
                 </div>
               )}
             </div>
@@ -418,7 +422,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
 /* ─── New Chat Modal ───────────────────────────────────────────────────────── */
 
-function NewChatModal({ onClose, onCreated }) {
+function NewChatModal({ onClose, onCreated, existingUserIds = new Set() }) {
   const [search, setSearch] = useState('')
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
@@ -427,6 +431,7 @@ function NewChatModal({ onClose, onCreated }) {
   const [firstMsg, setFirstMsg] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const eligibleUsers = users.filter(user => !existingUserIds.has(String(user.id)))
   const searchRef = useRef(null)
   const taRef = useRef(null)
 
@@ -522,14 +527,14 @@ function NewChatModal({ onClose, onCreated }) {
                       </div>
                     </div>
                   ))
-                ) : users.length === 0 ? (
+                ) : eligibleUsers.length === 0 ? (
                   <div className="text-center py-10 text-slate-400 bg-slate-50/50">
                     <User size={30} className="mx-auto mb-2 opacity-30 text-emerald-600" />
-                    <p className="text-sm font-semibold">No travelers found</p>
+                    <p className="text-sm font-semibold">No users without a conversation found</p>
                   </div>
                 ) : (
                   <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                    {users.map(u => (
+                    {eligibleUsers.map(u => (
                       <button key={u.id} onClick={() => setSelected(u)}
                         className="w-full flex items-center gap-3 px-3.5 py-2.5 border-b
                                    border-slate-100 last:border-0 hover:bg-emerald-50/60 transition text-left group">
@@ -792,16 +797,21 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
 export default function Messages() {
   const [searchParams] = useSearchParams()
   const requestedConversationId = searchParams.get('conversationId')
+  const requestedMessageId = searchParams.get('messageId') || searchParams.get('message_id')
   const { user } = useAuth()
   const { connected, on, off, emit } = useSocket()
   const toast = useToast()
 
   const [conversations, setConversations] = useState([])
   const [activeId, setActiveId] = useState(null)
+  const [targetMessageId, setTargetMessageId] = useState(requestedMessageId || null)
   const [activeConv, setActiveConv] = useState(null)
   const [messages, setMessages] = useState([])
   const [loadingList, setLoadingList] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const loadingOlderRef = useRef(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
   const [focusComposerOnOpen, setFocusComposerOnOpen] = useState(false)
@@ -886,7 +896,7 @@ export default function Messages() {
     }
   }, [])
 
-  const showDesktopNotif = useCallback((title, body, convId) => {
+  const showDesktopNotif = useCallback((title, body, convId, messageId) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return
     if (!document.hidden) return
     const key = `${convId}-${Math.floor(Date.now() / 5000)}`
@@ -901,6 +911,7 @@ export default function Messages() {
         n.close()
         if (convId) {
           setFocusComposerOnOpen(true)
+          if (messageId) setTargetMessageId(String(messageId))
           openConversation(convId)
         }
       }
@@ -951,10 +962,12 @@ export default function Messages() {
     if (!id) {
       setActiveId(null); setActiveConv(null)
       setMessages([]); setReplyToId(null)
+      setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
       setUserTyping(null); return
     }
     setActiveId(id)
     setReplyToId(null); setDraft('')
+    setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
     setLoadingMsgs(true); setMessages([])
     setUserTyping(null); setAtBottom(true)
     setShowScrollBtn(false)
@@ -963,11 +976,13 @@ export default function Messages() {
     setNewMsgsWhileScrolled(0)
 
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${id}`)
+      const res = await authFetch(`${API_BASE}/messages/conversations/${id}?limit=10`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
+      if (String(activeIdRef.current) !== String(id)) return
       setActiveConv(data.data)
       setMessages(data.data?.messages || [])
+      setHasMoreMessages(Boolean(data.data?.hasMoreMessages))
 
       authFetch(`${API_BASE}/messages/conversations/${id}/read`, { method: 'PATCH' }).catch(() => {})
 
@@ -981,13 +996,45 @@ export default function Messages() {
     }
   }, [])
 
-  // Admins land in the inbox first. Only notification/deep links may open a
-  // conversation automatically; never silently choose the first traveler chat.
+  const loadOlderMessages = useCallback(async () => {
+    const conversationId = activeIdRef.current
+    if (!conversationId || !hasMoreMessages || loadingOlderRef.current || !messages.length) return
+    const oldest = messages[0]
+    if (oldest?.id == null) return
+
+    loadingOlderRef.current = true
+    setLoadingOlderMessages(true)
+    try {
+      const params = new URLSearchParams({ limit: '10', beforeId: String(oldest.id) })
+      const res = await authFetch(`${API_BASE}/messages/conversations/${conversationId}?${params.toString()}`)
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload.message || 'Could not load earlier messages')
+      if (String(activeIdRef.current) !== String(conversationId)) return
+      const older = Array.isArray(payload.data?.messages) ? payload.data.messages : []
+      setMessages(current => {
+        const ids = new Set(current.map(message => String(message.id)))
+        return [...older.filter(message => !ids.has(String(message.id))), ...current]
+      })
+      setHasMoreMessages(Boolean(payload.data?.hasMoreMessages))
+    } catch (error) {
+      toast.error(error.message || 'Could not load earlier messages')
+    } finally {
+      loadingOlderRef.current = false
+      setLoadingOlderMessages(false)
+    }
+  }, [hasMoreMessages, messages, toast])
+
+  // Only explicit notification/deep links open a conversation automatically.
+  // Opening the Messages page normally always leaves the admin on the inbox list.
   useEffect(() => {
     if (!requestedConversationId || !conversations.length) return
     const target = conversations.find(c => String(c.id) === String(requestedConversationId))
     if (target && String(target.id) !== String(activeId)) openConversation(target.id)
   }, [requestedConversationId, conversations, activeId, openConversation])
+
+  useEffect(() => {
+    if (requestedMessageId) setTargetMessageId(String(requestedMessageId))
+  }, [requestedMessageId])
 
   // Notification deep-links open the requested thread and focus the reply composer.
   useEffect(() => {
@@ -1003,6 +1050,26 @@ export default function Messages() {
     requestAnimationFrame(() => textareaRef.current?.focus())
     setFocusComposerOnOpen(false)
   }, [focusComposerOnOpen, loadingMsgs, activeConv])
+
+  // Scroll a notification's exact message into view. If it is older than the
+  // initially loaded page, load earlier pages until it is found or history ends.
+  useEffect(() => {
+    if (!targetMessageId || loadingMsgs || !activeConv || !activeId) return
+    const nodes = scrollRef.current?.querySelectorAll('[data-message-id]') || []
+    const target = Array.from(nodes).find(node => node.getAttribute('data-message-id') === String(targetMessageId))
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target.classList.add('ring-2', 'ring-amber-300', 'rounded-xl')
+      const timer = window.setTimeout(() => target.classList.remove('ring-2', 'ring-amber-300', 'rounded-xl'), 2400)
+      setTargetMessageId(null)
+      return () => window.clearTimeout(timer)
+    }
+    if (hasMoreMessages) {
+      loadOlderMessages()
+      return
+    }
+    setTargetMessageId(null)
+  }, [targetMessageId, loadingMsgs, activeConv, activeId, messages, hasMoreMessages, loadOlderMessages])
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current
@@ -1023,7 +1090,19 @@ export default function Messages() {
     atBottomRef.current = bottom
     setShowScrollBtn(!bottom)
     if (bottom) setNewMsgsWhileScrolled(0)
-  }, [])
+
+    if (el.scrollTop <= 48 && hasMoreMessages && !loadingOlderRef.current) {
+      const previousHeight = el.scrollHeight
+      setAtBottom(false)
+      atBottomRef.current = false
+      loadOlderMessages().then(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const current = scrollRef.current
+          if (current) current.scrollTop = current.scrollHeight - previousHeight
+        }))
+      })
+    }
+  }, [hasMoreMessages, loadOlderMessages])
 
   // Auto-scroll on message load
   useEffect(() => {
@@ -1222,10 +1301,10 @@ export default function Messages() {
 
   const handleForwardToConversation = useCallback(async (targetId) => {
     if (!forwardMessage || !targetId || forwarding) return
-    const forwardedBody = `↪ Forwarded message from ${forwardMessage.senderName || (forwardMessage.senderType === 'admin' ? 'Altuvera Support' : 'Traveler')}:
-
-${String(forwardMessage.body || '').trim()}`
-    if (!forwardedBody.trim()) return
+    // Forward the text as a fresh admin-authored reply. The traveler sees the
+    // content and the authenticated admin's profile, not internal forward labels.
+    const forwardedBody = String(forwardMessage.body || '').trim()
+    if (!forwardedBody) return
     setForwarding(true)
     try {
       const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(targetId)}/messages`, {
@@ -1401,7 +1480,8 @@ ${String(forwardMessage.body || '').trim()}`
         showDesktopNotif(
           `New message from ${payload.senderName || payload.message?.senderName || payload.senderEmail || 'traveler'}`,
           payload.message?.body?.slice(0, 120) || 'New message',
-          payload.conversationId
+          payload.conversationId,
+          payload.message?.id || payload.messageId || payload.id
         )
       }
     }
@@ -1521,7 +1601,11 @@ ${String(forwardMessage.body || '').trim()}`
   return (
     <>
       {showNewChat && (
-        <NewChatModal onClose={() => setShowNewChat(false)} onCreated={handleNewConvCreated} />
+        <NewChatModal
+          onClose={() => setShowNewChat(false)}
+          onCreated={handleNewConvCreated}
+          existingUserIds={new Set(conversations.flatMap(conv => [conv.guestId, conv.guestUserId, conv.userId, conv.guest?.id].filter(value => value != null).map(String)))}
+        />
       )}
       {forwardMessage && (
         <ForwardMessageModal
@@ -1815,7 +1899,22 @@ ${String(forwardMessage.body || '').trim()}`
                     </div>
                   ) : (
                     <>
-                      {msgGroups.map(item =>
+                      {loadingOlderMessages && (
+                    <div className="flex justify-center py-2" aria-live="polite">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm">
+                        <RefreshCw size={12} className="animate-spin" /> Loading earlier messages…
+                      </span>
+                    </div>
+                  )}
+                  {hasMoreMessages && !loadingOlderMessages && (
+                    <div className="flex justify-center py-2">
+                      <button type="button" onClick={loadOlderMessages}
+                        className="rounded-full border border-emerald-100 bg-white px-3 py-1.5 text-[11px] font-bold text-emerald-700 shadow-sm hover:bg-emerald-50">
+                        Load earlier messages
+                      </button>
+                    </div>
+                  )}
+                  {msgGroups.map(item =>
                         item.type === 'sep' ? (
                           <DateSep key={item.key} label={item.label} />
                         ) : (
@@ -1851,11 +1950,12 @@ ${String(forwardMessage.body || '').trim()}`
                   )}
                 </div>
 
-                {/* Floating scroll-to-bottom button */}
+                {/* Floating scroll-to-bottom button, kept above the fixed composer */}
                 <ScrollBtn
                   visible={showScrollBtn}
                   onClick={() => scrollToBottom(true)}
                   unread={newMsgsWhileScrolled}
+                  composerVisible={composerVisible}
                 />
 
                 {/*
@@ -1892,7 +1992,7 @@ ${String(forwardMessage.body || '').trim()}`
 
                   {/* Input row */}
                   <div className="px-3 sm:px-5 py-3 bg-white">
-                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:bg-white focus-within:shadow-md transition-all">
+                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-transparent bg-white p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -1934,11 +2034,10 @@ ${String(forwardMessage.body || '').trim()}`
                         }
                       }}
                       rows={1}
-                      placeholder="Write a message…"
+                      placeholder="Message traveller…"
                       aria-label="Type a message"
-                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-100
-                                 bg-slate-50/70 outline-none leading-relaxed transition-all
-                                 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100
+                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
+                                 bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
                                  placeholder:text-slate-400"
                       style={{ minHeight: 40, maxHeight: 120 }}
                     />
