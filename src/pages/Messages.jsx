@@ -431,8 +431,33 @@ function NewChatModal({ onClose, onCreated, existingUserIds = new Set() }) {
   const [firstMsg, setFirstMsg] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
-  const eligibleUsers = users.filter(user => !existingUserIds.has(String(user.id)))
+  const [allConversationUserIds, setAllConversationUserIds] = useState(() => new Set())
+  const eligibleUsers = users.filter(user =>
+    !existingUserIds.has(String(user.id)) && !allConversationUserIds.has(String(user.id))
+  )
   const searchRef = useRef(null)
+
+  // Query the unfiltered inbox too: the visible inbox may currently be filtered
+  // by status or search, but users with any existing thread must not be offered
+  // as "new conversation" recipients.
+  useEffect(() => {
+    let cancelled = false
+    authFetch(`${API_BASE}/messages/conversations?limit=1000&active=all`)
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load existing conversations')
+        return response.json()
+      })
+      .then(payload => {
+        if (cancelled) return
+        const rows = Array.isArray(payload.data) ? payload.data : []
+        setAllConversationUserIds(new Set(rows.flatMap(conv =>
+          [conv.guestId, conv.guestUserId, conv.userId, conv.guest?.id]
+            .filter(value => value != null).map(String)
+        )))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const taRef = useRef(null)
 
   useEffect(() => { searchRef.current?.focus() }, [])
