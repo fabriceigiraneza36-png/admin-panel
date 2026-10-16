@@ -813,6 +813,30 @@ export default function Messages() {
   const loadingOlderRef = useRef(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
+  const [aiSuggestions, setAiSuggestions] = useState([])
+  const [aiSuggestionLanguage, setAiSuggestionLanguage] = useState('')
+  const aiSuggestionRequestRef = useRef(0)
+  useEffect(() => {
+    const value = draft.trim()
+    if (value.length < 12 || value.length > 700) { setAiSuggestions([]); return }
+    const requestId = ++aiSuggestionRequestRef.current
+    const timer = setTimeout(async () => {
+      try {
+        const token = getToken()
+        const response = await fetch(API_BASE + '/ai/message-suggestions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+          body: JSON.stringify({ text: value }), signal: AbortSignal.timeout(5000),
+        })
+        if (!response.ok) return
+        const result = await response.json()
+        if (requestId === aiSuggestionRequestRef.current) {
+          setAiSuggestions(Array.isArray(result.suggestions) ? result.suggestions.slice(0, 2) : [])
+          setAiSuggestionLanguage(result.language || '')
+        }
+      } catch (_) { /* Suggestions are best-effort; never interrupt chat. */ }
+    }, 650)
+    return () => clearTimeout(timer)
+  }, [draft])
   const [focusComposerOnOpen, setFocusComposerOnOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [presenceByConversation, setPresenceByConversation] = useState({})
