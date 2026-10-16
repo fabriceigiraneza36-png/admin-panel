@@ -13,7 +13,7 @@ import {
   PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
 import { useSocket } from '@context/SocketContext'
 import { API_BASE }  from '@utils/constants'
@@ -795,6 +795,7 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
 
 export default function Messages() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const requestedConversationId = searchParams.get('conversationId')
   const { user } = useAuth()
   const { connected, on, off, emit } = useSocket()
@@ -959,11 +960,15 @@ export default function Messages() {
 
   const openConversation = useCallback(async (id) => {
     if (!id) {
+      activeIdRef.current = null
       setActiveId(null); setActiveConv(null)
       setMessages([]); setReplyToId(null)
       setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
-      setUserTyping(null); return
+      setUserTyping(null); setLoadingMsgs(false)
+      setSidebarOpen(true)
+      return
     }
+    activeIdRef.current = String(id)
     setActiveId(id)
     setReplyToId(null); setDraft('')
     setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
@@ -994,6 +999,18 @@ export default function Messages() {
       setLoadingMsgs(false)
     }
   }, [])
+
+  // Only notification links should open a thread automatically. Entering
+  // the Messages page normally always starts at the full conversation list.
+  useEffect(() => {
+    if (!requestedConversationId || !conversations.length) return
+    const target = conversations.find(c => String(c.id) === String(requestedConversationId))
+    if (target) {
+      setFocusComposerOnOpen(true)
+      openConversation(target.id)
+      setSidebarOpen(false)
+    }
+  }, [requestedConversationId, conversations, openConversation])
 
   const loadOlderMessages = useCallback(async () => {
     const conversationId = activeIdRef.current
@@ -1181,6 +1198,7 @@ export default function Messages() {
           clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
+            toast.success('Message sent to user')
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
             toast.error(ack?.error || 'The message could not be sent. Please try again.')
@@ -1207,6 +1225,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
+          toast.success('Message sent to user')
         }
       } else {
         const payload = await res.json().catch(() => ({}))
