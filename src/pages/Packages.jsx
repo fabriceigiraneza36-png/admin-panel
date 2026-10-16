@@ -95,6 +95,7 @@ const INFO_REQUEST_THEMES = [
 const INIT_PACKAGE = {
    // Primary fields for image-based package creation
    title: '', 
+   poster_mode: 'poster',
    cover_image_url: '', 
    destination_id: '',
    destination_name: '',
@@ -887,11 +888,25 @@ export default function Packages() {
      
      setSaving(true)
      try {
+       const imageGallery = [...new Set([...(Array.isArray(form.images) ? form.images : []), ...(Array.isArray(form.gallery) ? form.gallery : []), form.cover_image_url].map(item => typeof item === 'string' ? item.trim() : String(item?.url || item?.image_url || '').trim()).filter(Boolean))]
+       const mode = form.poster_mode === 'manual' ? 'manual' : 'poster'
+       if (mode === 'manual' && imageGallery.length < 2) {
+         toast.error('Manual packages need at least two images. Add them in the Gallery section.')
+         setSaving(false)
+         return
+       }
        const payload = {
-         cover_image_url: form.cover_image_url,
+         title: form.title, description: form.description, short_description: form.short_description,
+         poster_mode: mode, cover_image_url: form.cover_image_url,
+         poster_image_url: mode === 'poster' ? form.cover_image_url : '',
+         image_gallery: mode === 'poster' ? [form.cover_image_url] : imageGallery,
          destination_id: form.destination_id ? Number(form.destination_id) : null,
-         is_published: form.is_published,
-         is_featured: form.is_featured,
+         price: form.price === '' ? null : Number(form.price), currency: form.currency || 'USD',
+         duration_days: form.duration_days === '' ? null : Number(form.duration_days),
+         duration_nights: form.duration_nights === '' ? null : Number(form.duration_nights),
+         category: form.category, highlights: form.highlights || form.features || [],
+         inclusions: form.inclusions || [], exclusions: form.exclusions || [],
+         is_published: form.is_published, is_featured: form.is_featured,
        }
        if (editing) {
          await packagesAPI.update(editing.id, payload)
@@ -1535,7 +1550,28 @@ export default function Packages() {
          <div className="space-y-3">
 
            {/* Media - PRIMARY FOCUS FOR IMAGE-BASED PACKAGE CREATION */}
-           <Section id="media" title="Package Image"
+           <Section id="basic" title="Package creation method" icon={Package} open={openSecs.basic} onToggle={toggleSec}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button type="button" onClick={() => upd('poster_mode', 'poster')} className={`rounded-2xl border-2 p-4 text-left transition-all ${form.poster_mode !== 'manual' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                <strong className="block text-sm text-slate-800">Designed poster image</strong><span className="mt-1 block text-xs text-slate-500">One finished poster image; it fills the public package card.</span>
+              </button>
+              <button type="button" onClick={() => upd('poster_mode', 'manual')} className={`rounded-2xl border-2 p-4 text-left transition-all ${form.poster_mode === 'manual' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                <strong className="block text-sm text-slate-800">Manual package details</strong><span className="mt-1 block text-xs text-slate-500">At least two gallery images plus separate details.</span>
+              </button>
+            </div>
+            <div className="input-group mt-4"><label className="input-label">Package title</label><input className="input" value={form.title} onChange={e => upd('title', e.target.value)} placeholder="8-Day Volcanoes & Gorilla Trekking" /></div>
+            <div className="input-group mt-3"><label className="input-label">Short description</label><textarea className="input min-h-[75px] resize-y" value={form.short_description} onChange={e => upd('short_description', e.target.value)} placeholder="Short summary for the package card" /></div>
+            <div className="input-group mt-3"><label className="input-label">Full description</label><textarea className="input min-h-[120px] resize-y" value={form.description} onChange={e => upd('description', e.target.value)} placeholder="Full trip description and experience" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div className="input-group"><label className="input-label">Starting price</label><input className="input" type="number" min="0" value={form.price} onChange={e => upd('price', e.target.value)} /></div>
+              <div className="input-group"><label className="input-label">Category</label><input className="input" value={form.category} onChange={e => upd('category', e.target.value)} placeholder="Wildlife, hiking, culture…" /></div>
+              <div className="input-group"><label className="input-label">Duration (days)</label><input className="input" type="number" min="1" value={form.duration_days} onChange={e => upd('duration_days', e.target.value)} /></div>
+              <div className="input-group"><label className="input-label">Duration (nights)</label><input className="input" type="number" min="0" value={form.duration_nights} onChange={e => upd('duration_nights', e.target.value)} /></div>
+            </div>
+            {form.poster_mode === 'manual' && <div className="input-group mt-4"><label className="input-label">Gallery image URLs (at least 2)</label><textarea className="input min-h-[100px] resize-y" value={(form.images || []).map(item => typeof item === 'string' ? item : item?.url || item?.image_url || '').join('\n')} onChange={e => upd('images', e.target.value.split('\n').map(x => x.trim()).filter(Boolean))} placeholder={'Paste one image URL per line\nhttps://…/adventure-1.jpg\nhttps://…/adventure-2.jpg'} /><p className="text-xs text-slate-500 mt-1">The first image is the cover; all images appear in the slideshow.</p></div>}
+          </Section>
+
+          <Section id="media" title="Package Image"
              icon={Image} open={openSecs.media} onToggle={toggleSec}>
              <div className="text-center mb-4">
                <p className="text-sm text-slate-500">
