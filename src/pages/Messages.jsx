@@ -1813,7 +1813,7 @@ export default function Messages() {
                 <div className="flex-shrink-0 min-w-0 flex items-center justify-between px-3 sm:px-5 py-3
                                 bg-white border-b border-slate-200 z-10">
                   <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                    <button onClick={() => { navigate("/admin/messages", { replace: true }); openConversation(null); setSidebarOpen(true) }} aria-label="Back"
+                    <button onClick={() => { navigate("/messages", { replace: true }); openConversation(null); setSidebarOpen(true) }} aria-label="Back"
                       className="md:hidden -ml-1 p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition">
                       <ArrowLeft size={18} />
                     </button>
