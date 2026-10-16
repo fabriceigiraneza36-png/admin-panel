@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, Activity, Globe2, MapPin,
   CalendarCheck, Users, FileText, Mail,
-  MessageSquare, Eye, TrendingUp, AlertCircle,
+  MessageSquare, TrendingUp, AlertCircle,
 } from 'lucide-react'
 import { useAuth }             from '@hooks/useAuth'
 import { useToast }            from '@hooks/useToast'
@@ -88,7 +88,7 @@ export default function Dashboard() {
         bookingStatsRes,
       ] = await Promise.all([
         safeFetch(() => apiClient.get('/countries',    { params: { limit: 1, page: 1 } })),
-        safeFetch(() => apiClient.get('/destinations', { params: { limit: 1, page: 1 } })),
+        safeFetch(() => apiClient.get('/destinations', { params: { limit: 12, page: 1, sortBy: 'created_at', order: 'desc' } })),
         safeFetch(() => apiClient.get('/bookings',     { params: { limit: 8, page: 1, sortBy: 'created_at', order: 'desc' } })),
         safeFetch(() => apiClient.get('/users',        { params: { limit: 1, page: 1 } })),
         safeFetch(() => apiClient.get('/posts',        { params: { limit: 1, page: 1 } })),
@@ -126,7 +126,7 @@ export default function Dashboard() {
         destinationsRes?.data?.destinations ??
         destinationsRes?.data?.items ??
         []
-      setDestinations(Array.isArray(destinationRows) ? destinationRows.slice(0, 6) : [])
+      setDestinations(Array.isArray(destinationRows) ? destinationRows.slice(0, 12) : [])
 
       setStats({
         countries:       getTotal(countriesRes),
@@ -137,8 +137,7 @@ export default function Dashboard() {
         subscribers:     getTotal(subscribersRes),
         messages:        getTotal(contactRes),
         unreadMessages:  contactRes?.data?.unread ?? 0,
-        totalViews:      bStats.totalViews    ?? 0,
-        publishedPosts:  bStats.publishedPosts ?? 0,
+          publishedPosts:  bStats.publishedPosts ?? 0,
         pendingBookings: bStats.pending        ?? 0,
         confirmedBookings: bStats.confirmed    ?? 0,
       })
@@ -252,13 +251,6 @@ export default function Dashboard() {
       color:      'orange',
       subtitle:   stats.unreadMessages > 0 ? `${stats.unreadMessages} unread` : 'All read',
       onClick:    () => navigate('/contact'),
-    },
-    {
-      title:      'Page Views',
-      value:      stats.totalViews,
-      icon:       Eye,
-      color:      'blue',
-      subtitle:   'Across all destinations',
     },
   ] : []
 
