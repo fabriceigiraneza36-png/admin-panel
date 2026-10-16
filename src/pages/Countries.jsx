@@ -1614,9 +1614,18 @@ export default function Countries() {
                   <ModalField label="Gallery"      value={`${(viewModal.data.gallery || []).length} photo(s)`} />
                 </ModalGrid>
               </ModalSection>
-              <ModalSection title="Complete record — no fields hidden">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-auto max-h-[420px]">
-                  <pre className="text-[11px] leading-5 text-slate-600 whitespace-pre-wrap break-words">{JSON.stringify(c, null, 2)}</pre>
+              <ModalSection title="Complete country record — all saved fields">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
+                  {Object.entries(c || {}).map(([key, value], index) => {
+                    const Icon = /image|photo|gallery|hero|banner|flag/i.test(key) ? ImageIcon : /country|region|location|address|capital|latitude|longitude|airport/i.test(key) ? MapPin : /population|area|size/i.test(key) ? Globe2 : /currency|cost|price|fee/i.test(key) ? DollarSign : /date|duration|time|hour|timezone/i.test(key) ? Clock : /language|people|ethnic|religion/i.test(key) ? Languages : /attraction|destination|activity|wildlife|tip/i.test(key) ? Compass : /status|active|featured|popular|eco|family/i.test(key) ? Shield : /description|overview|content|faq|meta/i.test(key) ? BookOpen : FileText
+                    const displayValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
+                    return (
+                      <motion.article key={key} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.01,.2)}} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                        <div className="flex items-center gap-2 mb-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={15}/></span><span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
+                        <div className="text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">{displayValue}</div>
+                      </motion.article>
+                    )
+                  })}
                 </div>
               </ModalSection>
 
