@@ -1007,8 +1007,9 @@ export default function Countries() {
         String(item?.name || item?.title || '').trim() &&
         imageUrlOf(item?.imageUrl || item?.image_url || item?.image || item?.url)
       ).length
+      const heroImages = [...new Set((Array.isArray(form.gallery) ? form.gallery : []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(imageUrlOf).filter(Boolean))]
       if (uniqueImages.length < MIN_COUNTRY_IMAGES) e.gallery = `At least ${MIN_COUNTRY_IMAGES} valid, unique country images are required (4 hero + attraction/gallery images). Currently: ${uniqueImages.length}/${MIN_COUNTRY_IMAGES}.`
-      if (uniqueImages.slice(0, HERO_COUNTRY_IMAGE_COUNT).length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = `The first ${HERO_COUNTRY_IMAGE_COUNT} country images are required for the hero slideshow.`
+      if (heroImages.length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = `The first ${HERO_COUNTRY_IMAGE_COUNT} gallery slots must contain valid, unique hero images. Currently: ${heroImages.length}/${HERO_COUNTRY_IMAGE_COUNT}.`
       if ((form.attractions || []).length < 4) e.attractions = 'Add at least 4 country attractions'
       else if (completeAttractions < 4) e.attractions = 'Every country attraction must have a name and image'
       if (!form.latitude || !form.longitude) e.coordinates = 'Latitude and longitude are required so this country can appear correctly on the interactive map'
