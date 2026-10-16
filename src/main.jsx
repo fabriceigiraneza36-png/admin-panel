@@ -4,6 +4,7 @@ import { Provider } from 'react-redux'
 import { Toaster } from 'react-hot-toast'
 import { store } from '@store/index'
 import App from './App'
+import { ErrorTraceMonitor } from '@components/common/ErrorTraceModal'
 import '@styles/globals.css'
 
 /* ── Global error handlers ── */
@@ -19,6 +20,7 @@ if (!root) {
         <React.StrictMode>
             <Provider store={store}>
                 <App />
+                <ErrorTraceMonitor />
                 <Toaster
                     position="top-right"
                     gutter={8}
