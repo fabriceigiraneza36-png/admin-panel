@@ -877,24 +877,34 @@ export default function Packages() {
   // ── Save ───────────────────────────────────────────────────────────────────
 
    const handleSave = async () => {
-     if (!form.cover_image_url) {
-       toast.error('Please upload a package poster image')
+     const imageUrlOf = (item) => {
+       if (typeof item === 'string') return item.trim()
+       if (!item || typeof item !== 'object') return ''
+       return String(item.url || item.imageUrl || item.image_url || item.imageURL || item.src || '').trim()
+     }
+     const coverImage = imageUrlOf(form.cover_image_url || form.thumbnail_url || form.poster_image_url)
+     if (!coverImage) {
+       toast.error('Please add a valid package poster image URL before saving.')
        return
      }
      if (!form.destination_id) {
        toast.error('Please select the destination this package belongs to')
        return
      }
-     
+     const imageGallery = [...new Set([
+       ...(Array.isArray(form.images) ? form.images : []),
+       ...(Array.isArray(form.gallery) ? form.gallery : []),
+       ...(Array.isArray(form.image_gallery) ? form.image_gallery : []),
+       coverImage,
+     ].map(imageUrlOf).filter(Boolean))]
+     const mode = form.poster_mode === 'manual' ? 'manual' : 'poster'
+     if (mode === 'manual' && imageGallery.length < 2) {
+       toast.error(`Manual packages need at least 2 valid, unique images. You currently have ${imageGallery.length}; add ${2 - imageGallery.length} more in the Gallery section.`)
+       return
+     }
+
      setSaving(true)
      try {
-       const imageGallery = [...new Set([...(Array.isArray(form.images) ? form.images : []), ...(Array.isArray(form.gallery) ? form.gallery : []), form.cover_image_url].map(item => typeof item === 'string' ? item.trim() : String(item?.url || item?.image_url || '').trim()).filter(Boolean))]
-       const mode = form.poster_mode === 'manual' ? 'manual' : 'poster'
-       if (mode === 'manual' && imageGallery.length < 2) {
-         toast.error('Manual packages need at least two images. Add them in the Gallery section.')
-         setSaving(false)
-         return
-       }
        const payload = {
          title: form.title, description: form.description, short_description: form.short_description,
          poster_mode: mode, cover_image_url: form.cover_image_url,
