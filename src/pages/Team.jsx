@@ -18,7 +18,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   UserCircle, Plus, Pencil, Trash2, RefreshCw, Eye, Star,
-  Mail, Phone, Globe,
+  Mail, Phone, Globe, FileText, MapPin, Shield, Link as LinkIcon, Languages, Briefcase,
 } from 'lucide-react'
 
 import { teamAPI }         from '@api/team'
@@ -107,6 +107,8 @@ const parseArray = (value) => {
   }
   return []
 }
+
+@keyframes teamFieldEnter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ─── Mobile Card ──────────────────────────────────────────────────────────── */
 
@@ -520,6 +522,24 @@ export default function TeamPage() {
                 value={`${viewModal.data.years_experience || 0} years`}
               />
             </ModalGrid>
+
+            <ModalSection title="Complete team-member record — all saved fields">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[480px] overflow-y-auto pr-1">
+                {Object.entries(viewModal.data || {}).map(([key, value], index) => {
+                  const Icon = /image|photo|avatar/i.test(key) ? UserCircle : /email/i.test(key) ? Mail : /phone|whatsapp/i.test(key) ? Phone : /country|location|address|city/i.test(key) ? MapPin : /language/i.test(key) ? Languages : /linkedin|twitter|instagram|website|url/i.test(key) ? LinkIcon : /role|department|expertise/i.test(key) ? Briefcase : /active|featured|status/i.test(key) ? Shield : FileText
+                  const displayValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
+                  return (
+                    <div key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md" style={{ animation: 'teamFieldEnter .28s ease both', animationDelay: `${Math.min(index * 12, 220)}ms` }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600"><Icon size={15}/></span>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g, ' ')}</span>
+                      </div>
+                      <div className="text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">{displayValue}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </ModalSection>
 
             {/* Expertise / Languages */}
             {(parseArray(viewModal.data.expertise).length > 0 ||
