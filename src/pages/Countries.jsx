@@ -1,7 +1,7 @@
 // admin/src/pages/Countries.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Globe2, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
+  Globe2, Plus, Eye, Pencil, Trash2, RefreshCw, Star, FileText,
   MapPin, DollarSign, Image as ImageIcon, Info, Check,
   ChevronRight, ChevronLeft, AlertTriangle, Zap,
   Languages, Lightbulb, Heart, BookOpen, Camera, Shield,
