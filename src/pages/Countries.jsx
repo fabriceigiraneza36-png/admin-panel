@@ -996,10 +996,19 @@ export default function Countries() {
       if (!form.continent)   e.continent = 'Please select a continent'
     }
     if (stepId === 'media') {
-      const images = Array.isArray(form.gallery) ? form.gallery.filter(image => String(image?.url || '').trim()) : []
-      const completeAttractions = (Array.isArray(form.attractions) ? form.attractions : []).filter(item => String(item?.name || '').trim() && String(item?.imageUrl || item?.image_url || '').trim()).length
-      if (images.length < MIN_COUNTRY_IMAGES) e.gallery = 'At least 9 country images are required (4 hero + attraction/gallery images)'
-      if (images.slice(0, HERO_COUNTRY_IMAGE_COUNT).length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = 'The first 4 country images are required as the hero slideshow'
+      const imageUrlOf = (image) => {
+        if (typeof image === 'string') return image.trim()
+        if (!image || typeof image !== 'object') return ''
+        return String(image.url || image.imageUrl || image.image_url || image.imageURL || image.src || '').trim()
+      }
+      const images = Array.isArray(form.gallery) ? form.gallery.map(imageUrlOf).filter(Boolean) : []
+      const uniqueImages = [...new Set(images)]
+      const completeAttractions = (Array.isArray(form.attractions) ? form.attractions : []).filter(item =>
+        String(item?.name || item?.title || '').trim() &&
+        imageUrlOf(item?.imageUrl || item?.image_url || item?.image || item?.url)
+      ).length
+      if (uniqueImages.length < MIN_COUNTRY_IMAGES) e.gallery = `At least ${MIN_COUNTRY_IMAGES} valid, unique country images are required (4 hero + attraction/gallery images). Currently: ${uniqueImages.length}/${MIN_COUNTRY_IMAGES}.`
+      if (uniqueImages.slice(0, HERO_COUNTRY_IMAGE_COUNT).length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = `The first ${HERO_COUNTRY_IMAGE_COUNT} country images are required for the hero slideshow.`
       if ((form.attractions || []).length < 4) e.attractions = 'Add at least 4 country attractions'
       else if (completeAttractions < 4) e.attractions = 'Every country attraction must have a name and image'
       if (!form.latitude || !form.longitude) e.coordinates = 'Latitude and longitude are required so this country can appear correctly on the interactive map'
