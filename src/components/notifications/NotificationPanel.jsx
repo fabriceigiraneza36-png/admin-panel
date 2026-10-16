@@ -20,7 +20,7 @@ const formatDate = (dateStr) => {
 const typeStyles = (type = "") => {
   const t = String(type || "").toLowerCase();
   if (t.startsWith("booking") || t.includes("booking"))
-    return { dot: "bg-blue-500", badge: "bg-blue-100 text-blue-700" };
+    return { dot: "bg-blue-500", badge: "bg-emerald-600 text-white shadow-sm" };
   if (t.includes("alert") || t.includes("error") || t.includes("fail") || t.includes("critical"))
     return { dot: "bg-red-500", badge: "bg-red-100 text-red-700" };
   if (t.includes("success") || t.includes("done") || t.includes("complete"))
@@ -346,10 +346,7 @@ export default function NotificationPanel() {
           ref={panelRef}
           role="dialog"
           aria-label="Notifications panel"
-          className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl
-                     shadow-xl border border-gray-200 z-50 flex flex-col
-                     max-h-[520px] overflow-hidden transition-all duration-150"
-          style={{ top: "calc(100% + 8px)" }}
+          className="fixed inset-x-3 top-[5.4rem] z-[100] flex max-h-[min(76dvh,680px)] flex-col overflow-hidden rounded-[24px] border border-emerald-100 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:w-[min(440px,calc(100vw-2rem))] sm:max-h-[min(640px,calc(100vh-7rem))]" style={{ transformOrigin: "top right", animation: "notif-enter 220ms ease-out" }}
         >
           {/* Header */}
           <div
@@ -380,7 +377,7 @@ export default function NotificationPanel() {
                               transition-colors ${
                                 filter === f
                                   ? "bg-blue-100 text-blue-700"
-                                  : "text-gray-500 hover:bg-gray-100"
+                                  : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-800"
                               }`}
                 >
                   {f}
@@ -415,7 +412,7 @@ export default function NotificationPanel() {
           )}
 
           {/* Main List Scroller */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
             {loading && displayed.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <div
@@ -469,6 +466,7 @@ export default function NotificationPanel() {
             >
               View all notifications →
             </a>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live</span>
           </div>
         </div>
       )}
