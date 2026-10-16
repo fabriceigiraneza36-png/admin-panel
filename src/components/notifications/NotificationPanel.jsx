@@ -62,6 +62,8 @@ function BellIcon({ className = "w-5 h-5" }) {
 // ── Single Notification Row ────────────────────────────────────────────────
 
 function NotifRow({ notif, onMarkRead, onDelete }) {
+  const swipeStartX = useRef(null);
+  const swipeDeltaX = useRef(0);
   const { dot, badge } = typeStyles(notif?.type);
   const notifId = getNotifId(notif);
 
@@ -94,6 +96,10 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
                   cursor-pointer focus:outline-none focus:bg-gray-50 ${
                     notif.is_read ? "opacity-75" : "bg-blue-50/20"
                   }`}
+      style={{ touchAction: "pan-y", transition: "transform 120ms ease-out, opacity 120ms ease-out" }}
+      onTouchStart={(e) => { swipeStartX.current = e.touches[0]?.clientX ?? null; swipeDeltaX.current = 0; }}
+      onTouchMove={(e) => { if (swipeStartX.current === null) return; swipeDeltaX.current = e.touches[0].clientX - swipeStartX.current; e.currentTarget.style.transform = "translateX(" + swipeDeltaX.current + "px)"; e.currentTarget.style.opacity = String(Math.max(.25, 1 - Math.abs(swipeDeltaX.current) / 260)); }}
+      onTouchEnd={(e) => { const delta = swipeDeltaX.current; swipeStartX.current = null; swipeDeltaX.current = 0; if (Math.abs(delta) > 95) { if (notifId && typeof onDelete === "function") onDelete(notifId); } else { e.currentTarget.style.transform = ""; e.currentTarget.style.opacity = ""; } }}
     >
       {/* Dot indicators */}
       <span
