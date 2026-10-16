@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   Package, Plus, Eye, Pencil, Trash2, RefreshCw,
-  Globe2, EyeOff, Star, DollarSign, Calendar,
+  Globe2, EyeOff, Star, DollarSign, Calendar, MapPin,
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
@@ -13,6 +13,7 @@ import {
 import { packagesAPI, getErrorMessage } from '@api/packages'
 import apiClient from '@api/client'
 import { useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 
 // ── Admin common components ───────────────────────────────────────────────────
 import Table, { TableActions, TableAction } from '@components/common/Table'
