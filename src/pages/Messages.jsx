@@ -805,6 +805,7 @@ export default function Messages() {
   const [activeConv, setActiveConv] = useState(null)
   const [messages, setMessages] = useState([])
   const [loadingList, setLoadingList] = useState(true)
+  const [conversationLoadError, setConversationLoadError] = useState('')
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
@@ -930,10 +931,12 @@ export default function Messages() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (requestId === conversationRequestRef.current) {
-        setConversations(data.data || [])
+        setConversations(Array.isArray(data.data) ? data.data : [])
+        setConversationLoadError('')
         conversationsLoadedRef.current = true
       }
     } catch (err) {
+      if (requestId === conversationRequestRef.current) setConversationLoadError('Could not load conversations. Check your connection and refresh to try again.')
       console.error('[AdminMessages] load error:', err.message)
     } finally {
       if (firstLoad) setLoadingList(false)
@@ -1160,14 +1163,27 @@ export default function Messages() {
     setDraft(''); setReplyToId(null)
 
     if (connected && emit) {
+      let ackHandled = false
+      const ackTimer = setTimeout(() => {
+        if (ackHandled) return
+        ackHandled = true
+        setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+        setSending(false)
+        toast.error('Message delivery was not confirmed. Refresh the conversation before retrying.')
+        loadConversations()
+      }, 12000)
       emit(
         'msg:admin-send',
         { conversationId: convId, body: outDraft, replyToId: outReply || undefined },
         (ack) => {
+          if (ackHandled) return
+          ackHandled = true
+          clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+            toast.error(ack?.error || 'The message could not be sent. Please try again.')
           }
           setSending(false)
           loadConversations()
@@ -1201,7 +1217,7 @@ export default function Messages() {
       setSending(false)
       loadConversations()
     }
-  }, [draft, sending, connected, emit, user, loadConversations, replyToId, emitAdminTyping])
+  }, [draft, sending, connected, emit, user, loadConversations, replyToId, emitAdminTyping, toast])
 
   const toggleReaction = useCallback(async (messageId, emoji) => {
     const convId = activeIdRef.current
@@ -1707,6 +1723,12 @@ export default function Messages() {
 
             {/* SCROLLABLE list */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
+              {conversationLoadError && conversations.length === 0 && !loadingList && (
+                <div className="m-3 rounded-xl border border-rose-200 bg-rose-50 p-3" role="alert">
+                  <p className="text-xs font-semibold text-rose-700">{conversationLoadError}</p>
+                  <button type="button" onClick={loadConversations} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100"><RefreshCw size={12}/> Try again</button>
+                </div>
+              )}
               {loadingList && conversations.length === 0 ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 border-b border-slate-100 animate-pulse">
