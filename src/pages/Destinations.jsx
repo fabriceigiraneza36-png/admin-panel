@@ -1421,10 +1421,18 @@ const normaliseGalleries = (dest) => {
     // Existing destinations may predate the current media requirements. Keep them editable;
     // enforce the full media checklist when creating a new destination.
     if (stepId === 'media') {
-      const heroCount = (form.hero_slides || []).filter(Boolean).length
-      const galleryCount = (form.gallery || []).filter(Boolean).length + (form.library_images || []).filter(Boolean).length
-      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = `${HERO_IMAGE_COUNT - heroCount} image${HERO_IMAGE_COUNT - heroCount === 1 ? '' : 's'} missing on hero slideshow`
-      if (galleryCount < 5) e.gallery = `${5 - galleryCount} attraction image${5 - galleryCount === 1 ? '' : 's'} missing`
+      const imageUrlOf = (item) => {
+        if (typeof item === 'string') return item.trim()
+        if (!item || typeof item !== 'object') return ''
+        return String(item.url || item.imageUrl || item.image_url || item.imageURL || item.src || '').trim()
+      }
+      const heroCount = [...new Set((form.hero_slides || []).map(imageUrlOf).filter(Boolean))].length
+      const galleryCount = [...new Set([
+        ...(form.gallery || []).map(imageUrlOf),
+        ...(form.library_images || []).map(imageUrlOf),
+      ].filter(Boolean))].length
+      if (heroCount < HERO_IMAGE_COUNT) e.hero_slides = `${HERO_IMAGE_COUNT - heroCount} valid hero image${heroCount === HERO_IMAGE_COUNT - 1 ? '' : 's'} missing`
+      if (galleryCount < 5) e.gallery = `${5 - galleryCount} valid attraction/gallery image${galleryCount === 4 ? '' : 's'} missing`
     }
     setErrors(e)
     if (e.hero_slides) toast.error(e.hero_slides)
