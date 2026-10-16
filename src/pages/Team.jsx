@@ -16,6 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import {
   UserCircle, Plus, Pencil, Trash2, RefreshCw, Eye, Star,
   Mail, Phone, Globe, FileText, MapPin, Shield, Link as LinkIcon, Languages, Briefcase,
@@ -527,13 +528,13 @@ export default function TeamPage() {
                   const Icon = /image|photo|avatar/i.test(key) ? UserCircle : /email/i.test(key) ? Mail : /phone|whatsapp/i.test(key) ? Phone : /country|location|address|city/i.test(key) ? MapPin : /language/i.test(key) ? Languages : /linkedin|twitter|instagram|website|url/i.test(key) ? LinkIcon : /role|department|expertise/i.test(key) ? Briefcase : /active|featured|status/i.test(key) ? Shield : FileText
                   const displayValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
                   return (
-                    <div key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md" style={{ animation: 'teamFieldEnter .28s ease both', animationDelay: `${Math.min(index * 12, 220)}ms` }}>
+                    <motion.div key={key} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: Math.min(index * 0.012, 0.22) }} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600"><Icon size={15}/></span>
                         <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g, ' ')}</span>
                       </div>
                       <div className="text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">{displayValue}</div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
