@@ -1209,10 +1209,13 @@ export default function Messages() {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
         }
       } else {
+        const payload = await res.json().catch(() => ({}))
         setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+        toast.error(payload.message || 'The message could not be sent. Please try again.')
       }
-    } catch {
+    } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+      toast.error(error?.message || 'The message could not be sent. Check your connection.')
     } finally {
       setSending(false)
       loadConversations()
