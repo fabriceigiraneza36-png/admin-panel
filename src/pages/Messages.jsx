@@ -2071,6 +2071,13 @@ export default function Messages() {
                                  placeholder:text-slate-400"
                       style={{ minHeight: 40, maxHeight: 120 }}
                     />
+                    {aiSuggestions.length > 0 && (
+                      <div className="absolute bottom-[calc(100%+8px)] left-2 right-2 z-30 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl shadow-slate-900/10 sm:left-12" role="group" aria-label="Optional writing suggestions">
+                        <div className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700">{aiSuggestionLanguage ? "Suggestion · " + aiSuggestionLanguage : "Writing suggestion"}</div>
+                        {aiSuggestions.map((suggestion, index) => <button key={index} type="button" onClick={() => { setDraft(suggestion); setAiSuggestions([]); }} className="block w-full rounded-lg px-2 py-2 text-left text-xs leading-relaxed text-slate-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">{suggestion}</button>)}
+                        <button type="button" onClick={() => setAiSuggestions([])} className="mt-1 px-2 py-1 text-[10px] font-semibold text-slate-400 hover:text-slate-700">Dismiss</button>
+                      </div>
+                    )}
 
                     {/* Send button */}
                     <button onClick={sendMessage}
