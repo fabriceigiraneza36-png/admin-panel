@@ -907,9 +907,9 @@ export default function Packages() {
      try {
        const payload = {
          title: form.title, description: form.description, short_description: form.short_description,
-         poster_mode: mode, cover_image_url: form.cover_image_url,
-         poster_image_url: mode === 'poster' ? form.cover_image_url : '',
-         image_gallery: mode === 'poster' ? [form.cover_image_url] : imageGallery,
+         poster_mode: mode, cover_image_url: coverImage,
+         poster_image_url: mode === 'poster' ? coverImage : '',
+         image_gallery: mode === 'poster' ? [coverImage] : imageGallery,
          destination_id: form.destination_id ? Number(form.destination_id) : null,
          price: form.price === '' ? null : Number(form.price), currency: form.currency || 'USD',
          duration_days: form.duration_days === '' ? null : Number(form.duration_days),
@@ -1503,25 +1503,61 @@ export default function Packages() {
               ))}
             </div>
 
-             {/* Poster-first package overview: only the linked destination is shown. */}
              {activeTab === 'details' && (
-               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
-                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">Destination</p>
-                 <div className="flex items-center gap-3">
-                   <div className="h-11 w-11 rounded-xl bg-white border border-emerald-100 grid place-items-center text-emerald-600"><MapPin size={19} /></div>
-                   <div className="min-w-0">
-                     <p className="text-base font-bold text-slate-800">
-                       {(() => {
-                         const raw = viewModal.data.destination_name || viewModal.data.destination;
-                         return typeof raw === 'string' ? raw : String(raw?.name || raw?.title || raw?.slug || 'Destination not linked');
-                       })()}
-                     </p>
-                     <p className="text-xs text-slate-400 mt-0.5">Linked destination for this package</p>
+               <div className="space-y-4">
+                 <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
+                   <div className="flex items-center gap-3 mb-4">
+                     <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
+                     <div className="min-w-0">
+                       <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
+                       <p className="text-base font-bold text-slate-800 break-words">
+                         {(() => {
+                           const raw = viewModal.data.destination_name || viewModal.data.destination;
+                           return typeof raw === 'string' ? raw : String(raw?.name || raw?.title || raw?.slug || 'Destination not linked');
+                         })()}
+                       </p>
+                     </div>
+                   </div>
+                   {(viewModal.data.description || viewModal.data.short_description) && (
+                     <p className="text-sm leading-6 text-slate-600">{viewModal.data.short_description || viewModal.data.description}</p>
+                   )}
+                 </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                   {[
+                     ['Price', DollarSign, viewModal.data.price != null ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : 'Not specified'],
+                     ['Duration', Calendar, viewModal.data.duration_days ? `${viewModal.data.duration_days} days / ${viewModal.data.duration_nights ?? '—'} nights` : 'Not specified'],
+                     ['Category', Tag, viewModal.data.category || 'Not specified'],
+                     ['Travelers', Users, viewModal.data.min_travelers || viewModal.data.max_travelers ? `${viewModal.data.min_travelers || 1}–${viewModal.data.max_travelers || '—'} travelers` : 'Not specified'],
+                     ['Image mode', Image, viewModal.data.poster_mode || 'poster'],
+                     ['Publication', CheckCircle, viewModal.data.is_published ? 'Published' : 'Unpublished'],
+                   ].map(([label, Icon, value]) => (
+                     <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
+                       <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
+                     </div>
+                   ))}
+                 </div>
+                 <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                   <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
+                     <FileText size={16} className="text-emerald-600"/>
+                     <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
+                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.keys(viewModal.data || {}).length} fields</span>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
+                     {Object.entries(viewModal.data || {}).map(([key, value], index) => {
+                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
+                       const textValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+                       return (
+                         <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
+                           <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
+                           <div className="text-xs leading-5 text-slate-700 break-words whitespace-pre-wrap">{textValue}</div>
+                         </motion.div>
+                       );
+                     })}
                    </div>
                  </div>
                </div>
              )}
-
              {activeTab === 'bookings' && <TabBookings />}
           </div>
         )}
