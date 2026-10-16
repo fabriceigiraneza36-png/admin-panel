@@ -12,6 +12,7 @@ import {
 import ProtectedRoute from '@components/common/ProtectedRoute'
 import Loader         from '@components/common/Loader'
 import { AdminLayout } from '@components/common/Sidebar'
+import { ErrorTraceModal } from '@components/common/ErrorTraceModal'
 
 // ── Page imports — all eager to avoid Vercel chunk 404s ──────────────────────
 
@@ -69,39 +70,12 @@ class RouteErrorBoundary extends Component {
         if (!this.state.hasError) return this.props.children
 
         return (
-            <div
-                style={{
-                    display:        'flex',
-                    flexDirection:  'column',
-                    alignItems:     'center',
-                    justifyContent: 'center',
-                    minHeight:      '100vh',
-                    gap:            '12px',
-                    fontFamily:     'Inter, system-ui, sans-serif',
-                    background:     '#f9fafb',
-                    padding:        '24px',
-                    textAlign:      'center',
-                }}
-            >
-                <p style={{ fontSize: '16px', color: '#dc2626', fontWeight: 600, margin: 0 }}>
-                    {this.state.error?.message || 'Something went wrong loading this page.'}
-                </p>
-                <button
-                    onClick={() => window.location.reload()}
-                    style={{
-                        padding:      '8px 24px',
-                        background:   '#059669',
-                        color:        '#fff',
-                        border:       'none',
-                        borderRadius: '8px',
-                        cursor:       'pointer',
-                        fontWeight:   600,
-                        fontSize:     '14px',
-                    }}
-                >
-                    Reload
-                </button>
-            </div>
+            <ErrorTraceModal
+                error={this.state.error}
+                errorInfo={this.state.errorInfo}
+                onRetry={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+                onDismiss={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+            />
         )
     }
 }
