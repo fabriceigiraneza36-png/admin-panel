@@ -10,22 +10,27 @@ import { RefreshCw, Trash2, Database, AlertTriangle, Zap } from 'lucide-react'
 import { maintenanceAPI } from '@api/maintenance'
 import ConfirmDialog from '@components/common/ConfirmDialog'
 import { useToast } from '@hooks/useToast'
+import { getErrorMessage } from '@api/client'
 
 export default function Maintenance () {
   const toast = useToast()
   const [categories, setCategories] = useState([])
   const [catsLoading, setCatsLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [purging, setPurging] = useState(false)
   const [purgeTarget, setPurgeTarget] = useState(null)
   const [purgeConfirm, setPurgeConfirm] = useState('')
 
   const refreshCategories = useCallback(async () => {
     setCatsLoading(true)
+    setLoadError('')
     try {
       const { data } = await maintenanceAPI.listCategories()
-      setCategories(data.data || [])
+      setCategories(Array.isArray(data?.data) ? data.data : [])
     } catch (e) {
-      toast.error(e.message || 'Failed to load categories')
+      const message = getErrorMessage(e)
+      setLoadError(message)
+      toast.error(message || 'Failed to load categories')
     } finally {
       setCatsLoading(false)
     }
@@ -52,7 +57,7 @@ export default function Maintenance () {
       closePurge()
       await refreshCategories()
     } catch (e) {
-      toast.error(e.message || 'Purge failed')
+      toast.error(getErrorMessage(e) || 'Purge failed')
     } finally {
       setPurging(false)
     }
@@ -98,6 +103,14 @@ export default function Maintenance () {
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-bold">Could not load maintenance data</p>
+          <p className="mt-1 break-words">{loadError}</p>
+          <button type="button" onClick={refreshCategories} disabled={catsLoading} className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-red-700 border border-red-200 disabled:opacity-50">{catsLoading ? 'Retrying…' : 'Retry loading'}</button>
+        </div>
+      )}
 
       {catsLoading && categories.length === 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
