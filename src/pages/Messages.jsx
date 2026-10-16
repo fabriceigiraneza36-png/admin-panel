@@ -1040,13 +1040,8 @@ export default function Messages() {
     }
   }, [hasMoreMessages, messages, toast])
 
-  useEffect(() => {
-    if (!conversations.length) return
-    const target = requestedConversationId
-      ? conversations.find(c => String(c.id) === String(requestedConversationId))
-      : conversations.find(c => String(c.id) === String(activeId)) || conversations[0]
-    if (target && String(target.id) !== String(activeId)) openConversation(target.id)
-  }, [requestedConversationId, conversations, activeId, openConversation])
+  // Normal entry to Messages must remain on the conversation inbox.
+  // A conversation is opened automatically only by an explicit notification deep-link above.
 
   // Notification deep-links open the requested thread and focus the reply composer.
   useEffect(() => {
