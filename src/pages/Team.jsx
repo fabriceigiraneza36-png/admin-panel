@@ -108,8 +108,6 @@ const parseArray = (value) => {
   return []
 }
 
-@keyframes teamFieldEnter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
-
 /* ─── Mobile Card ──────────────────────────────────────────────────────────── */
 
 const TeamMemberCard = React.memo(function TeamMemberCard({
