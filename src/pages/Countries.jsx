@@ -1422,11 +1422,30 @@ export default function Countries() {
   const getViewImages = (c) => {
     if (!c) return []
     const imgs = []
-    if (c.cover_image_url) imgs.push({ url: c.cover_image_url, caption: 'Cover / Banner' })
-    if (c.image_url)       imgs.push({ url: c.image_url,       caption: 'Country Photo'  })
-    if (c.hero_image)      imgs.push({ url: c.hero_image,      caption: 'Hero Image'     })
-    if (c.flag_url)        imgs.push({ url: c.flag_url,        caption: 'Flag'           })
-    ;(c.gallery || []).forEach(g => imgs.push(g))
+    const seen = new Set()
+    const add = (value, caption = 'Gallery image') => {
+      const entries = Array.isArray(value) ? value : [value]
+      entries.forEach((entry, index) => {
+        const url = typeof entry === 'string'
+          ? entry
+          : entry?.url || entry?.image_url || entry?.imageUrl || entry?.src || entry?.path
+        if (!url || typeof url !== 'string' || seen.has(url)) return
+        seen.add(url)
+        imgs.push({ ...(typeof entry === 'object' ? entry : {}), url, caption: entry?.caption || caption || `Image ${index + 1}` })
+      })
+    }
+    add(c.cover_image_url, 'Cover / Banner')
+    add(c.coverImageUrl, 'Cover / Banner')
+    add(c.image_url, 'Country Photo')
+    add(c.imageUrl, 'Country Photo')
+    add(c.hero_image, 'Hero Image')
+    add(c.heroImage, 'Hero Image')
+    add(c.flag_url, 'Flag')
+    add(c.gallery, 'Gallery image')
+    add(c.images, 'Country image')
+    add(c.hero_images, 'Hero image')
+    add(c.heroImages, 'Hero image')
+    add(c.image_urls, 'Country image')
     return imgs
   }
 
@@ -1461,7 +1480,7 @@ export default function Countries() {
 
       {/* Filters */}
       <div className="management-filter-panel card p-4">
-        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p><p className="text-xs text-slate-400">Keep travel information, media and practical guidance organized</p></div><span className="badge badge-green">{pag.total.toLocaleString()} countries</span></div><FilterBar>
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p><p className="text-xs text-slate-400">Keep travel information, media and practical guidance organized</p></div><span className="badge badge-green">{pag.total.toLocaleString()} countries</span></div><FilterBar onClear={() => { setFeatured(''); pag.reset() }}>
           <SearchBar value={search} onChange={setSearch} placeholder="Search countries…" className="max-w-sm" />
           <FilterSelect label="Featured" value={featured}
             onChange={v => { setFeatured(v); pag.reset() }}
