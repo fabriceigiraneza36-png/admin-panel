@@ -48,7 +48,7 @@ export default function SearchBar({
 }
 
 /* Shared compact filter experience used throughout the admin. */
-export function FilterBar({ children, className = '' }) {
+export function FilterBar({ children, className = '', onClear }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 0 })
   const [expandedFilter, setExpandedFilter] = useState('')
@@ -76,8 +76,10 @@ export function FilterBar({ children, className = '' }) {
     const rect = button.getBoundingClientRect()
     const width = Math.min(420, Math.max(0, window.innerWidth - 24))
     const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))
-    const top = Math.min(rect.bottom + 8, Math.max(12, window.innerHeight - 180))
-    setPosition({ top, left, width, maxHeight: Math.max(160, window.innerHeight - top - 12) })
+    // Keep the panel attached below the trigger; constrain its height instead of
+    // flipping it above the button and making the dropdown feel detached.
+    const top = rect.bottom + 8
+    setPosition({ top, left, width, maxHeight: Math.max(120, window.innerHeight - top - 12) })
   }
 
   useLayoutEffect(() => {
@@ -131,7 +133,10 @@ export function FilterBar({ children, className = '' }) {
                   }}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                     <div><p className="text-base font-bold text-slate-900">Choose filters</p><p className="text-xs text-slate-500">Open a category to see its options</p></div>
-                    <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {activeCount > 0 && onClear && <button type="button" onClick={onClear} className="rounded-xl px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">Clear all</button>}
+                      <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {filterGroups.map(({ key, child }, index) => {
