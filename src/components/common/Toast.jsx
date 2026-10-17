@@ -12,11 +12,15 @@ export default function ToastContainer() {
   return (
     <Toaster
       position="top-right"
-      gutter={8}
+      reverseOrder={false}
+      gutter={10}
+      containerStyle={{ top: 16, right: 16, zIndex: 99999, maxWidth: 'min(420px, calc(100vw - 24px))' }}
       toastOptions={{
-        duration: 3500,
+        duration: 10000,
         style: {
-          borderRadius: '12px',
+          borderRadius: '16px',
+          maxWidth: '100%',
+          overflowWrap: 'anywhere',
           padding:      '12px 16px',
           fontWeight:   600,
           fontSize:     '14px',
