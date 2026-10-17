@@ -5,7 +5,7 @@
 // Unified hub for seeing what's cluttering your database and purging it cleanly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { RefreshCw, Trash2, Database, AlertTriangle, Zap } from 'lucide-react'
 import { maintenanceAPI } from '@api/maintenance'
 import ConfirmDialog from '@components/common/ConfirmDialog'
@@ -21,6 +21,8 @@ export default function Maintenance () {
   const [purgeTarget, setPurgeTarget] = useState(null)
   const [purgeConfirm, setPurgeConfirm] = useState('')
   const [purgeJob, setPurgeJob] = useState(null)
+  const trackingJobRef = useRef(null)
+  const PURGE_JOB_STORAGE_KEY = 'altuvera:maintenance:purge-job'
 
   const refreshCategories = useCallback(async () => {
     setCatsLoading(true)
@@ -39,6 +41,15 @@ export default function Maintenance () {
 
   useEffect(() => { refreshCategories() }, [refreshCategories])
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(PURGE_JOB_STORAGE_KEY) || 'null')
+      if (saved?.id && saved?.category) void trackPurgeJob(saved.id, saved.category)
+    } catch {
+      window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+    }
+  }, [trackPurgeJob])
+
   const openPurge = useCallback((cat) => {
     setPurgeTarget(cat)
     setPurgeConfirm('')
@@ -52,19 +63,14 @@ export default function Maintenance () {
     setPurgeJob(null)
   }, [purging])
 
-  const handlePurge = useCallback(async () => {
-    if (!purgeTarget || purgeConfirm !== 'DELETE_ALL' || purging) return
+  const trackPurgeJob = useCallback(async (jobId, category) => {
+    if (!jobId || trackingJobRef.current === jobId) return
+    trackingJobRef.current = jobId
     setPurging(true)
-    setPurgeJob({ status: 'queued', totalRecords: 0, deletedRecords: 0, currentTable: null })
-    let jobId = null
+    setPurgeTarget(category)
+    let consecutivePollErrors = 0
     try {
-      const { data: queued } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
-      jobId = queued?.jobId
-      if (!jobId) throw new Error(queued?.message || 'The server did not return a purge job ID.')
-
-      const deadline = Date.now() + 30 * 60 * 1000
-      let consecutivePollErrors = 0
-      while (Date.now() < deadline) {
+      while (true) {
         await new Promise(resolve => setTimeout(resolve, 1200))
         try {
           const { data: response } = await maintenanceAPI.getPurgeJob(jobId)
@@ -74,6 +80,7 @@ export default function Maintenance () {
           consecutivePollErrors = 0
 
           if (job.status === 'completed') {
+            window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
             toastSuccess(`Purge completed: ${Number(job.deletedRecords || 0).toLocaleString()} records deleted.`)
             setPurgeTarget(null)
             setPurgeConfirm('')
@@ -82,24 +89,41 @@ export default function Maintenance () {
             return
           }
           if (job.status === 'failed') {
-            throw new Error(job.error || 'The server reported that the purge failed.')
+            window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+            toastError(job.error || 'The server reported that the purge failed.')
+            return
           }
         } catch (pollError) {
           if (pollError?.response || pollError?.code === 'ERR_NETWORK' || pollError?.code === 'ECONNABORTED') {
             consecutivePollErrors += 1
             if (consecutivePollErrors < 5) continue
           }
-          throw pollError
+          toastError(`${getErrorMessage(pollError)}. Purge job ${jobId} is saved and can be checked again by reopening Maintenance.`)
+          return
         }
       }
+    } finally {
+      trackingJobRef.current = null
+      setPurging(false)
+    }
+  }, [toastError, toastSuccess, refreshCategories])
 
-      toastError(`Purge is still running. Job ID: ${jobId}. Refresh the maintenance page to check its status.`)
+  const handlePurge = useCallback(async () => {
+    if (!purgeTarget || purgeConfirm !== 'DELETE_ALL' || purging) return
+    setPurging(true)
+    setPurgeJob({ status: 'queued', totalRecords: 0, deletedRecords: 0, currentTable: null })
+    try {
+      const { data: queued } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
+      const jobId = queued?.jobId
+      if (!jobId) throw new Error(queued?.message || 'The server did not return a purge job ID.')
+      window.localStorage.setItem(PURGE_JOB_STORAGE_KEY, JSON.stringify({ id: jobId, category: purgeTarget }))
+      await trackPurgeJob(jobId, purgeTarget)
     } catch (e) {
-      toastError(`${getErrorMessage(e)}${jobId ? ` (job ${jobId})` : ''}`)
+      toastError(getErrorMessage(e))
     } finally {
       setPurging(false)
     }
-  }, [purgeTarget, purgeConfirm, purging, toastError, toastSuccess, refreshCategories])
+  }, [purgeTarget, purgeConfirm, purging, toastError, trackPurgeJob])
 
   const uniqueTableCounts = new Map()
   categories.forEach((category) => (category.tables || []).forEach((table) => {
