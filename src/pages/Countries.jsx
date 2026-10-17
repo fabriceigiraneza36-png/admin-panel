@@ -1466,9 +1466,6 @@ export default function Countries() {
       <div className="management-filter-panel card p-4">
         <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p><p className="text-xs text-slate-400">Keep travel information, media and practical guidance organized</p></div><span className="badge badge-green">{pag.total.toLocaleString()} countries</span></div><FilterBar>
           <SearchBar value={search} onChange={setSearch} placeholder="Search countries…" className="max-w-sm" />
-          <FilterSelect label="Continent" value={continent}
-            onChange={v => { setContinent(v); pag.reset() }}
-            options={[{ value: '', label: 'All Continents' }, ...CONTINENTS.map(c => ({ value: c, label: c }))]} />
           <FilterSelect label="Featured" value={featured}
             onChange={v => { setFeatured(v); pag.reset() }}
             options={[{ value: '', label: 'All' }, { value: 'true', label: 'Featured' }, { value: 'false', label: 'Not Featured' }]} />
