@@ -24,7 +24,6 @@ import { useToast } from '@hooks/useToast'
 import { usePagination } from '@hooks/usePagination'
 import { useDebounce } from '@hooks/useDebounce'
 import { formatNumber } from '@utils/formatters'
-import { CONTINENTS } from '@utils/constants'
 import { getErrorMessage } from '@api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -32,7 +31,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const INITIAL_FORM = {
   name: '', slug: '', official_name: '', capital: '', flag: '', flag_url: '',
-  continent: '', region: '', sub_region: '', description: '', tagline: '',
+  continent: 'Africa', region: '', sub_region: '', description: '', tagline: '',
   population: '', area: '', climate: '', best_time_to_visit: '', visa_info: '',
   health_info: '', currency: '', currency_symbol: '', timezone: '',
   calling_code: '', languages: [], official_languages: [], highlights: [],
@@ -883,7 +882,6 @@ export default function Countries() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
-  const [continent, setContinent] = useState('')
   const [featured, setFeatured] = useState('')
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
@@ -923,7 +921,6 @@ export default function Countries() {
       const params = {
         page: pag.page, limit: pag.limit, sortBy, order: sortOrder,
         ...(debouncedSearch && { search: debouncedSearch }),
-        ...(continent && { continent }),
         ...(featured && { featured: featured === 'true' }),
       }
       const { data } = await countriesAPI.getAll(params)
@@ -934,7 +931,7 @@ export default function Countries() {
     } finally {
       setLoading(false)
     }
-  }, [pag.page, pag.limit, sortBy, sortOrder, debouncedSearch, continent, featured])
+  }, [pag.page, pag.limit, sortBy, sortOrder, debouncedSearch, featured])
 
   useEffect(() => { load() }, [load])
 
@@ -956,7 +953,7 @@ export default function Countries() {
       attractions: Array.isArray(c.attractions) ? c.attractions : (typeof c.attractions === 'string' ? (() => { try { return JSON.parse(c.attractions) } catch { return [] } })() : []),
       name: c.name || '', slug: c.slug || '', official_name: c.official_name || '',
       capital: c.capital || '', flag: c.flag || '', flag_url: c.flag_url || '',
-      continent: c.continent || '', region: c.region || '', sub_region: c.sub_region || '',
+      continent: 'Africa', region: c.region || '', sub_region: c.sub_region || '',
       description: c.description || '', tagline: c.tagline || '',
       population: c.population || '', area: c.area || '', climate: c.climate || '',
       best_time_to_visit: c.best_time_to_visit || '', visa_info: c.visa_info || '',
@@ -993,7 +990,7 @@ export default function Countries() {
     const e = {}
     if (stepId === 'identity') {
       if (!form.name.trim()) e.name = 'Country name is required'
-      if (!form.continent)   e.continent = 'Please select a continent'
+      if (!form.continent || form.continent !== 'Africa') e.continent = 'Altuvera operates in Africa only'
     }
     if (stepId === 'media') {
       const imageUrlOf = (image) => {
@@ -1179,7 +1176,7 @@ export default function Countries() {
           <Field label="Continent" required icon={Globe2} error={errors.continent}>
             <div className={`p-3 rounded-xl border transition-all ${errors.continent ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'}`}>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {CONTINENTS.map(c => (
+                {['Africa'].map(c => (
                   <motion.button key={c} type="button" whileTap={{ scale: 0.98 }}
                     onClick={() => { upd('continent', c); setErrors(p => ({ ...p, continent: undefined })) }}
                     className={`px-2.5 py-2 rounded-lg text-xs font-semibold border transition-all text-center
