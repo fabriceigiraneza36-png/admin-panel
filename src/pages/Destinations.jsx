@@ -1259,7 +1259,7 @@ export default function Destinations() {
         ...(filterFeatured   && { is_featured: filterFeatured === 'true' }),
         include: 'gallery' // Request gallery data to include rich image information
       }
-      const { data } = await destinationsAPI.getAll(params)
+      const { data } = await destinationsAPI.getAllAdmin(params)
       setDestinations(data.data || data.destinations || [])
       pag.setTotal(data.pagination?.total || data.total || 0)
     } catch (e) {
