@@ -5,7 +5,7 @@
 // Unified hub for seeing what's cluttering your database and purging it cleanly.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { RefreshCw, Trash2, Database, AlertTriangle, Zap } from 'lucide-react'
 import { maintenanceAPI } from '@api/maintenance'
 import ConfirmDialog from '@components/common/ConfirmDialog'
@@ -20,6 +20,9 @@ export default function Maintenance () {
   const [purging, setPurging] = useState(false)
   const [purgeTarget, setPurgeTarget] = useState(null)
   const [purgeConfirm, setPurgeConfirm] = useState('')
+  const [purgeJob, setPurgeJob] = useState(null)
+  const trackingJobRef = useRef(null)
+  const PURGE_JOB_STORAGE_KEY = 'altuvera:maintenance:purge-job'
 
   const refreshCategories = useCallback(async () => {
     setCatsLoading(true)
@@ -38,32 +41,95 @@ export default function Maintenance () {
 
   useEffect(() => { refreshCategories() }, [refreshCategories])
 
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(PURGE_JOB_STORAGE_KEY) || 'null')
+      if (saved?.id && saved?.category) void trackPurgeJob(saved.id, saved.category)
+    } catch {
+      window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+    }
+  }, [trackPurgeJob])
+
   const openPurge = useCallback((cat) => {
     setPurgeTarget(cat)
     setPurgeConfirm('')
+    setPurgeJob(null)
   }, [])
 
   const closePurge = useCallback(() => {
+    if (purging) return
     setPurgeTarget(null)
     setPurgeConfirm('')
-  }, [])
+    setPurgeJob(null)
+  }, [purging])
+
+  const trackPurgeJob = useCallback(async (jobId, category) => {
+    if (!jobId || trackingJobRef.current === jobId) return
+    trackingJobRef.current = jobId
+    setPurging(true)
+    setPurgeTarget(category)
+    let consecutivePollErrors = 0
+    try {
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, 1200))
+        try {
+          const { data: response } = await maintenanceAPI.getPurgeJob(jobId)
+          const job = response?.data
+          if (!job) throw new Error('The server returned an empty purge status.')
+          setPurgeJob(job)
+          consecutivePollErrors = 0
+
+          if (job.status === 'completed') {
+            window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+            toastSuccess(`Purge completed: ${Number(job.deletedRecords || 0).toLocaleString()} records deleted.`)
+            setPurgeTarget(null)
+            setPurgeConfirm('')
+            setPurgeJob(null)
+            await refreshCategories()
+            return
+          }
+          if (job.status === 'failed') {
+            window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+            toastError(job.error || 'The server reported that the purge failed.')
+            return
+          }
+        } catch (pollError) {
+          if (pollError?.response || pollError?.code === 'ERR_NETWORK' || pollError?.code === 'ECONNABORTED') {
+            consecutivePollErrors += 1
+            if (consecutivePollErrors < 5) continue
+          }
+          toastError(`${getErrorMessage(pollError)}. Purge job ${jobId} is saved and can be checked again by reopening Maintenance.`)
+          return
+        }
+      }
+    } finally {
+      trackingJobRef.current = null
+      setPurging(false)
+    }
+  }, [toastError, toastSuccess, refreshCategories])
 
   const handlePurge = useCallback(async () => {
-    if (!purgeTarget || purgeConfirm !== 'DELETE_ALL') return
+    if (!purgeTarget || purgeConfirm !== 'DELETE_ALL' || purging) return
     setPurging(true)
+    setPurgeJob({ status: 'queued', totalRecords: 0, deletedRecords: 0, currentTable: null })
     try {
-      const { data } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
-      toastSuccess(data.message || 'Purged successfully')
-      closePurge()
-      await refreshCategories()
+      const { data: queued } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
+      const jobId = queued?.jobId
+      if (!jobId) throw new Error(queued?.message || 'The server did not return a purge job ID.')
+      window.localStorage.setItem(PURGE_JOB_STORAGE_KEY, JSON.stringify({ id: jobId, category: purgeTarget }))
+      await trackPurgeJob(jobId, purgeTarget)
     } catch (e) {
-      toastError(getErrorMessage(e) || 'Purge failed')
+      toastError(getErrorMessage(e))
     } finally {
       setPurging(false)
     }
-  }, [purgeTarget, purgeConfirm, toastError, toastSuccess, closePurge, refreshCategories])
+  }, [purgeTarget, purgeConfirm, purging, toastError, trackPurgeJob])
 
-  const totalRecords = categories.reduce((s, c) => s + (c.totalRecords || 0), 0)
+  const uniqueTableCounts = new Map()
+  categories.forEach((category) => (category.tables || []).forEach((table) => {
+    uniqueTableCounts.set(table.table, Number(table.count || 0))
+  }))
+  const totalRecords = [...uniqueTableCounts.values()].reduce((sum, count) => sum + count, 0)
 
   return (
     <div className="space-y-5 sm:space-y-6 page-enter max-w-6xl mx-auto">
@@ -81,7 +147,7 @@ export default function Maintenance () {
           {totalRecords > 0 && (
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full">
               <Zap size={12} />
-              {totalRecords.toLocaleString()} records tracked
+              ≈{totalRecords.toLocaleString()} records estimated
             </span>
           )}
           <button onClick={refreshCategories} disabled={catsLoading} className="btn-secondary btn-sm">
@@ -140,12 +206,18 @@ export default function Maintenance () {
         type="delete"
         title={`Purge "${purgeTarget}"?`}
         description={
-          purgeTarget
-            ? `This will permanently delete ALL records in every table under "${purgeTarget}". This cannot be undone.`
-            : ''
+          purgeJob
+            ? `Status: ${purgeJob.status}. Deleted ${Number(purgeJob.deletedRecords || 0).toLocaleString()} records (estimated total ${Number(purgeJob.totalRecords || 0).toLocaleString()}).${purgeJob.currentTable ? ` Current table: ${purgeJob.currentTable}.` : ''}`
+            : purgeTarget
+              ? `This permanently deletes all records in the tables belonging to "${purgeTarget}". Bookings are preserved when purging countries. This cannot be undone.`
+              : ''
         }
-        confirmLabel="Purge All"
+        confirmLabel={purging ? 'Purging…' : 'Purge All'}
         loading={purging}
+        confirmationText="DELETE_ALL"
+        confirmationValue={purgeConfirm}
+        onConfirmationChange={setPurgeConfirm}
+        confirmDisabled={purgeConfirm !== 'DELETE_ALL' || purging}
       />
     </div>
   )
@@ -153,7 +225,7 @@ export default function Maintenance () {
 
 function CategoryCard ({ category, onPurge }) {
   const { category: cat, tables, totalRecords } = category
-  const isDangerous = totalRecords > 0
+  const isDangerous = Array.isArray(tables) && tables.length > 0
 
   return (
     <div className="border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3 bg-white transition hover:border-slate-300">
@@ -163,7 +235,7 @@ function CategoryCard ({ category, onPurge }) {
           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
             totalRecords > 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
           }`}>
-            {totalRecords.toLocaleString()} record{totalRecords !== 1 ? 's' : ''}
+            ≈{totalRecords.toLocaleString()} record{totalRecords !== 1 ? 's' : ''}
           </span>
         </div>
         {totalRecords > 0 && (
@@ -175,7 +247,7 @@ function CategoryCard ({ category, onPurge }) {
         {tables.slice(0, 5).map((t) => (
           <div key={t.table} className="flex items-center justify-between text-xs">
             <span className="text-slate-600 font-mono truncate">{t.table}</span>
-            <span className="text-slate-400 font-semibold ml-2 flex-shrink-0">{t.count}</span>
+            <span className="text-slate-400 font-semibold ml-2 flex-shrink-0">≈{Number(t.count || 0).toLocaleString()}</span>
           </div>
         ))}
         {tables.length > 5 && (
@@ -193,7 +265,7 @@ function CategoryCard ({ category, onPurge }) {
         }`}
       >
         <Trash2 size={14} />
-        {isDangerous ? 'Delete All Records' : 'Already Empty'}
+        {isDangerous ? (totalRecords > 0 ? 'Delete All Records' : 'Check & Delete Records') : 'No tables available'}
       </button>
     </div>
   )
