@@ -13,7 +13,7 @@ import { useToast } from '@hooks/useToast'
 import { getErrorMessage } from '@api/client'
 
 export default function Maintenance () {
-  const toast = useToast()
+  const { error: toastError, success: toastSuccess } = useToast()
   const [categories, setCategories] = useState([])
   const [catsLoading, setCatsLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -30,11 +30,11 @@ export default function Maintenance () {
     } catch (e) {
       const message = getErrorMessage(e)
       setLoadError(message)
-      toast.error(message || 'Failed to load categories')
+      toastError(message || 'Failed to load categories')
     } finally {
       setCatsLoading(false)
     }
-  }, [toast])
+  }, [toastError])
 
   useEffect(() => { refreshCategories() }, [refreshCategories])
 
@@ -53,15 +53,15 @@ export default function Maintenance () {
     setPurging(true)
     try {
       const { data } = await maintenanceAPI.purgeCategory(purgeTarget, 'DELETE_ALL')
-      toast.success(data.message || 'Purged successfully')
+      toastSuccess(data.message || 'Purged successfully')
       closePurge()
       await refreshCategories()
     } catch (e) {
-      toast.error(getErrorMessage(e) || 'Purge failed')
+      toastError(getErrorMessage(e) || 'Purge failed')
     } finally {
       setPurging(false)
     }
-  }, [purgeTarget, purgeConfirm, toast, closePurge, refreshCategories])
+  }, [purgeTarget, purgeConfirm, toastError, toastSuccess, closePurge, refreshCategories])
 
   const totalRecords = categories.reduce((s, c) => s + (c.totalRecords || 0), 0)
 
