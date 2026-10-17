@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
 
 export default function SearchBar({
@@ -49,13 +50,18 @@ export default function SearchBar({
 /* Shared compact filter experience used throughout the admin. */
 export function FilterBar({ children, className = '' }) {
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 })
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 0 })
+  const [expandedFilter, setExpandedFilter] = useState('')
   const buttonRef = useRef(null)
   const panelRef = useRef(null)
   const items = React.Children.toArray(children).filter(Boolean)
   const searchIndex = items.findIndex(child => child.type === SearchBar)
   const search = searchIndex >= 0 ? items[searchIndex] : null
   const filters = items.filter((child, index) => index !== searchIndex)
+  const filterGroups = filters.map((child, index) => ({
+    key: String(child?.props?.label || child?.props?.name || `Filter ${index + 1}`),
+    child,
+  }))
   const activeCount = filters.reduce((count, child) => {
     const value = child?.props?.value
     if (value === undefined || value === null || value === '') return count
@@ -68,9 +74,10 @@ export function FilterBar({ children, className = '' }) {
     const button = buttonRef.current
     if (!button) return
     const rect = button.getBoundingClientRect()
-    const width = Math.min(420, window.innerWidth - 24)
+    const width = Math.min(420, Math.max(0, window.innerWidth - 24))
     const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))
-    setPosition({ top: Math.min(rect.bottom + 8, window.innerHeight - 120), left, width })
+    const top = Math.min(rect.bottom + 8, Math.max(12, window.innerHeight - 180))
+    setPosition({ top, left, width, maxHeight: Math.max(160, window.innerHeight - top - 12) })
   }
 
   useLayoutEffect(() => {
@@ -106,24 +113,59 @@ export function FilterBar({ children, className = '' }) {
             {activeCount > 0 && <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs">{activeCount}</span>}
             <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`}/>
           </button>
-          {open && createPortal(
-            <div ref={panelRef} role="dialog" aria-modal="false" aria-label="Filter results"
-              className="fixed z-[1200] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-4"
-              style={{
-                top: position.top,
-                left: position.left,
-                width: position.width,
-                maxHeight: 'min(620px, calc(100dvh - 24px - ' + Math.max(0, position.top) + 'px)',
-                paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-              }}>
-              <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
-                <div><p className="text-base font-bold text-slate-900">Filter results</p><p className="text-xs text-slate-500">Choose one or more options</p></div>
-                <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
-              </div>
-              <div className="space-y-3 [&>label]:w-full [&>label>select]:w-full">
-                {filters}
-              </div>
-            </div>,
+          {createPortal(
+            <AnimatePresence>
+              {open && (
+                <motion.div ref={panelRef} role="dialog" aria-modal="false" aria-label="Filter results"
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.985 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="fixed z-[1200] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3 origin-top"
+                  style={{
+                    top: position.top,
+                    left: position.left,
+                    width: position.width,
+                    maxHeight: position.maxHeight || 'calc(100dvh - 24px)',
+                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                  }}>
+                  <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
+                    <div><p className="text-base font-bold text-slate-900">Filter results</p><p className="text-xs text-slate-500">Choose a category to reveal its options</p></div>
+                    <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
+                  </div>
+                  <div className="space-y-2">
+                    {filterGroups.map(({ key, child }, index) => {
+                      const value = child?.props?.value
+                      const options = child?.props?.options || []
+                      const active = value !== undefined && value !== null && value !== '' && value !== options[0]?.value
+                      const expanded = expandedFilter === key
+                      return (
+                        <section key={key + index} className="overflow-hidden rounded-xl border border-slate-200">
+                          <button type="button" aria-expanded={expanded}
+                            onClick={() => setExpandedFilter(current => current === key ? '' : key)}
+                            className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="truncate text-sm font-semibold text-slate-700">{key}</span>
+                              {active && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Selected</span>}
+                            </span>
+                            <ChevronDown size={16} className={`shrink-0 text-slate-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}/>
+                          </button>
+                          <AnimatePresence initial={false}>
+                            {expanded && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.16 }} className="overflow-hidden">
+                                <div className="border-t border-slate-100 bg-slate-50/60 p-3 [&>label]:w-full [&>label>select]:w-full">
+                                  {child}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </section>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>,
             document.body
           )}
         </div>
