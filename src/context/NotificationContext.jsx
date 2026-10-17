@@ -48,6 +48,27 @@ const authFetch = (url, opts = {}) => {
   });
 };
 
+const isIncomingUserMessageNotification = (notification) => {
+  if (!notification) return false;
+  const type = String(notification.type || "").toLowerCase();
+  const category = String(notification.category || "").toLowerCase();
+  const metadata = notification.metadata || {};
+  const senderType = String(
+    metadata.senderType || metadata.sender_type || notification.senderType || notification.sender_type || ""
+  ).toLowerCase();
+  const title = String(notification.title || "");
+  const message = String(notification.message || "");
+  const isMessageNotification =
+    type.includes("message") || category.includes("message") ||
+    metadata.messageId != null || metadata.message_id != null ||
+    /^message-/.test(String(notification.id || ""));
+  if (!isMessageNotification) return true;
+  if (["admin", "support", "staff", "agent", "system"].includes(senderType)) return false;
+  if (/(?:from|by|sent by)\s+(?:the\s+)?(?:admin|support|staff|agent|administrator)\b/i.test(title + " " + message)) return false;
+  if (/^(?:support|admin|staff|agent)\s+(?:message|reply|response)\b/i.test(title.trim())) return false;
+  return true;
+};
+
 const messageIdOf = (notification) => {
   const id = notification?.metadata?.messageId ?? notification?.metadata?.message_id;
   if (id != null) return String(id);
@@ -126,7 +147,7 @@ export function NotificationProvider({ children }) {
 
       failsRef.current = 0;   // reset on success
 
-      const rows = data.data || [];
+      const rows = (data.data || []).filter(isIncomingUserMessageNotification);
       notificationsRef.current = pageNum === 1
         ? rows
         : [...notificationsRef.current, ...rows.filter(row => !notificationsRef.current.some(existing => isSameNotification(existing, row)))];
@@ -305,7 +326,7 @@ export function NotificationProvider({ children }) {
     if (!socketOn || !socketOff) return;
 
     const onNew = (notif) => {
-      if (!mountedRef.current || !notif) return;
+      if (!mountedRef.current || !notif || !isIncomingUserMessageNotification(notif)) return;
       const existingIndex = notificationsRef.current.findIndex(existing => isSameNotification(existing, notif));
       if (existingIndex >= 0) {
         // A real-time message alert may already have created a temporary inbox row.
@@ -334,7 +355,9 @@ export function NotificationProvider({ children }) {
     };
 
     const onMessage = (payload = {}) => {
+      if (payload.senderType && !["user", "guest", "traveller", "traveler", "customer"].includes(String(payload.senderType).toLowerCase())) return;
       const message = payload.message || {};
+      if (message.senderType && !["user", "guest", "traveller", "traveler", "customer"].includes(String(message.senderType).toLowerCase())) return;
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
       const messageId = message.id || payload.messageId || null;
