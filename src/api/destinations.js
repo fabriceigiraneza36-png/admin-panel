@@ -11,6 +11,9 @@ const base = createEndpoint(BASE)
 export const destinationsAPI = {
   ...base,
 
+  // Protected admin listing includes published, draft, and archived destinations.
+  getAllAdmin: (params = {}) => apiClient.get(`${BASE}/admin/all`, { params }),
+
   // ── Metadata ────────────────────────────────────────────────────────────────
   getFeatured:    (params = {}) => apiClient.get(`${BASE}/featured`,    { params }),
   getPopular:     (params = {}) => apiClient.get(`${BASE}/popular`,     { params }),
