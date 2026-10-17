@@ -1933,21 +1933,22 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
       </div>
 
       <div className="management-filter-panel card p-4">
-        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination catalogue</p><p className="text-xs text-slate-400">Search, segment and manage your travel inventory</p></div><span className="badge badge-green">{pag.total.toLocaleString()} records</span></div><FilterBar>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search destinations…" className="max-w-sm"/>
-          <FilterSelect label="Country" value={filterCountry}
-            onChange={v=>{setFilterCountry(v);pag.reset()}}
-            options={[{value:'',label:'All Countries'},...countries.map(c=>({value:String(c.id),label:c.name}))]}/>
-          <FilterSelect label="Category" value={filterCategory}
-            onChange={v=>{setFilterCategory(v);pag.reset()}}
-            options={[{value:'',label:'All Categories'},...CATEGORIES.map(c=>({value:c,label:c}))]}/>
-          <FilterSelect label="Difficulty" value={filterDifficulty}
-            onChange={v=>{setFilterDifficulty(v);pag.reset()}}
-            options={[{value:'',label:'All Difficulties'},...DIFFICULTIES.map(d=>({value:d,label:d}))]}/>
-          <FilterSelect label="Featured" value={filterFeatured}
-            onChange={v=>{setFilterFeatured(v);pag.reset()}}
-            options={[{value:'',label:'All'},{value:'true',label:'Featured'},{value:'false',label:'Not Featured'}]}/>
-        </FilterBar>
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination catalogue</p><p className="text-xs text-slate-400">Search, segment and manage your travel inventory</p></div><span className="badge badge-green">{pag.total.toLocaleString()} records</span></div>
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+          <div className="flex-1 min-w-0"><SearchBar value={search} onChange={setSearch} placeholder="Search destinations…" className="w-full"/></div>
+          <details className="relative shrink-0">
+            <summary className="list-none cursor-pointer select-none flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-300 min-w-[150px]">
+              <span className="flex items-center gap-2"><SlidersHorizontal size={16} className="text-emerald-600"/> Filters <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs">{[filterCountry,filterCategory,filterDifficulty,filterFeatured].filter(Boolean).length}</span></span><ChevronDown size={15}/>
+            </summary>
+            <div className="absolute right-0 top-full mt-2 z-30 w-[min(88vw,360px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl space-y-4">
+              <FilterSelect label="Country" value={filterCountry} onChange={v=>{setFilterCountry(v);pag.reset()}} options={[{value:'',label:'All Countries'},...countries.map(c=>({value:String(c.id),label:c.name}))]}/>
+              <FilterSelect label="Category" value={filterCategory} onChange={v=>{setFilterCategory(v);pag.reset()}} options={[{value:'',label:'All Categories'},...CATEGORIES.map(c=>({value:c,label:c}))]}/>
+              <FilterSelect label="Difficulty" value={filterDifficulty} onChange={v=>{setFilterDifficulty(v);pag.reset()}} options={[{value:'',label:'All Difficulties'},...DIFFICULTIES.map(d=>({value:d,label:d}))]}/>
+              <FilterSelect label="Featured" value={filterFeatured} onChange={v=>{setFilterFeatured(v);pag.reset()}} options={[{value:'',label:'All'},{value:'true',label:'Featured'},{value:'false',label:'Not Featured'}]}/>
+              <button type="button" onClick={()=>{setFilterCountry('');setFilterCategory('');setFilterDifficulty('');setFilterFeatured('');pag.reset()}} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Clear all filters</button>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div className="management-table-shell card">
