@@ -10,7 +10,7 @@ import {
   Hash, FileText, List, Tag, Flag,
   Globe, Calendar, TrendingUp, Award,
   Compass, TreePine, Coffee, Activity, Sparkles, Library,
-  Layers, Palette, Sun, SlidersHorizontal as FilterIcon,
+  Layers, Palette, Sun,
 } from 'lucide-react'
 import { destinationsAPI } from '@api/destinations'
 import { countriesAPI }    from '@api/countries'
