@@ -35,7 +35,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const DIFFICULTIES = ['easy', 'moderate', 'challenging', 'strenuous', 'expert']
 const STATUSES     = ['draft', 'published', 'archived']
-const CATEGORIES   = []
+const CATEGORIES   = ['Adventure', 'Nature & Wildlife', 'Culture & Heritage', 'Beach & Island', 'City & Urban', 'Mountain & Hiking', 'Safari', 'Waterfalls & Lakes', 'Historical & Archaeological', 'Family & Leisure', 'Eco-tourism']
 const HERO_IMAGE_COUNT = 4
 const MIN_TOTAL_DESTINATION_IMAGES = 9
 const MAX_GALLERY_IMAGES = 12   // uploaded/URL gallery images (excludes hero/cover/main + library imports)
@@ -1940,9 +1940,9 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
             <summary className="list-none cursor-pointer select-none flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-300 min-w-[150px]">
               <span className="flex items-center gap-2"><FilterIcon size={16} className="text-emerald-600"/> Filters</span>{[filterCountry,filterCategory,filterDifficulty,filterFeatured].filter(Boolean).length > 0 && <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs">{[filterCountry,filterCategory,filterDifficulty,filterFeatured].filter(Boolean).length} active</span>}<ChevronDown size={15}/>
             </summary>
-            <div className="absolute right-0 top-full mt-2 z-30 w-[min(88vw,360px)] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl space-y-4">
+            <div className="absolute right-0 top-full mt-2 z-[1001] w-[min(92vw,380px)] max-h-[min(75dvh,620px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-xl space-y-4">
               <FilterSelect label="Country" value={filterCountry} onChange={v=>{setFilterCountry(v);pag.reset()}} options={[{value:'',label:'All Countries'},...countries.map(c=>({value:String(c.id),label:c.name}))]}/>
-              <FilterSelect label="Category" value={filterCategory} onChange={v=>{setFilterCategory(v);pag.reset()}} options={[{value:'',label:'All Categories'},...CATEGORIES.map(c=>({value:c,label:c}))]}/>
+              <FilterSelect label="Category" value={filterCategory} onChange={v=>{setFilterCategory(v);pag.reset()}} options={[{value:'',label:'All Categories'},...[...new Set([...CATEGORIES, ...destinations.flatMap(d => [d.category, d.destination_type, d.classification, d.adventure_category]).filter(v => typeof v === 'string' && v.trim())])].sort((a,b)=>a.localeCompare(b)).map(c=>({value:c,label:c}))]}/>
               <FilterSelect label="Difficulty" value={filterDifficulty} onChange={v=>{setFilterDifficulty(v);pag.reset()}} options={[{value:'',label:'All Difficulties'},...DIFFICULTIES.map(d=>({value:d,label:d}))]}/>
               <FilterSelect label="Featured" value={filterFeatured} onChange={v=>{setFilterFeatured(v);pag.reset()}} options={[{value:'',label:'All'},{value:'true',label:'Featured'},{value:'false',label:'Not Featured'}]}/>
               <button type="button" onClick={()=>{setFilterCountry('');setFilterCategory('');setFilterDifficulty('');setFilterFeatured('');pag.reset()}} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Clear all filters</button>
