@@ -43,6 +43,10 @@ export default function ConfirmDialog({
   description = 'This action cannot be undone.',
   confirmLabel,
   loading     = false,
+  confirmationText = '',
+  confirmationValue = '',
+  onConfirmationChange,
+  confirmDisabled = false,
 }) {
   const cfg = CONFIG[type] || CONFIG.confirm
   const Icon = cfg.icon
@@ -80,6 +84,24 @@ export default function ConfirmDialog({
               <p className="text-sm text-slate-500 leading-relaxed">
                 {description}
               </p>
+              {confirmationText && (
+                <div className="mt-4 text-left">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Type <span className="font-mono">{confirmationText}</span> to continue
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmationValue}
+                    onChange={(event) => onConfirmationChange?.(event.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                    disabled={loading}
+                    aria-label={`Type ${confirmationText} to confirm`}
+                    placeholder={confirmationText}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-mono text-slate-800 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:opacity-60"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -93,8 +115,8 @@ export default function ConfirmDialog({
               </button>
               <button
                 onClick={onConfirm}
-                disabled={loading}
-                className={`${cfg.btnClass} flex-1`}
+                disabled={loading || confirmDisabled}
+                className={`${cfg.btnClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
