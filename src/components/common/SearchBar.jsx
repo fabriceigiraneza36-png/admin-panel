@@ -68,7 +68,7 @@ export function FilterBar({ children, className = '' }) {
   }, [open])
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 ${className}`}>
+    <div className={`relative flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 ${className}`}>
       {search && <div className="w-full min-w-0 flex-1">{search}</div>}
       {filters.length > 0 && (
         <div className="relative shrink-0">
@@ -81,9 +81,8 @@ export function FilterBar({ children, className = '' }) {
           </button>
           {open && (
             <>
-              <button type="button" aria-label="Close filters" onClick={() => setOpen(false)} className="fixed inset-0 z-[1000] cursor-default bg-slate-950/25 backdrop-blur-[1px]"/>
-              <div role="dialog" aria-modal="true" aria-label="Filter results"
-                className="fixed z-[1001] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] sm:w-[min(92vw,460px)] max-h-[min(82dvh,720px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-4"
+              <div role="dialog" aria-modal="false" aria-label="Filter results"
+                className="absolute right-0 top-full mt-2 z-[1001] w-[min(92vw,420px)] max-h-[min(75dvh,620px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-4"
                 style={{paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
                 <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                   <div><p className="text-base font-bold text-slate-900">Filter results</p><p className="text-xs text-slate-500">Choose one or more options</p></div>
