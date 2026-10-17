@@ -101,13 +101,13 @@ export function FilterBar({ children, className = '' }) {
   }, [open])
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 ${className}`}>
+    <div className={`flex flex-row items-center gap-2 sm:gap-3 min-w-0 ${className}`}>
       {search && <div className="w-full min-w-0 flex-1">{search}</div>}
       {filters.length > 0 && (
-        <div className="relative shrink-0 w-full sm:w-auto">
+        <div className="relative shrink-0 w-auto">
           <button ref={buttonRef} type="button" aria-expanded={open} aria-haspopup="dialog"
             onClick={() => setOpen(value => !value)}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            className="w-auto flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
             <SlidersHorizontal size={16} className="text-emerald-600"/>
             <span>Filters</span>
             {activeCount > 0 && <span className="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs">{activeCount}</span>}
@@ -130,7 +130,7 @@ export function FilterBar({ children, className = '' }) {
                     paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
                   }}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
-                    <div><p className="text-base font-bold text-slate-900">Filter results</p><p className="text-xs text-slate-500">Choose a category to reveal its options</p></div>
+                    <div><p className="text-base font-bold text-slate-900">Choose filters</p><p className="text-xs text-slate-500">Open a category to see its options</p></div>
                     <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
                   </div>
                   <div className="space-y-2">
