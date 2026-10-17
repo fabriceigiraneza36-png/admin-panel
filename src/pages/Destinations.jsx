@@ -155,7 +155,7 @@ function Lightbox({ images, startIndex=0, onClose }) {
     return()=>window.removeEventListener('keydown',fn)
   },[images.length,onClose])
   return (
-    <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col">
+    <motion.div initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.18 }} onMouseDown={e => { if (e.target === e.currentTarget) onClose() }} className="fixed inset-0 z-[300] flex flex-col overflow-hidden bg-black/95" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex items-center justify-between px-4 py-3 bg-black/60 shrink-0">
         <span className="text-white/70 text-sm flex items-center gap-2">
           {idx+1}/{images.length}
@@ -173,7 +173,7 @@ function Lightbox({ images, startIndex=0, onClose }) {
       </div>
       <div className="flex-1 flex items-center justify-center p-4 relative min-h-0">
         {idx>0&&<button onClick={()=>setIdx(i=>i-1)} className="absolute left-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all"><ChevronLeft size={20}/></button>}
-        <img src={cur?.url} alt={cur?.caption||'Image'} className="max-h-full max-w-full object-contain rounded-xl shadow-2xl" onError={e=>{e.target.src='https://placehold.co/800x500?text=Not+found'}}/>
+        <img src={cur?.url} alt={cur?.caption||'Image'} className="max-h-[calc(100dvh-170px)] max-w-[calc(100vw-32px)] sm:max-h-[calc(100dvh-190px)] sm:max-w-[calc(100vw-64px)] object-contain rounded-xl shadow-2xl" onError={e=>{e.target.src='https://placehold.co/800x500?text=Not+found'}}/>
         {idx<images.length-1&&<button onClick={()=>setIdx(i=>i+1)} className="absolute right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all"><ChevronRight size={20}/></button>}
       </div>
       {images.length>1&&(
@@ -185,7 +185,7 @@ function Lightbox({ images, startIndex=0, onClose }) {
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
