@@ -890,6 +890,7 @@ export default function Messages() {
   const conversationsLoadedRef = useRef(false)
   const conversationRefreshTimer = useRef(null)
   const conversationRequestRef = useRef(0)
+  const requestedConversationOpenedRef = useRef(null)
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
   useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
@@ -1028,11 +1029,17 @@ export default function Messages() {
   // the Messages page normally always starts at the full conversation list.
   useEffect(() => {
     if (!requestedConversationId || !conversations.length) return
-    const target = conversations.find(c => String(c.id) === String(requestedConversationId))
+    const requestKey = String(requestedConversationId)
+    // Opening a thread updates the conversation list (unread count), which
+    // changes the array identity. Guard the URL-driven open so that update
+    // cannot trigger another fetch forever.
+    if (requestedConversationOpenedRef.current === requestKey) return
+    const target = conversations.find(c => String(c.id) === requestKey)
     if (target) {
+      requestedConversationOpenedRef.current = requestKey
       setFocusComposerOnOpen(true)
-      openConversation(target.id)
       setSidebarOpen(false)
+      openConversation(target.id)
     }
   }, [requestedConversationId, conversations, openConversation])
 
