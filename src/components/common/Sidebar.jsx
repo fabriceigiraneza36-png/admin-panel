@@ -210,7 +210,7 @@ const BELL_CSS = `
 
 .anb-drop {
   position:absolute; top:calc(100% + 12px); right:0;
-  width:clamp(320px,90vw,400px);
+  width:min(400px,calc(100vw - 24px)); max-width:calc(100vw - 24px); min-width:0;
   background:#fff; border-radius:20px;
   border:1px solid #e5e7eb;
   box-shadow:0 24px 64px rgba(5,150,105,0.15), 0 8px 20px rgba(0,0,0,0.06);
@@ -218,7 +218,7 @@ const BELL_CSS = `
   animation:anb-in 0.25s cubic-bezier(0.22,1,0.36,1);
   transform-origin:top right;
 }
-@keyframes anb-in {
+@media (max-width: 560px) {\n  .anb-drop { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 68px); right:12px; left:12px; width:auto; max-width:none; max-height:calc(100dvh - 88px); border-radius:16px; }\n  .anb-list { max-height:min(46dvh, 340px); }\n  .anb-head { gap:8px; padding:12px; flex-wrap:wrap; }\n  .anb-head-l { min-width:0; }\n  .anb-head-r { margin-left:auto; flex-wrap:wrap; }\n  .anb-tabs { padding:8px; }\n  .anb-item { gap:9px; padding:11px 12px; }\n  .anb-ico { width:34px; height:34px; border-radius:10px; }\n  .anb-acts { opacity:1; }\n  .anb-ibtn { opacity:1; }\n  .anb-foot { padding:10px 12px; gap:8px; flex-wrap:wrap; }\n}\n@media (max-width: 360px) {\n  .anb-drop { right:8px; left:8px; top:calc(env(safe-area-inset-top, 0px) + 60px); max-height:calc(100dvh - 76px); }\n  .anb-head-title { font-size:13px; }\n  .anb-mark-all { padding:5px 7px; }\n  .anb-item { gap:7px; padding:10px; }\n  .anb-ttl { white-space:normal; overflow-wrap:anywhere; }\n}\n\n@keyframes anb-in {
   from{ opacity:0; transform:scale(0.92) translateY(-8px); }
   to  { opacity:1; transform:scale(1)    translateY(0);    }
 }
@@ -540,7 +540,7 @@ function AdminNotificationBell() {
                       </div>
                       <div className="anb-acts" onClick={e => e.stopPropagation()}>
                         {!n.is_read && (
-                          <button className="anb-ibtn" onClick={() => markAsRead(n.id)} title="Mark as read">
+                          <button className="anb-ibtn" onClick={() => markRead(n.id)} title="Mark as read">
                             <Check size={11} />
                           </button>
                         )}
