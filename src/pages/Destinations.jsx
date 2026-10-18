@@ -1165,7 +1165,7 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
     if(accepted.length) setPicker(null);
   };
   const Section = ({id,title,description,items,limit,accent}) => <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 space-y-3">
-    <div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${accent}`}><Camera size={17}/></div><div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">{title}</h4><p className="mt-0.5 text-xs text-slate-500">{description}</p></div><span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">{items.length} images}</span></div>
+    <div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${accent}`}><Camera size={17}/></div><div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">{title}</h4><p className="mt-0.5 text-xs text-slate-500">{description}</p></div><span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">{items.length} images</span></div>
     <div className="space-y-2">
       {items.map((raw,index)=>{const item=normalize(raw);return <div key={item.url||index} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 p-2">
         <span className="w-5 shrink-0 text-center text-xs font-extrabold text-slate-400">{index+1}</span>
