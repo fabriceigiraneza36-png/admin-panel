@@ -99,6 +99,31 @@ const isValidUrl = (str) => {
 const toSlug = (str = '') =>
   str.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]/g, '').replace(/--+/g, '-')
 
+// Normalize image URLs consistently before comparing, saving, or uploading.
+const normalizeImageUrl = (value) => {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return ''
+  try {
+    const url = new URL(raw)
+    url.hash = ''
+    url.hostname = url.hostname.toLowerCase()
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '')
+    return url.toString()
+  } catch {
+    return raw.replace(/\/+$/, '')
+  }
+}
+const uniqueImages = (items = []) => {
+  const seen = new Set()
+  return items.filter((item) => {
+    const url = typeof item === 'string' ? item : item?.url || item?.imageUrl || item?.image_url
+    const key = normalizeImageUrl(url)
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
 function Confetti({ active }) {
   const canvasRef = useRef(null)
@@ -315,7 +340,7 @@ const addUrl = () => {
       setUrlValid(true)
       
       // Check for duplicate URL in the current gallery
-      const isDuplicate = gallery.some(image => image.url === url)
+      const isDuplicate = gallery.some(image => normalizeImageUrl(image.url || image.imageUrl || image.image_url) === normalizeImageUrl(url))
       if (isDuplicate) {
         // Ignore duplicate
         setUrlInput(''); setCaption(''); setActiveSlot(null)
@@ -347,7 +372,7 @@ const addUpload = () => {
       }
       
       // Check for duplicate URL in the current gallery
-      const isDuplicate = gallery.some(image => image.url === uploaded)
+      const isDuplicate = gallery.some(image => normalizeImageUrl(image.url || image.imageUrl || image.image_url) === normalizeImageUrl(uploaded))
       if (isDuplicate) {
         setUploaded(''); setCaption(''); setActiveSlot(null)
         setIsAdding(false);
@@ -1471,11 +1496,11 @@ const normaliseGalleries = (dest) => {
         }
         return ''
       }
-      const heroImages = (hero_slides || []).map(getImageUrl).filter(Boolean)
-      const bannerImages = (banner_slides || []).map(getImageUrl).filter(Boolean)
-      const galleryImages = (gallery || []).map(getImageUrl).filter(Boolean)
+      const heroImages = uniqueImages((hero_slides || []).map(getImageUrl).filter(Boolean))
+      const bannerImages = uniqueImages((banner_slides || []).map(getImageUrl).filter(Boolean))
+      const galleryImages = uniqueImages((gallery || []).map(getImageUrl).filter(Boolean))
       const primaryHeroImage = getImageUrl(form.hero_image)
-      const newDestinationImages = [...new Set([primaryHeroImage, ...heroImages, ...bannerImages, ...galleryImages].filter(Boolean))]
+      const newDestinationImages = uniqueImages([primaryHeroImage, ...heroImages, ...bannerImages, ...galleryImages].filter(Boolean))
       const payload = {
         ...destinationFields,
         slug:         form.slug || toSlug(form.name),
@@ -1520,7 +1545,7 @@ const existingImageUrls = new Set([
   editing?.heroImage,
   editing?.cover_image_url,
   editing?.coverImageUrl,
-].map(getImageUrl).filter(Boolean))
+].map(getImageUrl).filter(Boolean).map(normalizeImageUrl))
 const allNewImages = [
   ...((editing
     ? (gallery || [])
@@ -1529,7 +1554,7 @@ const allNewImages = [
         ...(bannerImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index, source: 'banner' })),
         ...(galleryImages || []).map((url, index) => ({ url, is_primary: false, sort_order: index + 7, source: 'attraction' })),
       ]
-  ).filter(image => !image.id && getImageUrl(image) && !existingImageUrls.has(getImageUrl(image))).map((image, index) => ({
+  ).filter(image => !image.id && getImageUrl(image) && !existingImageUrls.has(normalizeImageUrl(getImageUrl(image)))).map((image, index) => ({
     url: getImageUrl(image),
     caption: image.caption,
     is_primary: image.is_primary,
@@ -1539,7 +1564,7 @@ const allNewImages = [
   ...((editing ? (hero_slides || []) : []).map((image, index) => ({
     url: getImageUrl(image), caption: image?.caption || `Hero slide ${index + 1}`,
     is_primary: index === 0, sort_order: index, source: 'hero',
-  })).filter(image => image.url && !existingImageUrls.has(image.url))),
+  })).filter(image => image.url && !existingImageUrls.has(normalizeImageUrl(image.url)))),
   ...((banner_slides || []).map((image, index) => ({
     url: getImageUrl(image), caption: image?.caption || `Banner slide ${index + 1}`,
     is_primary: false, sort_order: index, source: 'banner',
@@ -1552,12 +1577,7 @@ const allNewImages = [
   })),
 ]
 // Deduplicate by URL to avoid sending the same image multiple times in the same request
-const seenUrls = new Set()
-const uniqueNewImages = allNewImages.filter(img => {
-  if (seenUrls.has(img.url)) return false
-  seenUrls.add(img.url)
-  return true
-})
+const uniqueNewImages = uniqueImages(allNewImages)
 
 if (editing && savedDestination?.id && uniqueNewImages.length) {
   const formData = new FormData()
