@@ -38,7 +38,7 @@ const STATUSES     = ['draft', 'published', 'archived']
 const CATEGORIES   = ['Adventure', 'Nature & Wildlife', 'Culture & Heritage', 'Beach & Island', 'City & Urban', 'Mountain & Hiking', 'Safari', 'Waterfalls & Lakes', 'Historical & Archaeological', 'Family & Leisure', 'Eco-tourism']
 const HERO_IMAGE_COUNT = 1
 const MIN_TOTAL_DESTINATION_IMAGES = 1
-const Number.POSITIVE_INFINITY = Number.POSITIVE_INFINITY
+const MAX_GALLERY_IMAGES = Number.POSITIVE_INFINITY
 
 const INITIAL_FORM = {
   // Identity
@@ -407,7 +407,7 @@ const addUpload = () => {
         <div className="h-1.5 rounded-full bg-emerald-100 overflow-hidden">
           <motion.div
             initial={false}
-            animate={{ width: `${(gallery.length/MAX_GALLERY_IMAGES)*100}%` }}
+            animate={{ width: '100%' }}
             transition={{ duration: 0.4 }}
             className={`h-full rounded-full ${isFull?'bg-gradient-to-r from-amber-400 to-amber-500':'bg-gradient-to-r from-emerald-400 to-green-500'}`}
           />
@@ -600,7 +600,7 @@ const addUpload = () => {
             <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5"/>
             <div>
               <p className="text-sm font-bold text-amber-800">All 10 slots filled</p>
-              <p className="text-xs text-amber-700 mt-0.5">You've reached the maximum of {MAX_GALLERY_IMAGES} gallery photos. Remove one to add another, or use the Library Import section for unlimited images.</p>
+              <p className="text-xs text-amber-700 mt-0.5">There is no image limit. Add as many gallery photos as needed.</p>
             </div>
           </div>
         )}
@@ -1151,7 +1151,7 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
   const move = (list,index,delta,callback) => { const next=[...list]; const target=index+delta; if(target<0||target>=next.length)return; [next[index],next[target]]=[next[target],next[index]]; callback(next); };
   const add = (key,items) => {
     const current = key==='hero'?heroSlides:key==='banner'?bannerSlides:gallery;
-    const max = key==='hero'||key==='banner'?4:MAX_GALLERY_IMAGES;
+    const max = Number.POSITIVE_INFINITY;
     const existing = current.map(item=>typeof item==='string'?item:item?.url||item?.image_url||'');
     const unique = items.filter(item=>item.url&&!existing.includes(item.url));
     const accepted=unique;
@@ -1303,7 +1303,7 @@ const normaliseGalleries = (dest) => {
   })
 
   gallery.sort((a, b) => a.sort_order - b.sort_order)
-  return { gallery: gallery.slice(0, MAX_GALLERY_IMAGES), library_images }
+  return { gallery, library_images }
 }
 
   const normaliseTips = (dest) => {
@@ -1868,7 +1868,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                 ['Category',        form.category      || '—'],
                 ['Difficulty',      form.difficulty    || '—'],
                 ['Status',          form.is_active     ? '✓ Active' : '○ Draft'],
-                ['Gallery',         `${(form.gallery||[]).length} / ${MAX_GALLERY_IMAGES}`],
+                ['Gallery',         `${(form.gallery||[]).length} images`],
                 ['Library imports', `${(form.library_images||[]).length}`],
                 ['Hero + Cover',    `${[form.hero_image,form.cover_image_url,form.image_url].filter(Boolean).length}/3`],
                 ['Featured',        form.is_featured   ? '⭐ Yes' : 'No'],
