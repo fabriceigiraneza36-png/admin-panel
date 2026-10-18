@@ -338,8 +338,8 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 /* ─── Gallery Manager ────────────────────────────────────────────────────────── */
 
 const HERO_COUNTRY_IMAGE_COUNT = 4
-const MIN_COUNTRY_IMAGES = 9
-const MAX_COUNTRY_IMAGES = 12
+const MIN_COUNTRY_IMAGES = 1
+const MAX_COUNTRY_IMAGES = Number.POSITIVE_INFINITY
 
 function GalleryManager({ gallery = [], onChange, onLightbox }) {
   const [addMode, setAddMode] = useState('upload')
@@ -364,12 +364,12 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
 
   const importImage = (item) => {
     const url = item.image_url || item.url || item.imageUrl
-    if (!url || gallery.length >= MAX_COUNTRY_IMAGES || gallery.some(image => image.url === url)) return
+    if (!url || gallery.some(image => image.url === url)) return
     onChange([...gallery, { url, caption: item.title || item.description || '', source: 'gallery' }])
   }
 
   const addFromUrl = () => {
-    if (!urlInput.trim() || gallery.length >= MAX_COUNTRY_IMAGES) return
+    if (!urlInput.trim()) return
     if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
     setUrlValid(true)
     onChange([...gallery, { url: urlInput.trim(), caption: captionInput.trim(), source: 'url' }])
@@ -377,7 +377,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
   }
 
   const addFromUpload = () => {
-    if (!uploadedUrl || gallery.length >= MAX_COUNTRY_IMAGES) return
+    if (!uploadedUrl) return
     onChange([...gallery, { url: uploadedUrl, caption: captionInput.trim(), source: 'upload' }])
     setUploadedUrl(''); setCaptionInput('')
   }
@@ -395,7 +395,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
             <Camera size={14} className="text-emerald-500" /> Photo Gallery
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{gallery.length}/{MAX_COUNTRY_IMAGES} photos · first 4 are hero · remaining photos are attraction/gallery media</p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photos · add any number of hero/gallery images</p>
         </div>
         <button type="button" onClick={() => setShowLibrary(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
@@ -541,7 +541,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
 
         <button type="button"
           onClick={addMode === 'url' ? addFromUrl : addFromUpload}
-          disabled={gallery.length >= MAX_COUNTRY_IMAGES || (addMode === 'url' ? !urlInput.trim() : !uploadedUrl)}
+          disabled={addMode === 'url' ? !urlInput.trim() : !uploadedUrl}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
           <Plus size={14} /> Add to Gallery
         </button>
@@ -1005,8 +1005,8 @@ export default function Countries() {
         imageUrlOf(item?.imageUrl || item?.image_url || item?.image || item?.url)
       ).length
       const heroImages = [...new Set((Array.isArray(form.gallery) ? form.gallery : []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(imageUrlOf).filter(Boolean))]
-      if (uniqueImages.length < MIN_COUNTRY_IMAGES) e.gallery = `At least ${MIN_COUNTRY_IMAGES} valid, unique country images are required (4 hero + attraction/gallery images). Currently: ${uniqueImages.length}/${MIN_COUNTRY_IMAGES}.`
-      if (heroImages.length < HERO_COUNTRY_IMAGE_COUNT) e.gallery = `The first ${HERO_COUNTRY_IMAGE_COUNT} gallery slots must contain valid, unique hero images. Currently: ${heroImages.length}/${HERO_COUNTRY_IMAGE_COUNT}.`
+      if (uniqueImages.length < 1) e.gallery = 'Add at least one country image.'
+      if (heroImages.length < 1) e.gallery = 'Add at least one country hero image.'
       if ((form.attractions || []).length < 4) e.attractions = 'Add at least 4 country attractions'
       else if (completeAttractions < 4) e.attractions = 'Every country attraction must have a name and image'
       if (!form.latitude || !form.longitude) e.coordinates = 'Latitude and longitude are required so this country can appear correctly on the interactive map'
@@ -1036,7 +1036,7 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
+        hero_images: (form.gallery || []).map(image => ({
           url: image.url || image.imageUrl,
           caption: image.caption || '',
         })).filter(image => image.url),
