@@ -36,9 +36,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 const DIFFICULTIES = ['easy', 'moderate', 'challenging', 'strenuous', 'expert']
 const STATUSES     = ['draft', 'published', 'archived']
 const CATEGORIES   = ['Adventure', 'Nature & Wildlife', 'Culture & Heritage', 'Beach & Island', 'City & Urban', 'Mountain & Hiking', 'Safari', 'Waterfalls & Lakes', 'Historical & Archaeological', 'Family & Leisure', 'Eco-tourism']
-const HERO_IMAGE_COUNT = 4
-const MIN_TOTAL_DESTINATION_IMAGES = 9
-const MAX_GALLERY_IMAGES = 12   // uploaded/URL gallery images (excludes hero/cover/main + library imports)
+const HERO_IMAGE_COUNT = 1
+const MIN_TOTAL_DESTINATION_IMAGES = 1
+const Number.POSITIVE_INFINITY = Number.POSITIVE_INFINITY
 
 const INITIAL_FORM = {
   // Identity
@@ -376,7 +376,7 @@ const addUpload = () => {
   const saveCaption= (i) => { const g=[...gallery]; g[i]={...g[i],caption:editCap}; onChange(g); setEditIdx(null) }
 
   // Build 10 slots — filled or empty
-  const slots = Array.from({ length: MAX_GALLERY_IMAGES }, (_, i) => ({
+  const slots = Array.from({ length: Math.max(gallery.length + 1, 1) }, (_, i) => ({
     index: i,
     image: gallery[i] || null,
     isNext: i === nextSlot,
@@ -392,12 +392,12 @@ const addUpload = () => {
           </div>
           <div>
             <p className="text-sm font-bold text-emerald-900">Destination Gallery</p>
-            <p className="text-[11px] text-emerald-600">Uploaded photos & external URLs — max {MAX_GALLERY_IMAGES}</p>
+            <p className="text-[11px] text-emerald-600">Uploaded photos & external URLs — no image limit</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1.5 rounded-xl font-bold text-xs shadow-sm ${isFull?'bg-amber-100 text-amber-800 border border-amber-300':'bg-emerald-100 text-emerald-800 border border-emerald-300'}`}>
-            {gallery.length} / {MAX_GALLERY_IMAGES}
+            {gallery.length} images
           </div>
         </div>
       </div>
@@ -1154,7 +1154,7 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
     const max = key==='hero'||key==='banner'?4:MAX_GALLERY_IMAGES;
     const existing = current.map(item=>typeof item==='string'?item:item?.url||item?.image_url||'');
     const unique = items.filter(item=>item.url&&!existing.includes(item.url));
-    const accepted=unique.slice(0,Math.max(0,max-current.length));
+    const accepted=unique;
     if(key==='hero') onHeroChange([...current,...accepted].slice(0,max));
     else if(key==='banner') onBannerChange([...current,...accepted].slice(0,max));
     else onGalleryChange([...current,...accepted].slice(0,max));
@@ -1165,7 +1165,7 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
     if(accepted.length) setPicker(null);
   };
   const Section = ({id,title,description,items,limit,accent}) => <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 space-y-3">
-    <div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${accent}`}><Camera size={17}/></div><div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">{title}</h4><p className="mt-0.5 text-xs text-slate-500">{description}</p></div><span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">{items.length}/{limit}</span></div>
+    <div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${accent}`}><Camera size={17}/></div><div className="min-w-0 flex-1"><h4 className="text-sm font-extrabold text-slate-800">{title}</h4><p className="mt-0.5 text-xs text-slate-500">{description}</p></div><span className="shrink-0 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">{items.length} images}</span></div>
     <div className="space-y-2">
       {items.map((raw,index)=>{const item=normalize(raw);return <div key={item.url||index} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 p-2">
         <span className="w-5 shrink-0 text-center text-xs font-extrabold text-slate-400">{index+1}</span>
@@ -1176,13 +1176,13 @@ function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHer
       </div>})}
       {items.length===0 && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-xs text-slate-400">No images added yet.</div>}
     </div>
-    {items.length<limit && <button type="button" onClick={()=>{setSectionError('');setPicker({id,title,items,limit})}} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 px-3 py-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"><Plus size={15}/>Add image{items.length===0?'':'s'} from storage, upload or URL</button>}
-    {id==='hero'&&items.length<4&&<p className="text-[11px] font-semibold text-amber-700">{4-items.length} image{4-items.length===1?'':'s'} missing on hero slideshow.</p>}
+    {<button type="button" onClick={()=>{setSectionError('');setPicker({id,title,items,limit})}} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 px-3 py-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"><Plus size={15}/>Add image{items.length===0?'':'s'} from storage, upload or URL</button>}
+    
   </section>;
   return <div className="space-y-4">
     <div className="rounded-xl bg-emerald-950 px-4 py-3 text-white"><p className="text-sm font-extrabold">Destination images</p><p className="mt-1 text-xs text-emerald-100">Add images in one compact place per section. Use the arrows to set the display order.</p></div>
-    <Section id="hero" title="Hero slideshow" description="Exactly four ordered images for the destination hero." items={heroSlides} limit={4} accent="bg-amber-50 text-amber-600"/>
-    <Section id="banner" title="Banner / card slideshow" description="Up to four images used for destination cards." items={bannerSlides} limit={4} accent="bg-sky-50 text-sky-600"/>
+    <Section id="hero" title="Hero slideshow" description="Add one or more images for the destination hero slideshow." items={heroSlides} limit={Number.POSITIVE_INFINITY} accent="bg-amber-50 text-amber-600"/>
+    <Section id="banner" title="Banner / card slideshow" description="Add any number of images used for destination cards." items={bannerSlides} limit={Number.POSITIVE_INFINITY} accent="bg-sky-50 text-sky-600"/>
     <Section id="gallery" title="Attractions & other images" description="Gallery imports are added directly to this collection." items={gallery} limit={MAX_GALLERY_IMAGES} accent="bg-emerald-50 text-emerald-600"/>
     {sectionError&&<p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{sectionError}</p>}
     <DestinationMediaPicker open={Boolean(picker)} onClose={()=>setPicker(null)} section={picker?.title||''} current={picker?.items||[]} capacity={picker?.limit||MAX_GALLERY_IMAGES} onAdd={items=>picker&&add(picker.id,items)}/>
@@ -1373,7 +1373,7 @@ const normaliseGalleries = (dest) => {
       tags:               dest.tags               || [],
 
       hero_slides: Array.isArray(dest.hero_slides || dest.heroSlides) ? (dest.hero_slides || dest.heroSlides).slice(0, HERO_IMAGE_COUNT) : gallery.slice(0, HERO_IMAGE_COUNT),
-      banner_slides: Array.isArray(dest.banner_slides || dest.bannerSlides) ? (dest.banner_slides || dest.bannerSlides).slice(0, 4) : [],
+      banner_slides: Array.isArray(dest.banner_slides || dest.bannerSlides) ? (dest.banner_slides || dest.bannerSlides) : [],
       gallery: [...gallery.slice(HERO_IMAGE_COUNT), ...library_images],
       library_images: [],
       itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
