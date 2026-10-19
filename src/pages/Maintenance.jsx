@@ -41,14 +41,6 @@ export default function Maintenance () {
 
   useEffect(() => { refreshCategories() }, [refreshCategories])
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(PURGE_JOB_STORAGE_KEY) || 'null')
-      if (saved?.id && saved?.category) void trackPurgeJob(saved.id, saved.category)
-    } catch {
-      window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
-    }
-  }, [trackPurgeJob])
 
   const openPurge = useCallback((cat) => {
     setPurgeTarget(cat)
@@ -107,6 +99,15 @@ export default function Maintenance () {
       setPurging(false)
     }
   }, [toastError, toastSuccess, refreshCategories])
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(PURGE_JOB_STORAGE_KEY) || 'null')
+      if (saved?.id && saved?.category) void trackPurgeJob(saved.id, saved.category)
+    } catch {
+      window.localStorage.removeItem(PURGE_JOB_STORAGE_KEY)
+    }
+  }, [trackPurgeJob])
 
   const handlePurge = useCallback(async () => {
     if (!purgeTarget || purgeConfirm !== 'DELETE_ALL' || purging) return
