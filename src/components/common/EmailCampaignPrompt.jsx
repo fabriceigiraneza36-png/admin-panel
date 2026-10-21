@@ -169,9 +169,21 @@ export default function EmailCampaignPrompt() {
       // Keep the context template reusable so this design can be used again
       // for the next matching destination, post, or package announcement.
       try {
+        const reusableDraft = {
+          ...activeDraft,
+          // Preserve context placeholders when a field still contains this
+          // event's own image/link; otherwise future announcements would point
+          // to the destination/package that happened to trigger this campaign.
+          hero_image_url: activeDraft.hero_image_url === activeItem.contextData.heroImageUrl
+            ? (activeItem.template?.hero_image_url || "")
+            : activeDraft.hero_image_url,
+          cta_url: activeDraft.cta_url === activeItem.contextData.contentUrl
+            ? (activeItem.template?.cta_url || "{{contentUrl}}")
+            : activeDraft.cta_url,
+        };
         await emailBroadcastAPI.saveTemplate({
           ...(activeItem.template || {}),
-          ...activeDraft,
+          ...reusableDraft,
           key: activeItem.templateKey,
           name: activeItem.template?.name || CONTEXT_LABELS[activeItem.context] || "Altuvera campaign",
           context: activeItem.context,
