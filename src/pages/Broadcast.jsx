@@ -138,28 +138,67 @@ function RecipientBadge({ loading, count }) {
 
 function EmailBroadcast() {
   const toast = useToast();
-
-  const [audience, setAudience]           = useState("all");
-  const [nationality, setNationality]     = useState("");
+  const [audience, setAudience] = useState("subscribers");
+  const [nationality, setNationality] = useState("");
   const [nationalities, setNationalities] = useState([]);
-  const [subject, setSubject]             = useState("");
-  const [body, setBody]                   = useState("");
-
+  const [templates, setTemplates] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [templateKey, setTemplateKey] = useState("new_destination");
+  const [templateName, setTemplateName] = useState("New destination");
+  const [context, setContext] = useState("new_destination");
+  const [preheader, setPreheader] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [accentColor, setAccentColor] = useState("#059669");
+  const [backgroundColor, setBackgroundColor] = useState("#f0fdf4");
+  const [layout, setLayout] = useState("adventure");
+  const [ctaLabel, setCtaLabel] = useState("Explore destination");
+  const [ctaUrl, setCtaUrl] = useState("https://www.altuverasafaris.com/destinations");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
   const [recipientCount, setRecipientCount] = useState(null);
-  const [countLoading, setCountLoading]     = useState(false);
-  const [sending, setSending]               = useState(false);
-  const [lastSent, setLastSent]             = useState(null);
+  const [countLoading, setCountLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [lastSent, setLastSent] = useState(null);
 
-  /* Load nationalities once */
-  useEffect(() => {
-    let cancelled = false;
-    emailBroadcastAPI.getNationalities()
-      .then(({ data }) => { if (!cancelled) setNationalities(data?.data || []); })
-      .catch(() => {});
-    return () => { cancelled = true; };
+  const applyTemplate = useCallback((template) => {
+    if (!template) return;
+    setTemplateKey(template.key || "custom_email");
+    setTemplateName(template.name || "Custom email");
+    setContext(template.context || "general");
+    setSubject(template.subject || "");
+    setPreheader(template.preheader || "");
+    setHeadline(template.headline || "");
+    setBody(template.body || "");
+    setHeroImageUrl(template.hero_image_url || "");
+    setAccentColor(template.accent_color || "#059669");
+    setBackgroundColor(template.background_color || "#f0fdf4");
+    setLayout(template.layout || "editorial");
+    setCtaLabel(template.cta_label || "Explore more");
+    setCtaUrl(template.cta_url || "https://www.altuverasafaris.com/destinations");
   }, []);
 
-  /* Live recipient count */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await emailBroadcastAPI.getTemplates();
+        const rows = data?.data || [];
+        if (cancelled) return;
+        setTemplates(rows);
+        applyTemplate(rows.find(t => t.key === "new_destination") || rows[0]);
+        const historyRes = await emailBroadcastAPI.getHistory().catch(() => ({ data: { data: [] } }));
+        if (!cancelled) setHistory(historyRes.data?.data || []);
+        const nationalityRes = await emailBroadcastAPI.getNationalities().catch(() => ({ data: { data: [] } }));
+        if (!cancelled) setNationalities(nationalityRes.data?.data || []);
+      } catch (e) {
+        if (!cancelled) toast.error(extractError(e, "Email templates could not be loaded."));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [applyTemplate, toast]);
+
   useEffect(() => {
     if (audience === "nationality" && !nationality) {
       setRecipientCount(null);
@@ -177,161 +216,227 @@ function EmailBroadcast() {
     return () => { cancelled = true; };
   }, [audience, nationality]);
 
-  const activeAudience = useMemo(
-    () => AUDIENCE_OPTIONS.find((a) => a.value === audience),
-    [audience]
-  );
+  const activeAudience = useMemo(() => AUDIENCE_OPTIONS.find(a => a.value === audience), [audience]);
+  const templatePayload = useMemo(() => ({
+    key: templateKey.trim(),
+    name: templateName.trim(),
+    context,
+    subject: subject.trim(),
+    preheader: preheader.trim(),
+    headline: headline.trim(),
+    body: body.trim(),
+    hero_image_url: heroImageUrl.trim(),
+    accent_color: accentColor,
+    background_color: backgroundColor,
+    layout,
+    cta_label: ctaLabel.trim(),
+    cta_url: ctaUrl.trim(),
+  }), [templateKey, templateName, context, subject, preheader, headline, body, heroImageUrl, accentColor, backgroundColor, layout, ctaLabel, ctaUrl]);
 
-  const canSend = useMemo(() =>
-    !sending &&
-    subject.trim().length > 0 &&
-    body.trim().length    > 0 &&
-    (audience !== "nationality" || !!nationality),
-    [sending, subject, body, audience, nationality]
-  );
+  const canSend = !sending && !savingTemplate && !!subject.trim() && !!body.trim()
+    && (audience !== "nationality" || !!nationality);
+  const canSave = !sending && !savingTemplate && !!templateKey.trim() && !!templateName.trim()
+    && !!subject.trim() && !!body.trim();
+
+  const handleSaveTemplate = useCallback(async () => {
+    if (!canSave) return toast.error("Add a template name, key, subject, and message before saving.");
+    setSavingTemplate(true);
+    try {
+      const { data } = await emailBroadcastAPI.saveTemplate(templatePayload);
+      const saved = data?.data;
+      if (saved) {
+        setTemplates(previous => [...previous.filter(item => item.key !== saved.key), saved].sort((a,b) => a.name.localeCompare(b.name)));
+        applyTemplate(saved);
+      }
+      toast.success(data?.message || "Template saved for reuse.");
+    } catch (e) {
+      toast.error(extractError(e, "Template could not be saved."));
+    } finally {
+      setSavingTemplate(false);
+    }
+  }, [canSave, templatePayload, applyTemplate, toast]);
 
   const handleSend = useCallback(async () => {
-    if (!subject.trim() || !body.trim()) {
-      return toast.error("Subject and message are required.");
-    }
-    if (audience === "nationality" && !nationality) {
-      return toast.error("Please choose a nationality.");
-    }
+    if (!subject.trim() || !body.trim()) return toast.error("Subject and message are required.");
+    if (audience === "nationality" && !nationality) return toast.error("Please choose a nationality.");
     setSending(true);
     try {
-      const payload = {
+      const { data } = await emailBroadcastAPI.send({
         audience,
-        subject: subject.trim(),
-        body:    body.trim(),
-        ...(audience === "nationality" ? { nationality } : {}),
-      };
-      const { data } = await emailBroadcastAPI.send(payload);
-      setLastSent({
-        subject: subject.trim(),
-        audience,
-        nationality: audience === "nationality" ? nationality : null,
-        sent:   data?.sent   ?? 0,
-        failed: data?.failed ?? 0,
-        total:  data?.total  ?? 0,
+        nationality: audience === "nationality" ? nationality : undefined,
+        templateKey: templateKey.trim(),
+        template: templatePayload,
+        contextData: {
+          contentUrl: ctaUrl.trim(),
+          bookingUrl: "https://www.altuverasafaris.com/booking",
+        },
       });
-      toast.success(data?.message || `Email sent to ${data?.sent ?? 0} recipient(s).`);
-      setSubject("");
-      setBody("");
+      setLastSent({
+        subject: subject.trim(), audience,
+        nationality: audience === "nationality" ? nationality : null,
+        sent: data?.sent ?? 0, failed: data?.failed ?? 0, total: data?.total ?? 0,
+      });
+      toast.success(data?.message || ("Email sent to " + (data?.sent ?? 0) + " recipient(s)."));
+      const historyRes = await emailBroadcastAPI.getHistory().catch(() => null);
+      if (historyRes?.data?.data) setHistory(historyRes.data.data);
     } catch (e) {
       toast.error(extractError(e, "Failed to send email broadcast."));
     } finally {
       setSending(false);
     }
-  }, [audience, nationality, subject, body, toast]);
+  }, [audience, nationality, subject, body, templateKey, templatePayload, ctaUrl, toast]);
+
+  const previewCopy = body
+    .replace(/\{\{firstName\}\}/g, "Alex")
+    .replace(/\{\{destinationName\}\}/g, "Volcanoes National Park")
+    .replace(/\{\{postTitle\}\}/g, "A guide to Rwanda")
+    .replace(/\{\{packageName\}\}/g, "Rwanda Gorilla Trekking")
+    .replace(/\{\{countryName\}\}/g, "Rwanda");
 
   return (
     <div className="space-y-5">
       <div className="card p-4 sm:p-6 space-y-5">
-        {/* Info banner */}
         <div className="flex items-start gap-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3">
           <Mail size={18} className="text-emerald-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-emerald-800 leading-relaxed">
-            Send an email to a targeted audience. Choose who receives it, write your
-            message, then send. Large batches are throttled automatically.
-          </p>
-        </div>
-
-        {/* Audience */}
-        <Field label="Audience" required icon={Users}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {AUDIENCE_OPTIONS.map((opt) => (
-              <AudienceCard
-                key={opt.value}
-                option={opt}
-                selected={audience === opt.value}
-                onClick={() => setAudience(opt.value)}
-              />
-            ))}
+          <div className="text-sm text-emerald-900 leading-relaxed">
+            <p className="font-semibold">Altuvera Email Studio</p>
+            <p>Design reusable, personalised emails with context-specific copy, imagery, colours, and layouts. Marketing broadcasts go only to registered users and travellers who opted in, plus active newsletter subscribers. Essential booking emails remain separate.</p>
           </div>
-        </Field>
+        </div>
 
-        {/* Nationality picker */}
-        {audience === "nationality" && (
-          <Field label="Nationality" required icon={Flag}>
-            <select
-              value={nationality}
-              onChange={(e) => setNationality(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm
-                         bg-white focus:outline-none focus:ring-2 focus:ring-primary-500
-                         transition-shadow"
-            >
-              <option value="">Select nationality…</option>
-              {nationalities.map((n) => (
-                <option key={n.nationality} value={n.nationality}>
-                  {n.nationality} ({n.count})
-                </option>
-              ))}
-            </select>
-            {nationalities.length === 0 && (
-              <p className="text-xs text-slate-400">No nationalities recorded yet.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="space-y-4 min-w-0">
+            <Field label="Load a saved template" icon={Mail}>
+              <select value={templateKey} onChange={e => applyTemplate(templates.find(t => t.key === e.target.value))} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                {templates.map(t => <option key={t.key} value={t.key}>{t.name} · {t.context.replace(/_/g, " ")}</option>)}
+              </select>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Template name" required>
+                <input value={templateName} onChange={e => setTemplateName(e.target.value)} maxLength={120} className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" placeholder="A memorable template name" />
+              </Field>
+              <Field label="Template key" required hint="Change the key to save a separate copy.">
+                <input value={templateKey} onChange={e => setTemplateKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "_"))} maxLength={80} className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" />
+              </Field>
+            </div>
+            <Field label="Email context" required>
+              <select value={context} onChange={e => setContext(e.target.value)} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">
+                <option value="new_destination">New destination</option>
+                <option value="new_post">New travel post</option>
+                <option value="new_package">New package</option>
+                <option value="top_rated_destination">Popular / top-rated destination</option>
+                <option value="booking_encouragement">Booking encouragement</option>
+                <option value="travel_guide">Travel guide / seasonal inspiration</option>
+                <option value="general">General announcement</option>
+              </select>
+            </Field>
+            <Field label="Subject line" required>
+              <input value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} placeholder="A helpful, concise subject line" className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" />
+            </Field>
+            <Field label="Inbox preview text" hint="A short sentence displayed next to the subject in many inboxes.">
+              <input value={preheader} onChange={e => setPreheader(e.target.value)} maxLength={240} placeholder="A little more context before they open" className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" />
+            </Field>
+            <Field label="Headline" required>
+              <input value={headline} onChange={e => setHeadline(e.target.value)} maxLength={180} className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" placeholder="Email headline" />
+            </Field>
+            <Field label="Email message" required hint="Personalisation tokens: {{firstName}}, {{destinationName}}, {{countryName}}, {{packageName}}, {{postTitle}}. Keep the email helpful and brief.">
+              <textarea value={body} onChange={e => setBody(e.target.value)} rows={6} maxLength={10000} placeholder="Write a concise, contextual message…" className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm resize-y min-h-[150px]" />
+            </Field>
+            <Field label="Hero image URL" hint="Use a public HTTPS image; choose a destination or package image when possible.">
+              <input value={heroImageUrl} onChange={e => setHeroImageUrl(e.target.value)} placeholder="https://…" className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm" />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Accent colour">
+                <div className="flex gap-2 items-center"><input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} className="h-10 w-12 border rounded-lg p-1 bg-white" /><input value={accentColor} onChange={e => setAccentColor(e.target.value)} className="w-full min-w-0 px-2 py-2 border rounded-lg text-xs uppercase" /></div>
+              </Field>
+              <Field label="Background colour">
+                <div className="flex gap-2 items-center"><input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-12 border rounded-lg p-1 bg-white" /><input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-full min-w-0 px-2 py-2 border rounded-lg text-xs uppercase" /></div>
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Layout">
+                <select value={layout} onChange={e => setLayout(e.target.value)} className="w-full px-3 py-2.5 border rounded-lg bg-white text-sm">
+                  <option value="adventure">Adventure</option><option value="editorial">Editorial</option><option value="minimal">Minimal</option>
+                </select>
+              </Field>
+              <Field label="Button label">
+                <input value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} maxLength={80} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              </Field>
+              <Field label="Button URL">
+                <input value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} maxLength={600} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              </Field>
+            </div>
+          </div>
+
+          <div className="min-w-0 space-y-4">
+            <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+              <div className="px-4 py-3 border-b bg-white flex items-center justify-between gap-2">
+                <div><h3 className="font-semibold text-slate-800">Live email preview</h3><p className="text-xs text-slate-500">Personalised sample for Alex</p></div>
+                <span className="text-[10px] uppercase tracking-wide text-slate-400">Responsive design</span>
+              </div>
+              <div className="p-3 sm:p-5" style={{ background: backgroundColor }}>
+                <div className="max-w-[600px] mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white">
+                  <div className="p-5 sm:p-7 text-center" style={{ background: layout === "minimal" ? "#fff" : accentColor, color: layout === "minimal" ? "#0f172a" : "#fff" }}>
+                    <p className="text-[10px] font-bold tracking-[.2em]">ALTUVERA SAFARIS</p>
+                    <h3 className="mt-3 text-xl sm:text-2xl font-extrabold leading-tight">{headline.replace(/\{\{firstName\}\}/g, "Alex").replace(/\{\{destinationName\}\}/g, "Volcanoes National Park") || subject || "Your next adventure"}</h3>
+                    <p className="text-xs mt-2 opacity-80">True adventure in high places &amp; deep culture</p>
+                  </div>
+                  {heroImageUrl.trim() && <img src={heroImageUrl.trim()} alt="Email hero preview" className="block w-full max-h-56 object-cover" />}
+                  <div className="p-5 sm:p-7">
+                    {previewCopy.split(/\n{2,}/).map((p, i) => <p key={i} className="text-sm leading-7 text-slate-700 mb-4 whitespace-pre-line">{p}</p>)}
+                    <div className="text-center mt-5"><span className="inline-flex rounded-lg px-5 py-3 text-sm font-bold text-white" style={{ background: accentColor }}>{ctaLabel || "Explore more"}</span></div>
+                    <p className="text-[10px] text-slate-400 text-center mt-5">Mobile-friendly email · Personalised for each recipient</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Field label="Audience" required icon={Users}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {AUDIENCE_OPTIONS.map(opt => (
+                  <AudienceCard key={opt.value} option={opt} selected={audience === opt.value} onClick={() => setAudience(opt.value)} />
+                ))}
+              </div>
+            </Field>
+            {audience === "nationality" && (
+              <Field label="Nationality" required icon={Flag}>
+                <select value={nationality} onChange={e => setNationality(e.target.value)} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm bg-white">
+                  <option value="">Select nationality…</option>
+                  {nationalities.map(n => <option key={n.nationality} value={n.nationality}>{n.nationality} ({n.count})</option>)}
+                </select>
+              </Field>
             )}
-          </Field>
-        )}
-
-        <RecipientBadge loading={countLoading} count={recipientCount} />
-
-        {/* Subject */}
-        <div>
-          <Field label="Subject" required>
-            <input
-              type="text"
-              value={subject}
-              maxLength={LIMITS.SUBJECT}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. New Safari Packages for Summer 2026"
-              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm
-                         focus:outline-none focus:ring-2 focus:ring-primary-500
-                         transition-shadow"
-            />
-          </Field>
-          <CharCounter current={subject.length} max={LIMITS.SUBJECT} />
-        </div>
-
-        {/* Body */}
-        <div>
-          <Field label="Message" required>
-            <textarea
-              value={body}
-              rows={8}
-              maxLength={LIMITS.EMAIL_BODY}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your email message… Line breaks are preserved."
-              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm resize-y
-                         min-h-[160px] focus:outline-none focus:ring-2 focus:ring-primary-500
-                         transition-shadow"
-            />
-          </Field>
-          <CharCounter current={body.length} max={LIMITS.EMAIL_BODY} />
-        </div>
-
-        {/* Send bar */}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between
-                        gap-3 pt-2 border-t border-slate-100">
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-            <Bell size={13} /> Target:{" "}
-            <strong className="text-slate-700">
-              {activeAudience?.label}
-              {audience === "nationality" && nationality ? ` — ${nationality}` : ""}
-            </strong>
-          </span>
-          <button
-            onClick={handleSend}
-            disabled={!canSend}
-            className="btn-primary inline-flex items-center justify-center gap-2
-                       disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-          >
-            <Send size={16} /> {sending ? "Sending…" : "Send Email"}
-          </button>
+            <RecipientBadge loading={countLoading} count={recipientCount} />
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button onClick={handleSaveTemplate} disabled={!canSave} className="btn-secondary inline-flex items-center justify-center gap-2 flex-1 disabled:opacity-50">
+                <CheckCircle2 size={16} /> {savingTemplate ? "Saving…" : "Save reusable template"}
+              </button>
+              <button onClick={handleSend} disabled={!canSend} className="btn-primary inline-flex items-center justify-center gap-2 flex-1 disabled:opacity-50">
+                <Send size={16} /> {sending ? "Sending…" : "Send email"}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">Note: email clients often block animations, so the design uses robust responsive layouts and static fallbacks. Review the preview and save the template before reusing it.</p>
+          </div>
         </div>
       </div>
 
-      {/* Last sent */}
       {lastSent && <LastEmailReceipt data={lastSent} />}
+      <div className="card p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="font-semibold text-slate-800 flex items-center gap-2"><CalendarClock size={17} className="text-primary-600" /> Recent email campaign history</h3>
+          <button type="button" onClick={() => emailBroadcastAPI.getHistory().then(({data}) => setHistory(data?.data || [])).catch(e => toast.error(extractError(e, "History unavailable.")))} className="text-xs text-primary-700 hover:underline">Refresh</button>
+        </div>
+        {history.length === 0 ? <p className="text-sm text-slate-500">No campaigns sent yet.</p> : (
+          <div className="space-y-2">
+            {history.slice(0, 8).map(row => (
+              <div key={row.id} className="rounded-lg border border-slate-200 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="min-w-0"><p className="text-sm font-semibold text-slate-800 break-words">{row.subject}</p><p className="text-xs text-slate-500 mt-1">{row.context?.replace(/_/g, " ")} · {row.audience} · {new Date(row.created_at).toLocaleString()}</p></div>
+                <div className="flex flex-wrap gap-2 text-xs"><ChipWhite color="emerald">{row.sent_count} sent</ChipWhite>{row.failed_count > 0 && <ChipWhite color="rose">{row.failed_count} failed</ChipWhite>}<ChipWhite color="slate">{row.recipient_count} total</ChipWhite></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
