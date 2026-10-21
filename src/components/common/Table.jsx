@@ -94,7 +94,7 @@ function CellText({ value, align = 'left' }) {
     <div
       title={typeof value === 'string' ? value : undefined}
       className={`
-        block w-full overflow-hidden text-ellipsis whitespace-nowrap
+        block w-full whitespace-normal break-words
         ${align === 'right' ? 'text-right' : ''}
         ${align === 'center' ? 'text-center' : ''}
       `}
@@ -331,7 +331,7 @@ export default function Table({
                           ) : (
                             <div
                               title={typeof rendered === 'string' ? rendered : undefined}
-                              className="overflow-hidden text-ellipsis whitespace-nowrap"
+                              className="whitespace-normal break-words"
                             >
                               {rendered}
                             </div>
