@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Loader2, SlidersHorizontal, ChevronDown, MapPin, Tag, Gauge, Star, CalendarDays, UserRound, CircleCheck, Layers3, Flag, Sparkles, ListFilter, RotateCcw } from 'lucide-react'
+import { Search, X, Loader2, SlidersHorizontal, ChevronDown, MapPin, Tag, Gauge, Star, CalendarDays, UserRound, CircleCheck, Layers3, Flag, ListFilter, RotateCcw } from 'lucide-react'
 
 export default function SearchBar({
   value,
