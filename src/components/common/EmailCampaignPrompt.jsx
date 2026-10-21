@@ -58,7 +58,7 @@ const prepareQueueItem = (row, templates = []) => {
 };
 
 export default function EmailCampaignPrompt() {
-  const { on, off, connected } = useSocket();
+  const { on, off, emit, connected } = useSocket();
   const toast = useToast();
   const toastRef = useRef(toast);
   toastRef.current = toast;
@@ -129,6 +129,9 @@ export default function EmailCampaignPrompt() {
     // reloaded or briefly disconnected after the server queued the campaign.
     loadPending();
     if (connected) {
+      // Join the protected admin room from the global admin shell, not only
+      // when the admin visits Messages. This enables countdown prompts on any page.
+      if (typeof emit === "function") emit("join:admin");
       on("email-campaign:approval-needed", onPending);
       on("email-campaign:sent", onSent);
     }
@@ -137,7 +140,7 @@ export default function EmailCampaignPrompt() {
       off("email-campaign:approval-needed", onPending);
       off("email-campaign:sent", onSent);
     };
-  }, [connected, on, off, mergeItem]);
+  }, [connected, on, off, emit, mergeItem]);
 
   const activeItem = useMemo(
     () => items.find((item) => !dismissed.includes(item.id)) || null,
