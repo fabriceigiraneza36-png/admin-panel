@@ -1479,12 +1479,19 @@ export default function Countries() {
       </div>
 
       {/* Filters */}
-      <div className="management-filter-panel card p-4">
-        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p><p className="text-xs text-slate-400">Keep travel information, media and practical guidance organized</p></div><span className="badge badge-green">{pag.total.toLocaleString()} countries</span></div><FilterBar onClear={() => { setFeatured(''); pag.reset() }}>
-          <SearchBar value={search} onChange={setSearch} placeholder="Search countries…" className="max-w-sm" />
+      <div className="management-filter-panel card min-w-0 p-3 sm:p-4">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-extrabold text-slate-800">Destination-country catalogue</p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">Keep travel information, media and practical guidance organized</p>
+          </div>
+          <span className="badge badge-green self-start sm:self-auto">{pag.total.toLocaleString()} countries</span>
+        </div>
+        <FilterBar className="!flex-wrap !items-stretch" onClear={() => { setFeatured(''); pag.reset() }}>
+          <SearchBar value={search} onChange={value => { setSearch(value); pag.reset() }} placeholder="Search countries…" className="w-full max-w-none" />
           <FilterSelect label="Featured" value={featured}
-            onChange={v => { setFeatured(v); pag.reset() }}
-            options={[{ value: '', label: 'All' }, { value: 'true', label: 'Featured' }, { value: 'false', label: 'Not Featured' }]} />
+            onChange={value => { setFeatured(value); pag.reset() }}
+            options={[{ value: '', label: 'All countries' }, { value: 'true', label: 'Featured only' }, { value: 'false', label: 'Not featured' }]} />
         </FilterBar>
       </div>
 
