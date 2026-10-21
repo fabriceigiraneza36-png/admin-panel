@@ -37,6 +37,7 @@ const toDraft = (template = {}, contextData = {}, savedOverrides = {}) => {
     accent_color: t.accent_color || "#059669",
     background_color: t.background_color || "#f0fdf4",
     layout: t.layout || "editorial",
+    animation: t.animation || "none",
     cta_label: t.cta_label || "Explore more",
     cta_url: savedOverrides.cta_url || contextData.contentUrl || t.cta_url || "https://www.altuverasafaris.com/destinations",
   };
@@ -258,6 +259,10 @@ export default function EmailCampaignPrompt() {
               <label className="block space-y-1.5"><span className="text-xs font-bold text-slate-700">Background</span><input type="color" value={activeDraft.background_color} onChange={e => updateDraft("background_color", e.target.value)} className="w-full h-10 rounded-xl border border-slate-200 bg-white p-1" /></label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="block space-y-1.5"><span className="text-xs font-bold text-slate-700">Layout</span><select value={activeDraft.layout} onChange={e => updateDraft("layout", e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white"><option value="adventure">Adventure</option><option value="editorial">Editorial</option><option value="minimal">Minimal</option></select></label>
+              <label className="block space-y-1.5"><span className="text-xs font-bold text-slate-700">Email motion</span><select value={activeDraft.animation} onChange={e => updateDraft("animation", e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white"><option value="none">None</option><option value="fade">Soft fade</option><option value="rise">Gentle rise</option></select></label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block space-y-1.5"><span className="text-xs font-bold text-slate-700">Button label</span><input value={activeDraft.cta_label} onChange={e => updateDraft("cta_label", e.target.value)} maxLength={80} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none" /></label>
               <label className="block space-y-1.5"><span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700"><ExternalLink size={13}/>Button URL</span><input value={activeDraft.cta_url} onChange={e => updateDraft("cta_url", e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none" /></label>
             </div>
@@ -270,7 +275,8 @@ export default function EmailCampaignPrompt() {
 
           <div className="border-t lg:border-t-0 lg:border-l border-slate-100 p-4 sm:p-6 bg-slate-50">
             <div className="flex items-center gap-2 text-slate-700 mb-3"><Mail size={16}/><h3 className="text-sm font-bold">Email preview</h3><span className="ml-auto text-[10px] uppercase tracking-wide text-slate-400">Responsive</span></div>
-            <div className="max-w-xl mx-auto bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+            <style>{`@keyframes altuveraEmailFade{from{opacity:.35}to{opacity:1}}@keyframes altuveraEmailRise{from{opacity:.6;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.altuvera-email-motion{animation:none!important;transform:none!important;opacity:1!important}}`}</style>
+            <div className="altuvera-email-motion max-w-xl mx-auto bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{animation: activeDraft.animation === "fade" ? "altuveraEmailFade .6s ease-out both" : activeDraft.animation === "rise" ? "altuveraEmailRise .55s ease-out both" : "none"}}>
               <div className="px-5 py-5 text-center" style={{ background: activeDraft.layout === "minimal" ? "#fff" : activeDraft.accent_color, color: activeDraft.layout === "minimal" ? "#0f172a" : "#fff" }}>
                 <p className="text-[10px] font-bold tracking-[.2em]">ALTUVERA SAFARIS</p>
                 <h3 className="text-xl sm:text-2xl font-extrabold leading-tight mt-3">{previewHeadline}</h3>
