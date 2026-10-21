@@ -53,7 +53,6 @@ const INITIAL_FORM = {
 
   // Media - Primary/Hero
   image_url: '', hero_image: '', cover_image_url: '',
-  video_url: '', virtual_tour_url: '',
 
   // Media - Galleries (separated)
   gallery: [],          // uploaded/URL — max 10
@@ -1399,7 +1398,6 @@ const normaliseGalleries = (dest) => {
       hero_image:         dest.heroImage          || dest.hero_image || '',
       cover_image_url:    dest.coverImageUrl      || dest.cover_image_url || '',
       video_url:          dest.videoUrl           || dest.video_url || '',
-      virtual_tour_url:   dest.virtualTourUrl     || dest.virtual_tour_url || '',
 
       highlights:         dest.highlights         || [],
       activities:         Array.isArray(dest.activities) ? dest.activities : [],
