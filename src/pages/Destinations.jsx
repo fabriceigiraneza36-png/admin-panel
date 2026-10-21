@@ -1829,7 +1829,6 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
 
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              <Field label="Highlights" icon={Star}><TagInput value={form.highlights} onChange={v=>upd('highlights',v)} /></Field>
-             <Field label="Activities" icon={Activity}><TagInput value={form.activities} onChange={v=>upd('activities',v)} /></Field>
              <Field label="Wildlife" icon={TreePine}><TagInput value={form.wildlife} onChange={v=>upd('wildlife',v)} /></Field>
              <Field label="Local Tips" icon={Coffee}><TagInput value={form.local_tips} onChange={v=>upd('local_tips',v)} /></Field>
            </div>
@@ -1837,6 +1836,9 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
              <AttractionEditor attractions={form.attractions} onChange={v=>upd('attractions',v)} />
            </div>
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
+             <div className="rounded-2xl border border-emerald-100 bg-white p-4 sm:p-5">
+               <DestinationExperienceEditor activities={form.activities} onActivitiesChange={v=>upd('activities',v)} experiences={form.experiences} onExperiencesChange={v=>upd('experiences',v)} />
+             </div>
              <FaqEditor faqs={form.faqs} onChange={v=>upd('faqs',v)}/>
            </div>
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
