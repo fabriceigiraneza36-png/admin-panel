@@ -477,7 +477,8 @@ export default function Testimonials() {
             <Quote size={26} className="text-primary-600" />
             Testimonials
           </h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle flex items-center gap-1.5">
+            <Database size={13} className="text-emerald-600" aria-hidden="true" />
             {pag.total} review{pag.total !== 1 ? "s" : ""}
             {pendingCount > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 text-amber-600 font-semibold">
