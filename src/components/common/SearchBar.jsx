@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useLayoutEffect } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
@@ -50,7 +50,6 @@ export default function SearchBar({
 /* Shared compact filter experience used throughout the admin. */
 export function FilterBar({ children, className = '', onClear }) {
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 0 })
   const [expandedFilter, setExpandedFilter] = useState('')
   const buttonRef = useRef(null)
   const panelRef = useRef(null)
@@ -70,36 +69,11 @@ export function FilterBar({ children, className = '', onClear }) {
     return value === firstValue ? count : count + 1
   }, 0)
 
-  const updatePosition = () => {
-    const button = buttonRef.current
-    if (!button) return
-    const rect = button.getBoundingClientRect()
-    const width = Math.min(420, Math.max(0, window.innerWidth - 24))
-    const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12))
-    // Keep the panel attached below the trigger; constrain its height instead of
-    // flipping it above the button and making the dropdown feel detached.
-    const top = rect.bottom + 8
-    setPosition({ top, left, width, maxHeight: Math.max(120, window.innerHeight - top - 12) })
-  }
-
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!open) return
-    updatePosition()
-    const reposition = () => updatePosition()
     const closeOnEscape = event => { if (event.key === 'Escape') setOpen(false) }
-    const closeOnOutside = event => {
-      if (!panelRef.current?.contains(event.target) && !buttonRef.current?.contains(event.target)) setOpen(false)
-    }
-    window.addEventListener('resize', reposition)
-    window.addEventListener('scroll', reposition, true)
-    window.addEventListener('keydown', closeOnEscape)
-    document.addEventListener('pointerdown', closeOnOutside)
-    return () => {
-      window.removeEventListener('resize', reposition)
-      window.removeEventListener('scroll', reposition, true)
-      window.removeEventListener('keydown', closeOnEscape)
-      document.removeEventListener('pointerdown', closeOnOutside)
-    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
   }, [open])
 
   return (
@@ -118,19 +92,17 @@ export function FilterBar({ children, className = '', onClear }) {
           {createPortal(
             <AnimatePresence>
               {open && (
-                <motion.div ref={panelRef} role="dialog" aria-modal="false" aria-label="Filter results"
-                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                <motion.div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false) }}>
+                <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-label="Filter results"
+                  initial={{ opacity: 0, y: 16, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.985 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.98 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="fixed z-[1200] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3 origin-top"
-                  style={{
-                    top: position.top,
-                    left: position.left,
-                    width: position.width,
-                    maxHeight: position.maxHeight || 'calc(100dvh - 24px)',
-                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-                  }}>
+                  className="w-full max-w-xl max-h-[min(82dvh,760px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
+                  style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+                  onMouseDown={event => event.stopPropagation()}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                     <div><p className="text-base font-bold text-slate-900">Choose filters</p><p className="text-xs text-slate-500">Open a category to see its options</p></div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -168,6 +140,7 @@ export function FilterBar({ children, className = '', onClear }) {
                       )
                     })}
                   </div>
+                </motion.section>
                 </motion.div>
               )}
             </AnimatePresence>,
