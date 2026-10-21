@@ -74,7 +74,7 @@ export default function EmailCampaignApproval() {
         subject: asText(template.subject, "An Altuvera update for you"),
         preheader: asText(template.preheader),
         headline: asText(template.headline, "Discover more with Altuvera"),
-        body: asText(template.body, "Hello {{firstName}},\\n\\nDiscover more travel inspiration from Altuvera."),
+        body: asText(template.body, "Hello {{firstName}},\n\nDiscover more travel inspiration from Altuvera."),
         hero_image_url: asText(template.hero_image_url || contextData.heroImageUrl),
         accent_color: asText(template.accent_color, "#059669"),
         background_color: asText(template.background_color, "#f0fdf4"),
