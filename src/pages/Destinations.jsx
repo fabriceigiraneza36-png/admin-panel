@@ -1186,12 +1186,12 @@ function DestinationMediaPicker({ open, onClose, section, current, capacity, onA
   </div>;
 }
 
-function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHeroChange, onBannerChange, onGalleryChange }) {
+function NewDestinationMedia({ heroSlides=[], bannerSlides=[], gallery=[], onHeroChange, onBannerChange, onGalleryChange, onRemoveImage }) {
   const [picker,setPicker] = useState(null);
   const [sectionError,setSectionError] = useState('');
   const normalize = item => typeof item==='string'?{url:item,source:'upload'}:({...item,url:item?.url||item?.image_url||item?.imageUrl||''});
   const setList = (key,list,callback) => callback(list.map(normalize).filter(item=>item.url));
-  const removeAt = (list,index,callback) => callback(list.filter((_,i)=>i!==index));
+  const removeAt = (list,index,callback) => { const item = normalize(list[index]); callback(list.filter((_,i)=>i!==index)); if (item?.id) onRemoveImage?.(item); };
   const move = (list,index,delta,callback) => { const next=[...list]; const target=index+delta; if(target<0||target>=next.length)return; [next[index],next[target]]=[next[target],next[index]]; callback(next); };
   const add = (key,items) => {
     const current = key==='hero'?heroSlides:key==='banner'?bannerSlides:gallery;
@@ -1254,6 +1254,7 @@ export default function Destinations() {
   const [sortBy, setSortBy]                     = useState('name')
   const [sortOrder, setSortOrder]               = useState('asc')
   const [form, setForm]                         = useState(INITIAL_FORM)
+  const [removedImageIds, setRemovedImageIds]   = useState([])
   const [editing, setEditing]                   = useState(null)
   const [step, setStep]                         = useState('identity')
   const [completed, setCompleted]               = useState([])
@@ -1438,12 +1439,14 @@ const normaliseGalleries = (dest) => {
   }
 
   const openCreate = () => {
+    setRemovedImageIds([])
     setForm(INITIAL_FORM); setEditing(null)
     setStep('identity'); setCompleted([]); setErrors({})
     formModal.open()
   }
 
   const openEdit = (dest) => {
+    setRemovedImageIds([])
     setForm(buildForm(dest)); setEditing(dest)
     setStep('identity')
     setCompleted(['identity','details','content','media'])
@@ -1551,6 +1554,14 @@ const normaliseGalleries = (dest) => {
         savedDestination = response.data?.data || response.data
         setCelebrationMsg(`"${form.name}" created successfully!`)
       }
+
+// Remove persisted image rows after the destination update succeeds. The backend
+// deletes the associated Cloudinary asset when the image is Cloudinary-hosted.
+if (editing && savedDestination?.id && removedImageIds.length) {
+  await Promise.all([...new Set(removedImageIds)].map(imageId =>
+    destinationsAPI.removeImage(savedDestination.id, imageId)
+  ))
+}
 
 // Merge gallery + library images for saving
 // Only send images without ID (new images) to be created via addImages endpoint
@@ -1856,7 +1867,8 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
           </section>
           <NewDestinationMedia heroSlides={form.hero_slides} bannerSlides={form.banner_slides} gallery={[...(form.gallery||[]), ...(form.library_images||[])]}
             onHeroChange={v=>upd('hero_slides',v)} onBannerChange={v=>upd('banner_slides',v)}
-            onGalleryChange={v=>{upd('gallery',v);upd('library_images',[]);}}/>
+            onGalleryChange={v=>{upd('gallery',v);upd('library_images',[]);}}
+            onRemoveImage={item=>{ if (editing && item?.id) setRemovedImageIds(current => current.includes(item.id) ? current : [...current, item.id]); }}/>
           {(errors.hero_slides || errors.gallery) && <div role="alert" className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             {errors.hero_slides && <p>{errors.hero_slides}</p>}
             {errors.gallery && <p>{errors.gallery}</p>}
