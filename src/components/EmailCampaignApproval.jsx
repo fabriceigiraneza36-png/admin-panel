@@ -115,6 +115,9 @@ export default function EmailCampaignApproval() {
         <label className="block text-xs font-semibold text-slate-600">Subject
           <input value={campaign.subject} maxLength={200} onChange={e => change("subject", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"/>
         </label>
+        <label className="block text-xs font-semibold text-slate-600">Inbox preview text
+          <input value={campaign.preheader} maxLength={240} onChange={e => change("preheader", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"/>
+        </label>
         <label className="block text-xs font-semibold text-slate-600">Headline
           <input value={campaign.headline} maxLength={180} onChange={e => change("headline", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900"/>
         </label>
@@ -124,6 +127,21 @@ export default function EmailCampaignApproval() {
         <label className="block text-xs font-semibold text-slate-600">Hero image URL
           <input value={campaign.hero_image_url} onChange={e => change("hero_image_url", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900" placeholder="https://…"/>
         </label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="block text-xs font-semibold text-slate-600">Email layout
+            <select value={campaign.layout} onChange={e => change("layout", e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-900">
+              <option value="adventure">Adventure</option>
+              <option value="editorial">Editorial</option>
+              <option value="minimal">Minimal</option>
+            </select>
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">Button label
+            <input value={campaign.cta_label} maxLength={80} onChange={e => change("cta_label", e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-2 text-sm text-slate-900"/>
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">Button URL
+            <input value={campaign.cta_url} maxLength={1200} onChange={e => change("cta_url", e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-2 text-sm text-slate-900"/>
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-xs font-semibold text-slate-600">Accent colour
             <input type="color" value={/^#[0-9a-f]{6}$/i.test(campaign.accent_color) ? campaign.accent_color : "#059669"} onChange={e => change("accent_color", e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 p-1"/>
