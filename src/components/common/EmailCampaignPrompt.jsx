@@ -1,6 +1,6 @@
 // src/components/common/EmailCampaignPrompt.jsx
 // Admin-wide countdown for automatically queued contextual email campaigns.
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BellRing, Clock3, Image as ImageIcon, Palette, Send, X, Save,
   CheckCircle2, Mail, Sparkles, ExternalLink,
@@ -60,6 +60,8 @@ const prepareQueueItem = (row, templates = []) => {
 export default function EmailCampaignPrompt() {
   const { on, off, connected } = useSocket();
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [items, setItems] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [now, setNow] = useState(Date.now());
@@ -117,9 +119,9 @@ export default function EmailCampaignPrompt() {
       setItems((previous) => previous.filter((entry) => entry.id !== Number(payload.id)));
       setDismissed((previous) => previous.filter((id) => id !== Number(payload.id)));
       if (payload.failed > 0 && payload.sent === 0) {
-        toast.error("Automatic email campaign failed: " + (payload.error || "Check the campaign history."));
+        toastRef.current.error("Automatic email campaign failed: " + (payload.error || "Check the campaign history."));
       } else if (payload.sent > 0) {
-        toast.success("Email campaign sent: " + (payload.subject || CONTEXT_LABELS[payload.context] || "Altuvera update") + " (" + payload.sent + " sent).");
+        toastRef.current.success("Email campaign sent: " + (payload.subject || CONTEXT_LABELS[payload.context] || "Altuvera update") + " (" + payload.sent + " sent).");
       }
     };
 
@@ -135,7 +137,7 @@ export default function EmailCampaignPrompt() {
       off("email-campaign:approval-needed", onPending);
       off("email-campaign:sent", onSent);
     };
-  }, [connected, on, off, mergeItem, toast]);
+  }, [connected, on, off, mergeItem]);
 
   const activeItem = useMemo(
     () => items.find((item) => !dismissed.includes(item.id)) || null,
