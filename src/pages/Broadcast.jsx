@@ -48,9 +48,9 @@ const PRIORITY_OPTIONS = [
 ];
 
 const AUDIENCE_OPTIONS = [
-  { value: "all",         label: "All users",             description: "Everyone: registered users, subscribers & bookers.", icon: Globe  },
+  { value: "all",         label: "All opted-in contacts", description: "Active subscribers, users, and travellers who agreed to receive marketing emails.", icon: Globe  },
   { value: "subscribers", label: "Subscribers only",      description: "Active newsletter subscribers.",                     icon: Mail   },
-  { value: "bookers",     label: "Users with a booking",  description: "Anyone who has at least one booking.",               icon: Ticket },
+  { value: "bookers",     label: "Opted-in travellers",   description: "Travellers who explicitly opted in to Altuvera email updates when requesting a booking.", icon: Ticket },
   { value: "nationality", label: "By nationality",        description: "Target users of a specific nationality.",            icon: Flag   },
 ];
 
