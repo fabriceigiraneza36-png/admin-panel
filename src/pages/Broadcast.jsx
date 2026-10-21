@@ -140,7 +140,7 @@ function EmailBroadcast() {
   const toast = useToast();
   const toastRef = useRef(toast);
   toastRef.current = toast;
-  const [audience, setAudience = useState("subscribers");
+  const [audience, setAudience] = useState("subscribers");
   const [nationality, setNationality] = useState("");
   const [nationalities, setNationalities] = useState([]);
   const [templates, setTemplates] = useState([]);
