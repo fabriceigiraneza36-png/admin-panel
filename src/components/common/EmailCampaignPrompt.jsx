@@ -165,7 +165,21 @@ export default function EmailCampaignPrompt() {
       setItems((previous) => previous.map((item) => item.id === activeItem.id
         ? { ...item, templateOverrides: { ...item.templateOverrides, ...saved } }
         : item));
-      toast.success("Retouch saved. The automatic countdown continues.");
+
+      // Keep the context template reusable so this design can be used again
+      // for the next matching destination, post, or package announcement.
+      try {
+        await emailBroadcastAPI.saveTemplate({
+          ...(activeItem.template || {}),
+          ...activeDraft,
+          key: activeItem.templateKey,
+          name: activeItem.template?.name || CONTEXT_LABELS[activeItem.context] || "Altuvera campaign",
+          context: activeItem.context,
+        });
+        toast.success("Retouch saved to this campaign and its reusable template. The countdown continues.");
+      } catch {
+        toast.success("Retouch saved for this campaign. The reusable template could not be updated.");
+      }
     } catch (e) {
       toast.error(extractError(e));
     } finally {
