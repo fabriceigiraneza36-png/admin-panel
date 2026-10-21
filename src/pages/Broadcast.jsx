@@ -452,7 +452,7 @@ function EmailBroadcast() {
                     <p className="text-xs text-slate-500 mt-1">{row.context?.replace(/_/g, " ")} · {row.audience} · {new Date(row.created_at).toLocaleString()}</p>
                     {eventName && <p className="text-xs text-slate-600 mt-1.5"><span className="font-semibold">Context:</span> {eventName}</p>}
                     {details.queueId && <p className="text-[10px] text-slate-400 mt-1">Campaign reference #{details.queueId}</p>}
-                    {details.errors?.length > 0 && <p className="text-xs text-rose-700 mt-1.5">Delivery issues: {details.errors.map(item => item.error).filter(Boolean).slice(0, 2).join("; ")}</p>}
+                    {(details.error || details.errors?.length > 0) && <p className="text-xs text-rose-700 mt-1.5">Delivery issues: {details.errors?.length ? details.errors.map(item => item.error).filter(Boolean).slice(0, 2).join("; ") : details.error}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <ChipWhite color="emerald">{row.sent_count} sent</ChipWhite>
