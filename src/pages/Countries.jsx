@@ -7,7 +7,7 @@ import {
   Languages, Lightbulb, Heart, BookOpen, Camera, Shield,
   Clock, Phone, Users, Ruler, Thermometer, Plane,
   Link as LinkIcon, Upload, X, ZoomIn, ExternalLink, CheckCircle2,
-  ImagePlus, Maximize2, ChevronDown, ChevronUp, Sparkles, Compass,
+  ImagePlus, Maximize2, ChevronDown, ChevronUp, Sparkles, Compass, Layers, Database,
 } from 'lucide-react'
 import { countriesAPI } from '@api/countries'
 import { galleryAPI } from '@api/gallery'
@@ -1466,7 +1466,7 @@ export default function Countries() {
           <h1 className="page-title flex items-center gap-2">
             <Globe2 size={28} className="text-emerald-600" /> Countries
           </h1>
-          <p className="page-subtitle">Manage all countries ({pag.total} total)</p>
+          <p className="page-subtitle flex items-center gap-1.5"><Database size={13} className="text-emerald-600" aria-hidden="true" />Manage all countries ({pag.total} total)</p>
         </div>
         <div className="flex gap-2">
           <button onClick={load} disabled={loading} className="btn-secondary btn-sm">
