@@ -28,6 +28,7 @@ import { useSocket } from '@context/SocketContext'
 import { useNotifications } from '@context/NotificationContext'
 import { getNotificationTarget } from '@utils/notificationTarget'
 import Header from './Header'
+import EmailCampaignPrompt from './EmailCampaignPrompt'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    NOTIFICATIONS HOOK
@@ -1375,6 +1376,7 @@ export function AdminLayout() {
           </div>
         </main>
       </div>
+      <EmailCampaignPrompt />
     </div>
   )
 }
