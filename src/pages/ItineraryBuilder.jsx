@@ -53,6 +53,8 @@ export default function ItineraryBuilder() {
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
   const [openDay, setOpenDay] = useState(0)
+  const [deliveryMode, setDeliveryMode] = useState('dashboard_pdf')
+  const [itineraryImageUrl, setItineraryImageUrl] = useState('')
 
   useEffect(() => {
     let live = true
@@ -111,7 +113,8 @@ export default function ItineraryBuilder() {
     if (!itinerary.days.length) return toast.error('Add at least one day before sending.')
     setSending(true)
     try {
-      const res = await itinerariesAPI.publish(bookingId, itinerary)
+      if (deliveryMode === 'email_image' && !/^https:\/\//i.test(itineraryImageUrl.trim())) return toast.error('Add a secure HTTPS image URL for the image-only itinerary email.')
+      const res = await itinerariesAPI.publish(bookingId, { ...itinerary, deliveryMode, itineraryImageUrl: itineraryImageUrl.trim() })
       const data = res?.data?.data || res?.data || res
       if (data) setBooking(data)
       toast.success('Itinerary sent to the traveller dashboard and email.')
@@ -136,6 +139,30 @@ export default function ItineraryBuilder() {
           <button onClick={()=>setItinerary(p=>({...p,mode:'assisted'}))} className={`px-3 py-2 rounded-xl text-xs font-bold border ${itinerary.mode==='assisted'?'bg-emerald-600 text-white border-emerald-600':'bg-white text-slate-600 border-slate-200'}`}><Sparkles size={14} className="inline mr-1"/> Assisted checklist</button>
         </div>
       </div>
+
+      <section className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-teal-50 p-4 sm:p-5 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 shrink-0 rounded-xl bg-white border border-emerald-100 grid place-items-center"><FileText size={18} className="text-emerald-700"/></div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold text-slate-900">Traveller itinerary delivery</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">The full itinerary remains available in the traveller dashboard as a downloadable PDF. You can alternatively send an image-only itinerary email.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className={`flex gap-3 rounded-xl border p-3 cursor-pointer ${deliveryMode === 'dashboard_pdf' ? 'border-emerald-400 bg-white' : 'border-slate-200 bg-white/70'}`}>
+            <input type="radio" name="deliveryMode" value="dashboard_pdf" checked={deliveryMode === 'dashboard_pdf'} onChange={() => setDeliveryMode('dashboard_pdf')} className="mt-1 accent-emerald-600"/>
+            <span><span className="block text-xs font-extrabold text-slate-800">Dashboard + PDF email</span><span className="block mt-1 text-[11px] leading-relaxed text-slate-500">Send the detailed day-by-day itinerary and provide a downloadable PDF in My Bookings.</span></span>
+          </label>
+          <label className={`flex gap-3 rounded-xl border p-3 cursor-pointer ${deliveryMode === 'email_image' ? 'border-emerald-400 bg-white' : 'border-slate-200 bg-white/70'}`}>
+            <input type="radio" name="deliveryMode" value="email_image" checked={deliveryMode === 'email_image'} onChange={() => setDeliveryMode('email_image')} className="mt-1 accent-emerald-600"/>
+            <span><span className="block text-xs font-extrabold text-slate-800">Image-only email</span><span className="block mt-1 text-[11px] leading-relaxed text-slate-500">Send one designed itinerary image instead of the day-by-day email text.</span></span>
+          </label>
+        </div>
+        {deliveryMode === 'email_image' && <label className="block text-xs font-bold text-slate-700">Secure itinerary image URL (HTTPS)
+          <input value={itineraryImageUrl} onChange={e => setItineraryImageUrl(e.target.value)} type="url" placeholder="https://…/itinerary-image.jpg" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900"/>
+          <span className="mt-1 block font-normal text-[11px] text-slate-500">Use a publicly accessible image that contains the complete itinerary. The detailed itinerary will still be available in the dashboard.</span>
+        </label>}
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <section className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-5 h-fit lg:sticky lg:top-5">
