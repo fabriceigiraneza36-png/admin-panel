@@ -53,6 +53,7 @@ const INITIAL_FORM = {
 
   // Media - Primary/Hero
   image_url: '', hero_image: '', cover_image_url: '',
+  video_url: '',
 
   // Media - Galleries (separated)
   gallery: [],          // uploaded/URL — max 10
