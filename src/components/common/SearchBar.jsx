@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Loader2, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Search, X, Loader2, SlidersHorizontal, ChevronDown, MapPin, Tag, Gauge, Star, CalendarDays, UserRound, CircleCheck, Layers3, Flag, Sparkles, ListFilter, RotateCcw } from 'lucide-react'
 
 export default function SearchBar({
   value,
@@ -50,7 +50,6 @@ export default function SearchBar({
 /* Shared compact filter experience used throughout the admin. */
 export function FilterBar({ children, className = '', onClear }) {
   const [open, setOpen] = useState(false)
-  const [expandedFilter, setExpandedFilter] = useState('')
   const buttonRef = useRef(null)
   const panelRef = useRef(null)
   const items = React.Children.toArray(children).filter(Boolean)
@@ -61,6 +60,26 @@ export function FilterBar({ children, className = '', onClear }) {
     key: String(child?.props?.label || child?.props?.name || `Filter ${index + 1}`),
     child,
   }))
+  const getFilterMeta = (label = '') => {
+    const name = String(label).toLowerCase()
+    if (/country|destination|location|region/.test(name)) return { icon: MapPin, hint: 'Narrow results by place' }
+    if (/category|type|topic|kind/.test(name)) return { icon: Tag, hint: 'Choose a content category' }
+    if (/difficulty|level|priority|rating/.test(name)) return { icon: Gauge, hint: 'Choose the level that fits' }
+    if (/featured|popular|highlight/.test(name)) return { icon: Star, hint: 'Show highlighted content' }
+    if (/date|period|month|year|time/.test(name)) return { icon: CalendarDays, hint: 'Narrow results by date' }
+    if (/user|role|author|owner|customer|guest/.test(name)) return { icon: UserRound, hint: 'Choose who the record belongs to' }
+    if (/status|active|published|read|approval/.test(name)) return { icon: CircleCheck, hint: 'Choose a record status' }
+    if (/package|product|plan/.test(name)) return { icon: Layers3, hint: 'Narrow the catalogue' }
+    if (/language|country code|flag/.test(name)) return { icon: Flag, hint: 'Choose a locale' }
+    return { icon: ListFilter, hint: 'Narrow the results' }
+  }
+  const clearFilters = () => {
+    if (onClear) onClear()
+    else filters.forEach(child => {
+      const options = child?.props?.options || []
+      if (typeof child?.props?.onChange === 'function') child.props.onChange(options[0]?.value ?? '')
+    })
+  }
   const activeCount = filters.reduce((count, child) => {
     const value = child?.props?.value
     if (value === undefined || value === null || value === '') return count
@@ -100,42 +119,41 @@ export function FilterBar({ children, className = '', onClear }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.98 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="w-full max-w-xl max-h-[min(82dvh,760px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
+                  className="w-full max-w-3xl max-h-[min(86dvh,820px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
                   style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
                   onMouseDown={event => event.stopPropagation()}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
-                    <div><p className="text-base font-bold text-slate-900">Choose filters</p><p className="text-xs text-slate-500">Open a category to see its options</p></div>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-slate-900">Refine results</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{filters.length} {filters.length === 1 ? 'filter' : 'filters'} available{activeCount ? ` · ${activeCount} active` : ' · No filters applied'}</p>
+                    </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {activeCount > 0 && onClear && <button type="button" onClick={onClear} className="rounded-xl px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">Clear all</button>}
-                      <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Done</button>
+                      {activeCount > 0 && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"><RotateCcw size={13}/>Clear all</button>}
+                      <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Apply</button>
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {filterGroups.map(({ key, child }, index) => {
                       const value = child?.props?.value
                       const options = child?.props?.options || []
                       const active = value !== undefined && value !== null && value !== '' && value !== options[0]?.value
-                      const expanded = expandedFilter === key
+                      const selected = options.find(option => String(option.value) === String(value))
+                      const meta = getFilterMeta(key)
+                      const FilterIcon = meta.icon
                       return (
-                        <section key={key + index} className="overflow-hidden rounded-xl border border-slate-200">
-                          <button type="button" aria-expanded={expanded}
-                            onClick={() => setExpandedFilter(current => current === key ? '' : key)}
-                            className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span className="truncate text-sm font-semibold text-slate-700">{key}</span>
-                              {active && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Selected</span>}
-                            </span>
-                            <ChevronDown size={16} className={`shrink-0 text-slate-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}/>
-                          </button>
-                          <AnimatePresence initial={false}>
-                            {expanded && (
-                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.16 }} className="overflow-hidden">
-                                <div className="border-t border-slate-100 bg-slate-50/60 p-3 [&>label]:w-full [&>label>select]:w-full">
-                                  {child}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                        <section key={key + index} className={`min-w-0 rounded-xl border p-3.5 transition-colors ${active ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
+                          <div className="mb-3 flex items-start gap-2.5">
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}><FilterIcon size={17}/></span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-slate-800">{key}</p>
+                              <p className="mt-0.5 text-xs leading-4 text-slate-500">{active && selected ? `Selected: ${selected.label}` : meta.hint}</p>
+                            </div>
+                            {active && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-label="Filter active"/>}
+                          </div>
+                          <div className="[&>label]:w-full [&>label>select]:w-full [&>label>span]:text-slate-500">
+                            {child}
+                          </div>
+                          {options.length > 0 && <p className="mt-2 text-[11px] text-slate-400">{options.length} {options.length === 1 ? 'option' : 'options'}</p>}
                         </section>
                       )
                     })}
