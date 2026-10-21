@@ -111,7 +111,7 @@ export function FilterBar({ children, className = '', onClear }) {
           {createPortal(
             <AnimatePresence>
               {open && (
-                <motion.div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6" style={{ zIndex: 2147483647, isolation: 'isolate' }}
+                <motion.div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100dvh', boxSizing: 'border-box', zIndex: 2147483647, isolation: 'isolate' }}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false) }}>
                 <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-label="Filter results"
@@ -119,8 +119,8 @@ export function FilterBar({ children, className = '', onClear }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.98 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="w-full max-w-3xl max-h-[min(86dvh,820px)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
-                  style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+                  className="w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
+                  style={{ maxHeight: 'calc(100dvh - 2rem)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}
                   onMouseDown={event => event.stopPropagation()}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                     <div className="min-w-0">
