@@ -154,6 +154,7 @@ function EmailBroadcast() {
   const [accentColor, setAccentColor] = useState("#059669");
   const [backgroundColor, setBackgroundColor] = useState("#f0fdf4");
   const [layout, setLayout] = useState("adventure");
+  const [animation, setAnimation] = useState("fade");
   const [ctaLabel, setCtaLabel] = useState("Explore destination");
   const [ctaUrl, setCtaUrl] = useState("https://www.altuverasafaris.com/destinations");
   const [subject, setSubject] = useState("");
@@ -177,6 +178,7 @@ function EmailBroadcast() {
     setAccentColor(template.accent_color || "#059669");
     setBackgroundColor(template.background_color || "#f0fdf4");
     setLayout(template.layout || "editorial");
+    setAnimation(template.animation || "none");
     setCtaLabel(template.cta_label || "Explore more");
     setCtaUrl(template.cta_url || "https://www.altuverasafaris.com/destinations");
   }, []);
@@ -231,9 +233,10 @@ function EmailBroadcast() {
     accent_color: accentColor,
     background_color: backgroundColor,
     layout,
+    animation,
     cta_label: ctaLabel.trim(),
     cta_url: ctaUrl.trim(),
-  }), [templateKey, templateName, context, subject, preheader, headline, body, heroImageUrl, accentColor, backgroundColor, layout, ctaLabel, ctaUrl]);
+  }), [templateKey, templateName, context, subject, preheader, headline, body, heroImageUrl, accentColor, backgroundColor, layout, animation, ctaLabel, ctaUrl]);
 
   const canSend = !sending && !savingTemplate && !!subject.trim() && !!body.trim()
     && (audience !== "nationality" || !!nationality);
@@ -355,10 +358,15 @@ function EmailBroadcast() {
                 <div className="flex gap-2 items-center"><input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-12 border rounded-lg p-1 bg-white" /><input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="w-full min-w-0 px-2 py-2 border rounded-lg text-xs uppercase" /></div>
               </Field>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Layout">
                 <select value={layout} onChange={e => setLayout(e.target.value)} className="w-full px-3 py-2.5 border rounded-lg bg-white text-sm">
                   <option value="adventure">Adventure</option><option value="editorial">Editorial</option><option value="minimal">Minimal</option>
+                </select>
+              </Field>
+              <Field label="Email motion" hint="Optional CSS motion; unsupported email clients show the complete static design.">
+                <select value={animation} onChange={e => setAnimation(e.target.value)} className="w-full px-3 py-2.5 border rounded-lg bg-white text-sm">
+                  <option value="none">None</option><option value="fade">Soft fade</option><option value="rise">Gentle rise</option>
                 </select>
               </Field>
               <Field label="Button label">
