@@ -8,6 +8,10 @@ import apiClient from './client'
 const BASE = '/email-broadcast'
 
 export const emailBroadcastAPI = {
+  getPendingQueue: () => apiClient.get(`${BASE}/queue/pending`),
+  updateQueuedTemplate: (id, template) => apiClient.put(`${BASE}/queue/${encodeURIComponent(id)}/template`, { template }),
+  sendQueuedNow: (id, template) => apiClient.post(`${BASE}/queue/${encodeURIComponent(id)}/send-now`, { template }),
+
   // Persisted reusable email designs and recent delivery history
   getTemplates: () => apiClient.get(`${BASE}/templates`),
   saveTemplate: (payload) => apiClient.post(`${BASE}/templates`, payload),
