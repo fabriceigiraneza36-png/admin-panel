@@ -111,7 +111,7 @@ export function FilterBar({ children, className = '', onClear }) {
           {createPortal(
             <AnimatePresence>
               {open && (
-                <motion.div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6"
+                <motion.div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-6" style={{ zIndex: 2147483647, isolation: 'isolate' }}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false) }}>
                 <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-label="Filter results"
