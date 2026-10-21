@@ -430,12 +430,30 @@ function EmailBroadcast() {
         </div>
         {history.length === 0 ? <p className="text-sm text-slate-500">No campaigns sent yet.</p> : (
           <div className="space-y-2">
-            {history.slice(0, 8).map(row => (
-              <div key={row.id} className="rounded-lg border border-slate-200 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="min-w-0"><p className="text-sm font-semibold text-slate-800 break-words">{row.subject}</p><p className="text-xs text-slate-500 mt-1">{row.context?.replace(/_/g, " ")} · {row.audience} · {new Date(row.created_at).toLocaleString()}</p></div>
-                <div className="flex flex-wrap gap-2 text-xs"><ChipWhite color="emerald">{row.sent_count} sent</ChipWhite>{row.failed_count > 0 && <ChipWhite color="rose">{row.failed_count} failed</ChipWhite>}<ChipWhite color="slate">{row.recipient_count} total</ChipWhite></div>
-              </div>
-            ))}
+            {history.slice(0, 8).map(row => {
+              const details = row.details && typeof row.details === "object" ? row.details : {};
+              const eventData = details.eventData && typeof details.eventData === "object" ? details.eventData : {};
+              const eventName = eventData.destinationName || eventData.postTitle || eventData.packageName || eventData.countryName || "";
+              return (
+                <div key={row.id} className="rounded-xl border border-slate-200 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-800 break-words">{row.subject}</p>
+                      {details.autoTriggered && <ChipWhite color="emerald">Automatic</ChipWhite>}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{row.context?.replace(/_/g, " ")} · {row.audience} · {new Date(row.created_at).toLocaleString()}</p>
+                    {eventName && <p className="text-xs text-slate-600 mt-1.5"><span className="font-semibold">Context:</span> {eventName}</p>}
+                    {details.queueId && <p className="text-[10px] text-slate-400 mt-1">Campaign reference #{details.queueId}</p>}
+                    {details.errors?.length > 0 && <p className="text-xs text-rose-700 mt-1.5">Delivery issues: {details.errors.map(item => item.error).filter(Boolean).slice(0, 2).join("; ")}</p>}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <ChipWhite color="emerald">{row.sent_count} sent</ChipWhite>
+                    {row.failed_count > 0 && <ChipWhite color="rose">{row.failed_count} failed</ChipWhite>}
+                    <ChipWhite color="slate">{row.recipient_count} total</ChipWhite>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
