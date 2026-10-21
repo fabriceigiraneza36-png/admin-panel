@@ -90,13 +90,46 @@ export function FilterBar({ children, className = '', onClear }) {
 
   useEffect(() => {
     if (!open) return
-    const closeOnEscape = event => { if (event.key === 'Escape') setOpen(false) }
     const previousOverflow = document.body.style.overflow
+    const previouslyFocused = document.activeElement
     document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', closeOnEscape)
+
+    // Move keyboard focus into the dialog and keep it there while open.
+    requestAnimationFrame(() => {
+      const firstControl = panelRef.current?.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ;(firstControl || panelRef.current)?.focus?.()
+    })
+
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        return
+      }
+      if (event.key !== 'Tab' || !panelRef.current) return
+      const focusable = [...panelRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')]
+        .filter(element => element.getAttribute('aria-hidden') !== 'true')
+      if (!focusable.length) {
+        event.preventDefault()
+        panelRef.current.focus()
+        return
+      }
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.removeEventListener('keydown', closeOnEscape)
+      document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus()
     }
   }, [open])
 
@@ -124,8 +157,9 @@ export function FilterBar({ children, className = '', onClear }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.98 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-2xl space-y-3"
-                  style={{ width: 'min(100%, 48rem)', maxHeight: 'calc(100vh - 24px)', maxHeight: 'calc(100dvh - 24px)', margin: 'auto', flexShrink: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}
+                  className="w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl space-y-3 sm:p-6"
+                  tabIndex={-1}
+                  style={{ width: 'min(100%, 48rem)', maxHeight: 'calc(100vh - 24px)', maxHeight: 'calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)))', margin: 'auto', flexShrink: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}
                   onMouseDown={event => event.stopPropagation()}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                     <div className="min-w-0">
