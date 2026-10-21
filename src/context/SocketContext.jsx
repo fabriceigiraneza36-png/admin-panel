@@ -80,7 +80,7 @@ export function SocketProvider({ children }) {
       auth:                  authToken ? { token: authToken } : {},
       transports:            ["websocket", "polling"],
       reconnection:          true,
-      reconnectionAttempts:  10,
+      reconnectionAttempts:  Infinity,
       reconnectionDelay:     500,
       reconnectionDelayMax:  15_000,
       timeout:               15_000,
