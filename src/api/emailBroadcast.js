@@ -8,6 +8,11 @@ import apiClient from './client'
 const BASE = '/email-broadcast'
 
 export const emailBroadcastAPI = {
+  // Persisted reusable email designs and recent delivery history
+  getTemplates: () => apiClient.get(`${BASE}/templates`),
+  saveTemplate: (payload) => apiClient.post(`${BASE}/templates`, payload),
+  getHistory: () => apiClient.get(`${BASE}/history`),
+
   // Distinct nationalities (with counts) for the audience dropdown
   getNationalities: () => apiClient.get(`${BASE}/nationalities`),
 
