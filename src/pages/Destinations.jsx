@@ -62,7 +62,7 @@ const INITIAL_FORM = {
   banner_slides: [],    // optional card/banner slideshow (up to 4)
 
   // Arrays / lists
-  activities: [], attractions: [], highlights: [], wildlife: [],
+  activities: [], attractions: [], highlights: [], experiences: [], wildlife: [],
   local_tips: [], tags: [], faqs: [], itinerary: [],
 
   // Details
@@ -124,6 +124,25 @@ const uniqueImages = (items = []) => {
   })
 }
 
+function DestinationExperienceEditor({ activities = [], onActivitiesChange, experiences = [], onExperiencesChange }) {
+  const normalize = (items, kind) => (Array.isArray(items) ? items : []).map(item => {
+    if (typeof item === 'string') return kind === 'activity' ? { name: item.length <= 72 ? item : 'Explore this destination', description: item.length > 72 ? item : '', icon: 'Compass' } : { title: item.length <= 72 ? item : 'Signature experience', description: item.length > 72 ? item : '', image_url: '' };
+    const value = item && typeof item === 'object' ? item : {};
+    return kind === 'activity' ? { ...value, name: value.name || value.title || '', description: value.description || value.details || '', icon: value.icon || 'Compass' } : { ...value, title: value.title || value.name || '', description: value.description || value.summary || '', image_url: value.image_url || value.imageUrl || value.image || '' };
+  });
+  const acts = normalize(activities, 'activity'); const exps = normalize(experiences, 'experience');
+  const update = (items, index, key, value, setter) => setter(items.map((item, i) => i === index ? { ...item, [key]: value } : item));
+  const input = 'w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50';
+  const icons = [{value:'Compass',label:'Explore',Icon:Compass},{value:'Camera',label:'Wildlife',Icon:Camera},{value:'Mountain',label:'Hiking',Icon:Mountain},{value:'TreePine',label:'Nature',Icon:TreePine},{value:'Users',label:'Culture',Icon:Users},{value:'Activity',label:'Water / adventure',Icon:Activity},{value:'Coffee',label:'Local life',Icon:Coffee},{value:'Star',label:'Signature',Icon:Star}];
+  return <div className='space-y-7'>
+    <section className='space-y-3'><div className='flex flex-wrap items-center justify-between gap-3'><div><h4 className='flex items-center gap-2 text-sm font-extrabold text-slate-800'><Activity size={16} className='text-emerald-600'/> Activities ({acts.length})</h4><p className='mt-1 text-xs text-slate-500'>Add activity names, matching icons and short descriptions for destination activity cards.</p></div><button type='button' onClick={() => onActivitiesChange([...acts,{name:'',description:'',icon:'Compass'}])} className='inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white'><Plus size={14}/> Add activity</button></div>
+      <div className='grid grid-cols-1 gap-3 lg:grid-cols-2'>{acts.map((item,index) => { const ChosenIcon = icons.find(x => x.value === item.icon)?.Icon || Compass; return <article key={index} className='min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4'><div className='mb-3 flex items-center gap-3'><span className='grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-700'><ChosenIcon size={19}/></span><span className='flex-1 text-xs font-bold uppercase tracking-wider text-slate-500'>Activity {index+1}</span><button type='button' aria-label='Remove activity' onClick={() => onActivitiesChange(acts.filter((_,i)=>i!==index))} className='rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600'><Trash2 size={15}/></button></div><label className='mb-3 block text-xs font-semibold text-slate-600'>Activity name<input className={input+' mt-1'} value={item.name} onChange={e=>update(acts,index,'name',e.target.value,onActivitiesChange)} placeholder='e.g. Chimpanzee tracking'/></label><label className='mb-3 block text-xs font-semibold text-slate-600'>Icon<select className={input+' mt-1'} value={item.icon} onChange={e=>update(acts,index,'icon',e.target.value,onActivitiesChange)}>{icons.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label><label className='block text-xs font-semibold text-slate-600'>Short description<textarea className={input+' mt-1 resize-y'} rows={3} maxLength={500} value={item.description} onChange={e=>update(acts,index,'description',e.target.value,onActivitiesChange)} placeholder='What visitors can do and what makes it special.'/><span className='mt-1 block text-right font-normal text-slate-400'>{(item.description||'').length}/500</span></label></article>})}</div>
+    </section>
+    <section className='space-y-3 border-t border-slate-100 pt-5'><div className='flex flex-wrap items-center justify-between gap-3'><div><h4 className='flex items-center gap-2 text-sm font-extrabold text-slate-800'><Sparkles size={16} className='text-amber-500'/> Signature experiences ({exps.length})</h4><p className='mt-1 text-xs text-slate-500'>Each experience has one image and a concise card summary. Experiences are informational; bookable items belong in Attractions.</p></div><button type='button' onClick={() => onExperiencesChange([...exps,{title:'',description:'',image_url:''}])} className='inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white'><Plus size={14}/> Add experience</button></div>
+      <div className='grid grid-cols-1 gap-4 xl:grid-cols-2'>{exps.map((item,index)=><article key={index} className='min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm'><div className='flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3'><span className='flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-600'><Camera size={15}/> Experience {index+1}</span><button type='button' aria-label='Remove experience' onClick={()=>onExperiencesChange(exps.filter((_,i)=>i!==index))} className='rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600'><Trash2 size={15}/></button></div><div className='space-y-4 p-4'><label className='block text-xs font-semibold text-slate-600'>Experience title<input className={input+' mt-1'} value={item.title} onChange={e=>update(exps,index,'title',e.target.value,onExperiencesChange)} placeholder='e.g. Walk above the rainforest canopy'/></label><label className='block text-xs font-semibold text-slate-600'>Short card description<textarea className={input+' mt-1 resize-y'} rows={3} maxLength={320} value={item.description} onChange={e=>update(exps,index,'description',e.target.value,onExperiencesChange)} placeholder='A concise preview of this experience.'/><span className='mt-1 block text-right font-normal text-slate-400'>{(item.description||'').length}/320</span></label><div><p className='mb-2 text-xs font-semibold text-slate-600'>Experience image (one per card)</p><ImageUpload label='Upload experience image' value={item.image_url} onChange={url=>update(exps,index,'image_url',url,onExperiencesChange)} folder='destinations/experiences'/><label className='mt-3 block text-xs font-semibold text-slate-600'>Or image URL<input className={input+' mt-1'} type='url' value={item.image_url} onChange={e=>update(exps,index,'image_url',e.target.value,onExperiencesChange)} placeholder='https://…'/></label>{item.image_url&&<div className='mt-3 overflow-hidden rounded-xl border border-slate-200'><img src={item.image_url} alt={item.title||'Experience preview'} className='h-40 w-full object-cover' onError={e=>{e.currentTarget.style.display='none'}}/></div>}</div></div></article>)}</div>
+    </section>
+  </div>
+}
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
 function Confetti({ active }) {
   const canvasRef = useRef(null)
@@ -1383,6 +1402,7 @@ const normaliseGalleries = (dest) => {
 
       highlights:         dest.highlights         || [],
       activities:         Array.isArray(dest.activities) ? dest.activities : [],
+       experiences:       Array.isArray(dest.experiences) ? dest.experiences : [],
       attractions:        Array.isArray(dest.attractions) ? dest.attractions : [],
       wildlife:           Array.isArray(dest.wildlife)   ? dest.wildlife   : [],
       duration_days:      dest.durationDays       ?? dest.duration_days ?? '',
