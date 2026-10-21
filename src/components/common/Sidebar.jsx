@@ -29,6 +29,7 @@ import { useNotifications } from '@context/NotificationContext'
 import { getNotificationTarget } from '@utils/notificationTarget'
 import Header from './Header'
 import EmailCampaignPrompt from './EmailCampaignPrompt'
+import EmailCampaignHistoryNotice from './EmailCampaignHistoryNotice'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    NOTIFICATIONS HOOK
@@ -1376,6 +1377,7 @@ export function AdminLayout() {
           </div>
         </main>
       </div>
+      <EmailCampaignHistoryNotice />
       <EmailCampaignPrompt />
     </div>
   )
