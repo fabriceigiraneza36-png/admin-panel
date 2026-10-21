@@ -46,7 +46,48 @@ export default function EmailCampaignApproval() {
     };
     socket.on("email-campaign:approval-needed", onApproval);
     socket.on("email-campaign:sent", onSent);
+
+    // If the admin refreshes or opens another panel during the 10-second
+    // window, recover any still-editable queued campaign from the API.
+    let cancelled = false;
+    emailBroadcastAPI.getPendingQueue().then(async ({ data }) => {
+      const rows = Array.isArray(data?.data) ? data.data : [];
+      if (!rows.length || cancelled) return;
+      const now = Date.now();
+      const row = rows.find(item => new Date(item.scheduled_at).getTime() > now);
+      if (!row) return;
+      const [templatesResult] = await Promise.all([emailBroadcastAPI.getTemplates()]);
+      if (cancelled) return;
+      const saved = (templatesResult.data?.data || []).find(item => item.key === row.template_key) || {};
+      const parseObject = value => {
+        if (value && typeof value === "object") return value;
+        try { return JSON.parse(value || "{}"); } catch { return {}; }
+      };
+      const overrides = parseObject(row.template_overrides);
+      const contextData = parseObject(row.data);
+      const template = { ...saved, ...overrides };
+      const seconds = Math.max(0, Math.ceil((new Date(row.scheduled_at).getTime() - Date.now()) / 1000));
+      setCampaign(current => current || ({
+        id: row.id,
+        context: row.context || "general",
+        contextData,
+        subject: asText(template.subject, "An Altuvera update for you"),
+        preheader: asText(template.preheader),
+        headline: asText(template.headline, "Discover more with Altuvera"),
+        body: asText(template.body, "Hello {{firstName}},\\n\\nDiscover more travel inspiration from Altuvera."),
+        hero_image_url: asText(template.hero_image_url || contextData.heroImageUrl),
+        accent_color: asText(template.accent_color, "#059669"),
+        background_color: asText(template.background_color, "#f0fdf4"),
+        layout: asText(template.layout, "adventure"),
+        cta_label: asText(template.cta_label, "Explore more"),
+        cta_url: asText(template.cta_url || contextData.contentUrl, "https://www.altuverasafaris.com/destinations"),
+        endsAt: Date.now() + seconds * 1000,
+      }));
+      setRemaining(seconds);
+    }).catch(() => { /* the scheduled worker remains the source of truth */ });
+
     return () => {
+      cancelled = true;
       socket.off("email-campaign:approval-needed", onApproval);
       socket.off("email-campaign:sent", onSent);
     };
