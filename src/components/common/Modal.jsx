@@ -160,8 +160,8 @@ export function ModalField({ label, value, className = '' }) {
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
         {label}
       </p>
-      <p className="text-sm font-medium text-slate-800">
-        {value || <span className="text-slate-400 italic">—</span>}
+      <p className="text-sm font-medium text-slate-800 break-words whitespace-pre-wrap">
+        {value === null || value === undefined || value === '' ? <span className="text-slate-400 italic">—</span> : value}
       </p>
     </div>
   )
