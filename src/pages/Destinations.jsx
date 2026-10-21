@@ -10,7 +10,7 @@ import {
   Hash, FileText, List, Tag, Flag,
   Globe, Calendar, TrendingUp, Award,
   Compass, TreePine, Coffee, Activity, Sparkles, Library,
-  Layers, Palette, Sun,
+  Layers, Palette, Sun, SlidersHorizontal, Database,
 } from 'lucide-react'
 import { destinationsAPI } from '@api/destinations'
 import { countriesAPI }    from '@api/countries'
@@ -1992,7 +1992,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
       </div>
 
       <div className="management-filter-panel card p-4">
-        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800">Destination catalogue</p><p className="text-xs text-slate-400">Search, segment and manage your travel inventory</p></div><span className="badge badge-green">{pag.total.toLocaleString()} records</span></div>
+        <div className="flex items-center justify-between gap-3 mb-3"><div><p className="text-sm font-extrabold text-slate-800 flex items-center gap-2"><Layers size={15} className="text-emerald-600" aria-hidden="true" />Destination catalogue</p><p className="text-xs text-slate-400">Search, segment and manage your travel inventory</p></div><span className="badge badge-green inline-flex items-center gap-1.5"><Database size={12} aria-hidden="true" />{pag.total.toLocaleString()} records</span></div>
         <FilterBar
           className="w-full"
           onClear={() => { setFilterCountry(''); setFilterCategory(''); setFilterDifficulty(''); setFilterFeatured(''); pag.reset() }}
