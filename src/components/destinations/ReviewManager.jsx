@@ -4,17 +4,8 @@ import { useToast } from "../../hooks/useToast";
 import {
   StarIcon,
   TrashIcon,
-  CheckIcon,
-  XMarkIcon,
-  FlagIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
-
-const STATUS_COLORS = {
-  approved: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  rejected: "bg-red-100 text-red-700",
-};
 
 export default function ReviewManager({ destinationId }) {
   const { toast } = useToast();
@@ -23,7 +14,6 @@ export default function ReviewManager({ destinationId }) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filterStatus, setFilterStatus] = useState("all");
 
   const load = async () => {
     setLoading(true);
@@ -39,14 +29,6 @@ export default function ReviewManager({ destinationId }) {
 
   useEffect(() => { load(); }, [destinationId, page]);
 
-  const handleStatusUpdate = async (review, status) => {
-    try {
-      await api.updateReview(destinationId, review.id, { status });
-      toast(`Review ${status}`, "success");
-      await load();
-    } catch { toast("Update failed", "error"); }
-  };
-
   const handleDelete = async (review) => {
     if (!window.confirm("Delete this review permanently?")) return;
     try {
@@ -55,10 +37,6 @@ export default function ReviewManager({ destinationId }) {
       await load();
     } catch { toast("Delete failed", "error"); }
   };
-
-  const filtered = filterStatus === "all"
-    ? reviews
-    : reviews.filter((r) => r.status === filterStatus);
 
   return (
     <div className="space-y-4">
@@ -100,32 +78,16 @@ export default function ReviewManager({ destinationId }) {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="flex items-center gap-2">
-        <h3 className="font-semibold text-gray-900 flex-1">Reviews</h3>
-        <div className="flex gap-1">
-          {["all", "pending", "approved", "rejected"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                filterStatus === s ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h3 className="font-semibold text-gray-900">User reviews — view and delete only</h3>
 
       {/* Reviews list */}
       {loading ? (
         <div className="text-center py-8 text-gray-400">Loading...</div>
-      ) : filtered.length === 0 ? (
+      ) : reviews.length === 0 ? (
         <p className="text-center text-gray-400 text-sm py-8">No reviews</p>
       ) : (
         <div className="space-y-3">
-          {filtered.map((review) => (
+          {reviews.map((review) => (
             <div key={review.id} className="border rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1">
@@ -139,9 +101,6 @@ export default function ReviewManager({ destinationId }) {
                       {review.reviewerCountry && (
                         <span className="text-xs text-gray-400">{review.reviewerCountry}</span>
                       )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[review.status] || "bg-gray-100 text-gray-600"}`}>
-                        {review.status}
-                      </span>
                       {review.isVerified && (
                         <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">✓ Verified</span>
                       )}
@@ -174,24 +133,6 @@ export default function ReviewManager({ destinationId }) {
 
                 {/* Actions */}
                 <div className="flex flex-col gap-1 flex-shrink-0">
-                  {review.status !== "approved" && (
-                    <button
-                      onClick={() => handleStatusUpdate(review, "approved")}
-                      title="Approve"
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                    >
-                      <CheckIcon className="w-4 h-4" />
-                    </button>
-                  )}
-                  {review.status !== "rejected" && (
-                    <button
-                      onClick={() => handleStatusUpdate(review, "rejected")}
-                      title="Reject"
-                      className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
-                    >
-                      <FlagIcon className="w-4 h-4" />
-                    </button>
-                  )}
                   <button
                     onClick={() => handleDelete(review)}
                     title="Delete"
