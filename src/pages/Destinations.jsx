@@ -2079,7 +2079,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                   <ModalField label="Category"    value={d.category||d.classification}/>
                   <ModalField label="Difficulty"  value={d.difficulty}/>
                   <ModalField label="Region"      value={d.region}/>
-                  <ModalField label="Rating"      value={d.rating ? `${d.rating} ⭐ (${d.reviewCount||d.review_count||0} reviews)` : '—'}/>
+                  <ModalField label="Rating"      value={d.rating !== null && d.rating !== undefined && d.rating !== '' ? `${d.rating} ⭐ (${d.reviewCount ?? d.review_count ?? 0} reviews)` : '—'}/>
                   <ModalField label="Status"      value={<Badge status={(d.isActive||d.is_active)?'active':'inactive'} label={(d.isActive||d.is_active)?'Active':'Inactive'}/>}/>
                 </ModalGrid>
               </ModalSection>
