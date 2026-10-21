@@ -2,7 +2,7 @@
 // Persistent in-admin report for campaigns that sent while no admin socket was connected.
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BellRing, Check, MailCheck, AlertCircle, Clock3, ArrowUpRight } from "lucide-react";
+import { BellRing, Check, Clock3, ArrowUpRight } from "lucide-react";
 import { emailBroadcastAPI } from "@api/emailBroadcast";
 import { useSocket } from "@context/SocketContext";
 
