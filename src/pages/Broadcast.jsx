@@ -12,7 +12,7 @@
 //  ✓ Cleaner error handling with fallback chains
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Megaphone, Send, Users, Bell, Link2, CalendarClock,
   Info, CheckCircle2, Mail, Globe, Ticket, UserCheck, Flag,
@@ -138,7 +138,9 @@ function RecipientBadge({ loading, count }) {
 
 function EmailBroadcast() {
   const toast = useToast();
-  const [audience, setAudience] = useState("subscribers");
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const [audience, setAudience = useState("subscribers");
   const [nationality, setNationality] = useState("");
   const [nationalities, setNationalities] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -193,11 +195,11 @@ function EmailBroadcast() {
         const nationalityRes = await emailBroadcastAPI.getNationalities().catch(() => ({ data: { data: [] } }));
         if (!cancelled) setNationalities(nationalityRes.data?.data || []);
       } catch (e) {
-        if (!cancelled) toast.error(extractError(e, "Email templates could not be loaded."));
+        if (!cancelled) toastRef.current.error(extractError(e, "Email templates could not be loaded."));
       }
     })();
     return () => { cancelled = true; };
-  }, [applyTemplate, toast]);
+  }, [applyTemplate]);
 
   useEffect(() => {
     if (audience === "nationality" && !nationality) {
