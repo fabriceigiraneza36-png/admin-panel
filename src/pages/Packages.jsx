@@ -6,7 +6,7 @@ import {
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
-  TrendingUp, BarChart3, ShoppingBag, Filter,
+  TrendingUp, BarChart3, ShoppingBag, Filter, Database,
 } from 'lucide-react'
 
 // ── API — both named exports come from the same file ─────────────────────────
@@ -1347,7 +1347,8 @@ export default function Packages() {
             <Package size={28} className="text-primary-600" />
             Packages
           </h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle flex items-center gap-1.5">
+            <Database size={13} className="text-emerald-600" aria-hidden="true" />
             Manage travel packages · {pag.total} total
           </p>
         </div>
