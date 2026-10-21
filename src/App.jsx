@@ -6,6 +6,7 @@ import { NotificationProvider } from '@context/NotificationContext'
 import { PushProvider } from '@context/PushNotificationContext'
 import { useAuth } from '@hooks/useAuth'
 import apiClient from '@api/client'
+import EmailCampaignApproval from '@components/EmailCampaignApproval'
 
 const WARMUP_ENDPOINTS = [
     ['/countries', { limit: 50, page: 1 }],
@@ -133,6 +134,7 @@ export default function App() {
                 <SocketProvider>
                     <NotificationProvider>
                         <PushProvider>
+                            <EmailCampaignApproval />
                             <AppRouter />
                         </PushProvider>
                     </NotificationProvider>
