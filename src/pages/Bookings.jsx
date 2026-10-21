@@ -7,7 +7,7 @@ import {
   Bell, Shield, Ban, CheckCircle2,
   XCircle, ArrowLeft, MapPin, Phone, Mail,
   Users, Bed, ClipboardList, AlertTriangle,
-  CheckSquare, Square, MessageSquare, Send, ClipboardCheck,
+  CheckSquare, Square, MessageSquare, Send, ClipboardCheck, Database,
 } from 'lucide-react'
 import { bookingsAPI }      from '@api/bookings'
 import { notificationsAPI } from '@api/notifications'
@@ -1248,7 +1248,8 @@ export default function Bookings() {
               <h1 className="page-title flex items-center gap-2.5">
                 <CalendarCheck size={28} className="text-emerald-600" /> Bookings
               </h1>
-              <p className="page-subtitle">
+              <p className="page-subtitle flex items-center gap-1.5">
+                <Database size={13} className="text-emerald-600" aria-hidden="true" />
                 Manage all booking requests · {pag.total} total
               </p>
             </div>
