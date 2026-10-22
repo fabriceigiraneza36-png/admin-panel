@@ -149,7 +149,7 @@ export function FilterBar({ children, className = '', onClear }) {
           {createPortal(
             <AnimatePresence>
               {open && (
-                <motion.div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm sm:p-6" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100vh', height: '100dvh', boxSizing: 'border-box', zIndex: 2147483647, isolation: 'isolate', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))' }}
+                <motion.div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100dvh', minHeight: '100vh', boxSizing: 'border-box', zIndex: 2147483647, isolation: 'isolate', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))' }}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false) }}>
                 <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-label="Filter results"
@@ -159,7 +159,7 @@ export function FilterBar({ children, className = '', onClear }) {
                   transition={{ duration: 0.18, ease: 'easeOut' }}
                   className="w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl space-y-3 sm:p-6"
                   tabIndex={-1}
-                  style={{ width: 'min(100%, 48rem)', maxHeight: 'calc(100vh - 24px)', maxHeight: 'calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)))', margin: 'auto', flexShrink: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}
+                  style={{ width: 'min(100%, 48rem)', maxHeight: 'calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)))', margin: 0, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}
                   onMouseDown={event => event.stopPropagation()}>
                   <div className="sticky top-0 z-10 -mx-1 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-1 pb-3">
                     <div className="min-w-0">
