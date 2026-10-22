@@ -1335,7 +1335,8 @@ export function AdminLayout() {
       if (!start || !touch || !start.horizontal || window.innerWidth >= 1024) return
       const dx = touch.clientX - start.x
       const dy = touch.clientY - start.y
-      if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.15) return
+      // Accept a short deliberate swipe from anywhere, not just a long gesture.
+      if (Math.abs(dx) < 24 || Math.abs(dx) < Math.abs(dy) * 1.1) return
       if (!mobileOpen && dx < 0) setMobileOpen(true)
       else if (mobileOpen && dx > 0) setMobileOpen(false)
     }
