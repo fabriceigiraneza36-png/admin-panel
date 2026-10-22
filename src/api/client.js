@@ -127,7 +127,8 @@ const attemptRefresh = async (refreshToken) => {
     try {
       const { data } = await axios.post(`${API_BASE}${path}`, { refreshToken })
       const token = data?.token || data?.data?.token || null
-      if (token) return token
+      const rotatedRefreshToken = data?.refreshToken || data?.data?.refreshToken || null
+      if (token) return { token, refreshToken: rotatedRefreshToken }
     } catch (err) {
       if (err?.response?.status !== 404) throw err
     }
@@ -184,9 +185,11 @@ apiClient.interceptors.response.use(
       isRefreshing    = true
 
       try {
-        const newToken = await attemptRefresh(refreshToken)
+        const refreshed = await attemptRefresh(refreshToken)
+        const newToken = refreshed.token
 
         localStorage.setItem(TOKEN_KEY, newToken)
+        if (refreshed.refreshToken) localStorage.setItem(REFRESH_KEY, refreshed.refreshToken)
         apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`
 
         processQueue(null, newToken)
