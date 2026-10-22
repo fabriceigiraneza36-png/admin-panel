@@ -40,6 +40,7 @@ import MessagesPage  from '@pages/Messages'
 import LikesPage     from '@pages/Likes'
 import Maintenance   from '@pages/Maintenance'
 import ItineraryBuilder from '@pages/ItineraryBuilder'
+import AccountRecovery from '@pages/AccountRecovery'
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
@@ -241,6 +242,10 @@ const router = createBrowserRouter(
                 {
                     path:    'likes',
                     element: <Page title="Likes"><LikesPage /></Page>,
+                },
+                {
+                    path:    'account-recovery',
+                    element: <Page title="Account Recovery"><AccountRecovery /></Page>,
                 },
                 {
                     path:    'maintenance',

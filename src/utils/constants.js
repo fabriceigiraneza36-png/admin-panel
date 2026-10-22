@@ -94,6 +94,7 @@ export const NAV_ITEMS = [
   { path: '/contact',        label: 'Contact',        icon: 'MessageSquare'   },
   { path: '/subscribers',    label: 'Subscribers',    icon: 'Mail'            },
   { path: '/notifications',  label: 'Notifications',  icon: 'Bell'            }, // ← NEW
+  { path: '/account-recovery', label: 'Account Recovery', icon: 'ShieldCheck' },
   { path: '/settings',       label: 'Settings',       icon: 'Settings'        },
 ]
 
