@@ -626,6 +626,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/notifications', label: 'Notifications', icon: 'Bell', badge: 'notif' },
       { path: '/account-recovery', label: 'Account Recovery', icon: 'ShieldCheck' },
+      { path: '/account-activity', label: 'Account Activity', icon: 'Activity' },
       { path: '/maintenance', label: 'Maintenance', icon: 'Database' },
       { path: '/broadcast', label: 'Broadcast', icon: 'Megaphone' },
       { path: '/settings', label: 'Settings', icon: 'Settings' },
