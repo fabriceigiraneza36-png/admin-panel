@@ -35,17 +35,40 @@ export default function Likes() {
 
   useEffect(() => {
     if (!destinations.length) return;
-    const ids = destinations.map((d) => d.id || d.numericId).filter(Boolean);
+    const ids = [...new Set(destinations.map((d) => d.id || d.numericId).filter(Boolean).map(String))];
     if (!ids.length) return;
-    apiClient.post("/destination-likes/likes/stats", { destinationIds: ids })
-      .then(({ data }) => {
+
+    let active = true;
+    const refreshLikeCounts = async () => {
+      try {
+        const { data } = await apiClient.post("/destination-likes/likes/stats", { destinationIds: ids });
+        if (!active) return;
         const counts = {};
         (data?.data || []).forEach((item) => {
-          counts[item.destinationId] = item.totalLikes || 0;
+          counts[String(item.destinationId)] = Number(item.totalLikes) || 0;
         });
         setLikeCounts(counts);
-      })
-      .catch(() => {});
+      } catch {
+        // Keep the last successful counts visible if the network is temporarily unavailable.
+      }
+    };
+
+    refreshLikeCounts();
+    // Keep the admin view in sync with likes created on the public website.
+    const intervalId = window.setInterval(refreshLikeCounts, 15000);
+    const handleFocus = () => refreshLikeCounts();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshLikeCounts();
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [destinations]);
 
   const filtered = useMemo(() => {
