@@ -1,0 +1,27 @@
+/* Phase 2 messaging polish — admin panel */
+.messages-admin-shell { isolation:isolate; background:#f8fafc; }
+.messages-admin-shell > header { box-shadow:0 3px 16px rgba(15,23,42,.035); }
+.messages-admin-shell input:focus-visible,
+.messages-admin-shell textarea:focus-visible,
+.messages-admin-shell button:focus-visible,
+.messages-admin-shell select:focus-visible { outline:3px solid rgba(16,185,129,.32); outline-offset:2px; }
+.messages-admin-shell main { min-height:0; }
+.messages-admin-shell aside { background:linear-gradient(180deg,#fff 0%,#fcfefd 100%); }
+.messages-admin-shell aside button { transition:background-color .16s ease,border-color .16s ease,transform .16s ease; }
+.messages-admin-shell aside button:active { transform:scale(.995); }
+.messages-admin-shell aside input { min-height:40px; }
+.messages-admin-shell section > header { box-shadow:0 3px 16px rgba(15,23,42,.035); }
+.messages-admin-shell textarea { line-height:1.55; }
+.messages-admin-shell main > section { overflow:hidden; }
+@media (max-width:767px) {
+  .messages-admin-shell aside { border-right:0; }
+  .messages-admin-shell section > header { padding-left:12px; padding-right:12px; }
+  .messages-admin-shell textarea { font-size:16px!important; }
+  .messages-admin-shell section > div { overscroll-behavior:contain; }
+}
+@media (min-width:768px) {
+  .messages-admin-shell { border:1px solid rgba(226,232,240,.85); border-radius:18px; box-shadow:0 16px 44px rgba(15,23,42,.055); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .messages-admin-shell * { scroll-behavior:auto!important; transition-duration:0s!important; animation-duration:0s!important; }
+}
