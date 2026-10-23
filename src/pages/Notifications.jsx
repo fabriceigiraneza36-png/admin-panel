@@ -13,7 +13,7 @@
 //  ✓ Sticky action bar on mobile for common ops
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
@@ -55,6 +55,23 @@ const typeMeta = (type = "") => {
 
 const TABS = ["all", "unread", "read", "booking", "system"];
 
+const readSessionExpiry = (notification) => {
+  const metadata = notification?.metadata || notification?.metadata_json || {};
+  const value = metadata?.sessionExpiresAt || metadata?.session_expires_at;
+  const parsed = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const formatRemaining = (expiry, now) => {
+  if (!expiry) return "";
+  const seconds = Math.max(0, Math.floor((expiry - now) / 1000));
+  if (!seconds) return "Session expired";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return "Session expires in " + (days ? days + "d " : "") + hours + "h " + minutes + "m";
+};
+
 /* ─── Sub-components ───────────────────────────────────────────────────────── */
 
 function TypePill({ type }) {
@@ -69,7 +86,7 @@ function TypePill({ type }) {
 }
 
 const NotificationRow = React.memo(function NotificationRow({
-  notif, busy, onMarkRead, onDelete,
+  notif, busy, onMarkRead, onDelete, clockNow,
 }) {
   const target = getNotificationTarget(notif);
   const openTarget = () => {
@@ -108,6 +125,12 @@ const NotificationRow = React.memo(function NotificationRow({
           <p className="mt-1 text-sm text-slate-600 break-words leading-relaxed
                         line-clamp-3 sm:line-clamp-2">
             {notif.message}
+          </p>
+        )}
+        {readSessionExpiry(notif) && (
+          <p role="status" className="mt-2 inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+            <CheckCircle2 size={14} />
+            {formatRemaining(readSessionExpiry(notif), clockNow)}
           </p>
         )}
         <p className="mt-1 text-xs text-slate-400">
@@ -198,6 +221,12 @@ function NotificationSkeleton() {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function Notifications() {
+  const [clockNow, setClockNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const {
     notifications,
     grouped,
@@ -413,6 +442,7 @@ export default function Notifications() {
               busy={busyId === notif.id}
               onMarkRead={handleMarkRead}
               onDelete={askDelete}
+              clockNow={clockNow}
             />
           ))}
         </div>
