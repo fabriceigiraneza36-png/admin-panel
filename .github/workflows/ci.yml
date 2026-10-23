@@ -6,14 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-panel-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Install and build admin panel
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm install --no-audit --no-fund
       - run: npm run build

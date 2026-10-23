@@ -125,6 +125,8 @@ export default function Table({
   title,
   subtitle,
   toolbar,
+  selectionActions = [],
+  onSelectionChange,
   className = '',
 }) {
   const [hoveredRow, setHoveredRow] = useState(null)
@@ -143,6 +145,7 @@ export default function Table({
     })
   }, [data, rowKey])
   useEffect(() => () => { if (holdTimer.current) window.clearTimeout(holdTimer.current) }, [])
+  useEffect(() => { onSelectionChange?.(selectedRows) }, [selectedRows, onSelectionChange])
   const toggleSelected = (key) => setSelectedKeys((previous) => {
     const next = new Set(previous)
     if (next.has(String(key))) next.delete(String(key)); else next.add(String(key))
@@ -236,6 +239,21 @@ export default function Table({
           <span className="text-xs font-semibold text-slate-500" aria-live="polite">{selectedKeys.size} selected</span>
           {selectedKeys.size > 0 && <>
             <button type="button" onClick={exportSelected} className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><Download size={14} /> Export selected</button>
+            {selectionActions.map((action, index) => {
+              const Icon = action.icon
+              return (
+                <button
+                  key={action.key || action.label || index}
+                  type="button"
+                  disabled={Boolean(action.disabled?.(selectedRows)) || selectedRows.length === 0}
+                  onClick={() => action.onClick?.(selectedRows, { clearSelection, selectedKeys: [...selectedKeys] })}
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 ${action.variant === 'danger' ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50'}`}
+                >
+                  {Icon ? <Icon size={14} /> : null}
+                  {action.label || 'Apply action'}
+                </button>
+              )
+            })}
             <button type="button" onClick={clearSelection} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><X size={14} /> Clear</button>
           </>}
           <span className="ml-auto hidden text-[11px] text-slate-400 sm:inline">Mobile: touch and hold a card to select it</span>
