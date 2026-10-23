@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Heart, RefreshCw, Search, X } from "lucide-react";
+import { Heart, RefreshCw, Search, X, UserRound, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { apiClient, getErrorMessage } from "@api/client";
 import { useDebounce } from "@hooks/useDebounce";
 
@@ -32,6 +32,29 @@ export default function Likes() {
   useEffect(() => { fetchLikes(); }, [fetchLikes]);
 
   const [likeCounts, setLikeCounts] = useState({});
+  const [expandedId, setExpandedId] = useState(null);
+  const [likeDetails, setLikeDetails] = useState({});
+  const [detailLoading, setDetailLoading] = useState({});
+  const [detailErrors, setDetailErrors] = useState({});
+
+  const toggleLikeDetails = useCallback(async (destination) => {
+    const id = destination.id || destination.numericId;
+    if (!id) return;
+    if (String(expandedId) === String(id)) { setExpandedId(null); return; }
+    setExpandedId(id);
+    if (likeDetails[id]) return;
+    setDetailLoading((prev) => ({ ...prev, [id]: true }));
+    setDetailErrors((prev) => ({ ...prev, [id]: "" }));
+    try {
+      const { data } = await apiClient.get(`/destination-likes/${encodeURIComponent(id)}/likes`);
+      const rows = data?.data?.likes || [];
+      setLikeDetails((prev) => ({ ...prev, [id]: Array.isArray(rows) ? rows : [] }));
+    } catch (err) {
+      setDetailErrors((prev) => ({ ...prev, [id]: getErrorMessage(err) || "Could not load liked accounts." }));
+    } finally {
+      setDetailLoading((prev) => ({ ...prev, [id]: false }));
+    }
+  }, [expandedId, likeDetails]);
 
   useEffect(() => {
     if (!destinations.length) return;
@@ -157,37 +180,43 @@ export default function Likes() {
           {filtered.map((d) => {
             const count = likeCounts[d.id || d.numericId] || 0;
             return (
-              <div
-                key={d.id || d.numericId}
-                className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:border-slate-300 transition"
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
-                  style={{
-                    background: "linear-gradient(135deg,#059669,#047857)",
-                  }}
-                >
-                  {(d.name || "D")[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-slate-800 text-sm truncate">
-                    {d.name}
+              <div key={d.id || d.numericId} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-slate-300 transition">
+                <div className="p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm" style={{ background: "linear-gradient(135deg,#059669,#047857)" }}>
+                    {(d.name || "D")[0].toUpperCase()}
                   </div>
-                  <div className="text-xs text-slate-400 truncate">
-                    {d.country?.name || d.countryName || "Unknown location"}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-slate-800 text-sm truncate">{d.name}</div>
+                    <div className="text-xs text-slate-400 truncate">{d.country?.name || d.countryName || "Unknown location"}</div>
                   </div>
+                  <button type="button" onClick={() => toggleLikeDetails(d)} aria-expanded={String(expandedId) === String(d.id || d.numericId)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold shrink-0" style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #bbf7d0" }}>
+                    <Heart size={14} /><span>{count}</span>
+                    {String(expandedId) === String(d.id || d.numericId) ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
                 </div>
-                <div
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold"
-                  style={{
-                    background: "#fef2f2",
-                    color: "#be123c",
-                    border: "1px solid #fecdd3",
-                  }}
-                >
-                  <Heart size={14} />
-                  <span>{count}</span>
-                </div>
+                {String(expandedId) === String(d.id || d.numericId) && (
+                  <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:p-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Accounts that liked this destination</div>
+                    {detailLoading[d.id || d.numericId] ? (
+                      <div className="text-sm text-slate-500 flex items-center gap-2"><RefreshCw size={14} className="animate-spin" />Loading accounts…</div>
+                    ) : detailErrors[d.id || d.numericId] ? (
+                      <div role="alert" className="text-sm text-red-700 flex items-start gap-2"><AlertCircle size={15} className="mt-0.5 shrink-0" />{detailErrors[d.id || d.numericId]}</div>
+                    ) : (likeDetails[d.id || d.numericId] || []).length ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {(likeDetails[d.id || d.numericId] || []).map((like, index) => (
+                          <div key={like.id || `${like.user?.id || like.userId || "account"}-${index}`} className="min-w-0 flex items-center gap-3 rounded-xl bg-white border border-slate-100 p-3">
+                            {like.user?.avatar ? <img src={like.user.avatar} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" /> : <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 grid place-items-center shrink-0"><UserRound size={16} /></div>}
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-800 truncate">{like.user?.name || like.user?.fullName || "Account unavailable"}</div>
+                              <div className="text-xs text-slate-500 truncate">{like.user?.email || "No email returned"}</div>
+                              {like.createdAt && <div className="text-[11px] text-slate-400">{new Date(like.createdAt).toLocaleString()}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="text-sm text-slate-500">No linked accounts found for these likes.</div>}
+                  </div>
+                )}
               </div>
             );
           })}
