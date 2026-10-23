@@ -20,7 +20,7 @@ import {
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
   Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone,
-  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck,
+  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -580,7 +580,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart, Database, ShieldCheck,
+  Package, Megaphone, Bell, Heart, Database, ShieldCheck, Activity,
 }
 
 const NAV_GROUPS = [
