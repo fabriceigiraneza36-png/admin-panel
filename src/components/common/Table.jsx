@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 import {
   ChevronUp,
   ChevronDown,
@@ -7,6 +7,10 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  CheckSquare,
+  Square,
+  Download,
+  X,
 } from 'lucide-react'
 import { SkeletonTable } from './Loader'
 
@@ -124,6 +128,57 @@ export default function Table({
   className = '',
 }) {
   const [hoveredRow, setHoveredRow] = useState(null)
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set())
+  const [mobileSelectionMode, setMobileSelectionMode] = useState(false)
+  const holdTimer = useRef(null)
+  const longPressTriggered = useRef(false)
+  const keyFor = (row, idx) => String(row?.[rowKey] ?? idx)
+  const selectedRows = useMemo(() => data.filter((row, idx) => selectedKeys.has(keyFor(row, idx))), [data, selectedKeys, rowKey])
+  const allCurrentSelected = data.length > 0 && data.every((row, idx) => selectedKeys.has(keyFor(row, idx)))
+  useEffect(() => {
+    const validKeys = new Set(data.map((row, idx) => keyFor(row, idx)))
+    setSelectedKeys((previous) => {
+      const next = new Set([...previous].filter((key) => validKeys.has(key)))
+      return next.size === previous.size ? previous : next
+    })
+  }, [data, rowKey])
+  useEffect(() => () => { if (holdTimer.current) window.clearTimeout(holdTimer.current) }, [])
+  const toggleSelected = (key) => setSelectedKeys((previous) => {
+    const next = new Set(previous)
+    if (next.has(String(key))) next.delete(String(key)); else next.add(String(key))
+    return next
+  })
+  const toggleSelectAll = () => {
+    setMobileSelectionMode(true)
+    setSelectedKeys((previous) => {
+      const next = new Set(previous)
+      if (allCurrentSelected) data.forEach((row, idx) => next.delete(keyFor(row, idx)))
+      else data.forEach((row, idx) => next.add(keyFor(row, idx)))
+      return next
+    })
+  }
+  const clearSelection = () => { setSelectedKeys(new Set()); setMobileSelectionMode(false) }
+  const exportSelected = () => {
+    if (!selectedRows.length) return
+    const keys = [...new Set(selectedRows.flatMap((row) => Object.keys(row || {})))]
+    const escape = (value) => {
+      const raw = value == null ? '' : (typeof value === 'object' ? JSON.stringify(value) : String(value))
+      return '"' + raw.replace(/"/g, '""') + '"'
+    }
+    const csv = [keys.map(escape).join(','), ...selectedRows.map((row) => keys.map((key) => escape(row?.[key])).join(','))].join('\\r\\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const link = document.createElement('a'); link.href = url; link.download = 'altuvera-selected-records.csv'; link.click(); URL.revokeObjectURL(url)
+  }
+  const startLongPress = (rowKeyVal) => {
+    longPressTriggered.current = false
+    if (holdTimer.current) window.clearTimeout(holdTimer.current)
+    holdTimer.current = window.setTimeout(() => {
+      longPressTriggered.current = true
+      setMobileSelectionMode(true)
+      setSelectedKeys((previous) => new Set(previous).add(String(rowKeyVal)))
+    }, 480)
+  }
+  const endLongPress = () => { if (holdTimer.current) window.clearTimeout(holdTimer.current); holdTimer.current = null }
 
   const hasHoverActions = Array.isArray(hoverActions) && hoverActions.length > 0
 
@@ -172,6 +227,20 @@ export default function Table({
         </div>
       )}
 
+      {data.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm" aria-label="Bulk selection actions">
+          <button type="button" onClick={toggleSelectAll} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            {allCurrentSelected ? <CheckSquare size={15} /> : <Square size={15} />}
+            {allCurrentSelected ? 'Deselect all on page' : 'Select all on page'}
+          </button>
+          <span className="text-xs font-semibold text-slate-500" aria-live="polite">{selectedKeys.size} selected</span>
+          {selectedKeys.size > 0 && <>
+            <button type="button" onClick={exportSelected} className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><Download size={14} /> Export selected</button>
+            <button type="button" onClick={clearSelection} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><X size={14} /> Clear</button>
+          </>}
+          <span className="ml-auto hidden text-[11px] text-slate-400 sm:inline">Mobile: touch and hold a card to select it</span>
+        </div>
+      )}
       {/* Desktop / tablet table */}
       <div className="hidden md:block">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -179,6 +248,7 @@ export default function Table({
             <table className="w-full min-w-full table-fixed text-sm">
               <thead className={stickyHeader ? 'sticky top-0 z-10' : ''}>
                 <tr className="border-b border-slate-200 bg-slate-50/90 backdrop-blur">
+                  <th className="w-12 px-3 py-3 text-center"><input type="checkbox" aria-label={allCurrentSelected ? 'Deselect all rows on this page' : 'Select all rows on this page'} checked={allCurrentSelected} onChange={toggleSelectAll} className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" /></th>
                   {effectiveColumns.map((col) => (
                     <th
                       key={col.key}
@@ -212,7 +282,7 @@ export default function Table({
               <tbody>
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={effectiveColumns.length} className="px-4 py-16">
+                    <td colSpan={effectiveColumns.length + 1} className="px-4 py-16">
                       <div className="flex flex-col items-center justify-center gap-3 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
                           {emptyIcon || <ArrowUpDown size={22} className="text-slate-300" />}
@@ -238,6 +308,7 @@ export default function Table({
                           ${isHovered ? 'bg-primary-50/20' : ''}
                         `}
                       >
+                        <td className="w-12 px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={'Select row ' + rowKeyVal} checked={selectedKeys.has(String(rowKeyVal))} onChange={() => toggleSelected(rowKeyVal)} className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" /></td>
                         {effectiveColumns.map((col) => {
                           const isActionsCol = col.isActions || col.key === '__actions__'
                           const rawValue = row?.[col.key]
@@ -303,12 +374,24 @@ export default function Table({
             return (
               <div
                 key={rowKeyVal}
-                onClick={() => onRowClick?.(row)}
+                onTouchStart={() => startLongPress(rowKeyVal)}
+                onTouchEnd={endLongPress}
+                onTouchMove={endLongPress}
+                onContextMenu={(e) => { e.preventDefault(); setMobileSelectionMode(true); toggleSelected(rowKeyVal) }}
+                onClick={(e) => {
+                  if (longPressTriggered.current) { longPressTriggered.current = false; e.preventDefault(); e.stopPropagation(); return }
+                  if (mobileSelectionMode) { e.stopPropagation(); toggleSelected(rowKeyVal); return }
+                  onRowClick?.(row)
+                }}
                 className={`
                   overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm
                   ${onRowClick ? 'cursor-pointer active:scale-[0.998]' : ''}
                 `}
               >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-semibold text-slate-400">{mobileSelectionMode ? "Selection mode" : "Touch and hold to select"}</span>
+                  {mobileSelectionMode && <label className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-emerald-50 px-3 text-xs font-bold text-emerald-800" onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={"Select row " + rowKeyVal} checked={selectedKeys.has(String(rowKeyVal))} onChange={() => toggleSelected(rowKeyVal)} className="h-4 w-4 accent-emerald-700" />Select</label>}
+                </div>
                 <div className="space-y-3">
                   {columns.filter((col) => col.mobile !== false).map((col) => {
                     const rawValue = row?.[col.key]
