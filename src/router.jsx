@@ -249,6 +249,10 @@ const router = createBrowserRouter(
                     element: <Page title="Account Recovery"><AccountRecovery /></Page>,
                 },
                 {
+                    path:    'account-activity',
+                    element: <Page title="Account Activity Review"><AccountActivityReview /></Page>,
+                },
+                {
                     path:    'maintenance',
                     element: <Page title="Maintenance"><Maintenance /></Page>,
                 },
