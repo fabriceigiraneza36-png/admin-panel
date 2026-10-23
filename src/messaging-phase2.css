@@ -14,7 +14,6 @@
 .messages-admin-shell textarea { line-height:1.55; }
 .messages-admin-shell main > section { overflow:hidden; }
 @media (max-width:767px) {
-  .messages-admin-shell { height:100dvh!important; max-height:100dvh; }
   .messages-admin-shell aside { border-right:0; }
   .messages-admin-shell section > header { padding-left:12px; padding-right:12px; }
   .messages-admin-shell textarea { font-size:16px!important; }
