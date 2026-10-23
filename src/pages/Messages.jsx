@@ -20,6 +20,7 @@ import { API_BASE }  from '@utils/constants'
 import { maintenanceAPI } from '@api/maintenance'
 import ConfirmDialog from '@components/common/ConfirmDialog'
 import { useToast } from '@hooks/useToast'
+import '../messaging-phase2.css'
 
 /* ─── Token / Fetch Helpers ────────────────────────────────────────────────── */
 
@@ -1665,7 +1666,7 @@ export default function Messages() {
         has fixed height, and only ONE child inside scrolls (the message log)
         ═══════════════════════════════════════════════════════════════════════
       */}
-      <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col bg-slate-50" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div className="messages-admin-shell flex flex-1 min-h-0 min-w-0 w-full flex-col bg-slate-50" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ═══ TOP HEADER (fixed, non-scrolling) ═══ */}
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
