@@ -480,25 +480,25 @@ function NewChatModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-         role="dialog" aria-modal="true">
+    <div className="message-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+         role="dialog" aria-modal="true" aria-labelledby="new-chat-title">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl
-                      flex flex-col overflow-hidden" style={{ maxHeight: '88vh' }}>
+      <div className="message-modal-card relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl
+                      flex flex-col overflow-hidden" style={{ maxHeight: '88dvh' }}>
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
               <Plus size={17} className="text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 text-sm">New Conversation</h3>
+              <h3 id="new-chat-title" className="font-bold text-slate-800 text-sm">New Conversation</h3>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                 {selected ? 'Compose message' : 'Select traveler'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center
-                             hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
+          <button type="button" onClick={onClose} aria-label="Close new conversation" className="w-9 h-9 rounded-xl border border-transparent flex items-center justify-center
+                             hover:bg-slate-100 hover:border-slate-200 text-slate-400 hover:text-slate-600 transition">
             <X size={17} />
           </button>
         </div>
@@ -511,6 +511,7 @@ function NewChatModal({ onClose, onCreated }) {
                 <input ref={searchRef} value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by name or email…"
+                  aria-label="Search registered users"
                   className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100
                              bg-slate-50 focus:bg-white transition" />
@@ -659,19 +660,19 @@ function GroupChatModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="message-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="group-chat-title">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative z-10 w-full max-w-xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="message-modal-card relative z-10 w-full max-w-xl max-h-[90dvh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-slate-900">Create group conversation</h3>
+            <h3 id="group-chat-title" className="font-bold text-slate-900">Create group conversation</h3>
             <p className="text-xs text-slate-400 mt-0.5">A shared chat, not a notification broadcast.</p>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center"><X size={17}/></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Group name e.g. Rwanda Gorilla Trip — June"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-500"/>
+          <div className="space-y-1.5"><label htmlFor="group-chat-name" className="block text-xs font-semibold text-slate-600">Group name <span className="text-rose-500">*</span></label><input id="group-chat-name" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Rwanda Gorilla Trip — June"
+            className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-500"/></div>
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Travelers</label>
@@ -693,9 +694,9 @@ function GroupChatModal({ onClose, onCreated }) {
               }
             </div>
           </div>
-          <textarea value={firstMessage} onChange={e=>setFirstMessage(e.target.value)} rows={4}
-            placeholder="Write the first message that every group member will see…"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm resize-none outline-none focus:border-emerald-500"/>
+          <div className="space-y-1.5"><label htmlFor="group-first-message" className="block text-xs font-semibold text-slate-600">First message <span className="text-rose-500">*</span></label><textarea id="group-first-message" value={firstMessage} onChange={e=>setFirstMessage(e.target.value)} rows={4}
+            placeholder="Write the first message every group member will see…"
+            className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm resize-y outline-none focus:border-emerald-500"/></div>
           {error && <div className="rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-semibold px-3 py-2">{error}</div>}
         </div>
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
@@ -730,10 +731,10 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
   }, [onClose, sending])
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-slate-950/50 backdrop-blur-sm p-0 sm:p-5"
+    <div className="message-modal-backdrop fixed inset-0 z-[150] flex items-end sm:items-center justify-center bg-slate-950/50 backdrop-blur-sm p-0 sm:p-5"
       role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !sending) onClose() }}>
       <section role="dialog" aria-modal="true" aria-labelledby="forward-message-title"
-        className="w-full max-w-lg overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white border border-white shadow-2xl">
+        className="message-modal-card w-full max-w-lg overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white border border-white shadow-2xl">
         <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[.18em] text-emerald-700 font-bold">Share with a traveler</p>
@@ -1707,20 +1708,20 @@ export default function Messages() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0 max-w-[60%]">
-            <button onClick={() => setShowGroupChat(true)}
+            <button onClick={() => setShowGroupChat(true)} aria-label="Create group conversation"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-emerald-700 border border-emerald-200
                          text-xs font-bold rounded-lg hover:bg-emerald-50 transition-all" title="Send to a shared group chat">
               <UsersRound size={14} />
               <span className="hidden sm:inline">Group</span>
             </button>
-            <button onClick={() => setShowNewChat(true)}
+            <button onClick={() => setShowNewChat(true)} aria-label="Start a new conversation"
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600
                          text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/20
                          active:scale-95 transition-all">
               <Plus size={14} strokeWidth={2.2} />
               <span className="hidden sm:inline">New Chat</span>
             </button>
-            <button onClick={() => setClearConfirm({ open: true })}
+            <button onClick={() => setClearConfirm({ open: true })} aria-label="Clear all messaging records"
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700
                          border border-red-200 text-xs font-bold rounded-lg hover:bg-red-100 transition">
               <Trash2 size={13} />
@@ -1743,13 +1744,14 @@ export default function Messages() {
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search people, destinations or messages…"
+                  aria-label="Search conversations"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
               </div>
 
               <div className="grid grid-cols-5 gap-1 p-1 bg-slate-100 rounded-lg" role="tablist" aria-label="Filter conversations by status">
                 {['open', 'pending', 'closed', 'archived', 'all'].map(f => (
-                  <button key={f} onClick={() => setFilter(f)}
+                  <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
                     className={`py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all
                                 ${filter === f
                                   ? 'bg-white text-emerald-700 shadow-sm'
@@ -2003,7 +2005,7 @@ export default function Messages() {
                   It sits below the scrollable log, always visible
                   ═══════════════════════════════════════════════════════════
                 */}
-                <div className="flex-shrink-0 bg-white border-t border-slate-200
+                <div className="messages-chat-composer flex-shrink-0 bg-white border-t border-slate-200
                                 shadow-[0_-2px_10px_-2px_rgba(0,0,0,0.04)] z-10"
                      style={{ transform: composerVisible ? "translateY(0)" : "translateY(110%)", opacity: composerVisible ? 1 : 0, pointerEvents: composerVisible ? "auto" : "none", transition: "transform 180ms ease, opacity 180ms ease" }}>
 
@@ -2072,7 +2074,7 @@ export default function Messages() {
                         }
                       }}
                       rows={1}
-                      placeholder="Message traveller…"
+                      placeholder="Write a message…" aria-label="Write a message"
                       aria-label="Type a message"
                       className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
                                  bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
