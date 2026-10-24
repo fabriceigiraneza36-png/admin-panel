@@ -238,7 +238,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
-  const title = conv.subject || conv.guestName || conv.guestEmail || 'Conversation'
+  const title = conv.groupName || conv.subject || conv.guestName || conv.guestEmail || 'Conversation'
   const hasUnread = (conv.unreadAdmin || 0) > 0
 
   return (
@@ -1642,10 +1642,12 @@ export default function Messages() {
       ? `Last active ${fmtElapsed(activePresence.lastSeenAt, now)}`
       : 'Offline'
 
-  const convTitle = activeConv?.subject
-    || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
-    || activeConv?.guestName
-    || 'Conversation'
+  const convTitle = activeConv?.groupId
+    ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
+    : (activeConv?.subject
+      || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
+      || activeConv?.guestName
+      || 'Conversation')
 
   const showMobileChat = !!activeId
 
