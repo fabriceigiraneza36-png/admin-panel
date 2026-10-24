@@ -1280,6 +1280,81 @@ export function AdminLayout() {
 
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
+  // Mobile gesture navigation: a clear right-to-left swipe anywhere on the
+  // page opens the drawer. A left-to-right swipe inside the open drawer closes
+  // it. Ignore vertical scrolling, controls, and true horizontal scrollers.
+  const sidebarTouchStart = useRef(null)
+  useEffect(() => {
+    const excludedTarget = (target) => {
+      if (!(target instanceof Element)) return true
+      if (target.closest([
+        'input', 'textarea', 'select', 'button', 'a', '[role="button"]',
+        '[role="slider"]', '[contenteditable="true"]', '[data-no-menu-swipe]',
+        '.carousel', '[data-carousel]', '.swiper', '.slick-slider', '.embla',
+        '.gallery', '.leaflet-container', '.map-container', '.messages',
+        '.chat', '.chat-window', '.horizontal-scroll'
+      ].join(','))) return true
+      let node = target
+      while (node && node !== document.body) {
+        const style = window.getComputedStyle(node)
+        if (node.scrollWidth > node.clientWidth + 8 &&
+            /(auto|scroll|overlay)/.test(style.overflowX)) return true
+        node = node.parentElement
+      }
+      return false
+    }
+
+    const onTouchStart = (event) => {
+      if (window.innerWidth >= 1024 || !event.touches?.length) return
+      const touch = event.touches[0]
+      const target = event.target instanceof Element ? event.target : null
+      const drawer = document.querySelector('.sb-mobile-shell')
+      if (excludedTarget(target) || (mobileOpen && !drawer?.contains(target))) {
+        sidebarTouchStart.current = null
+        return
+      }
+      sidebarTouchStart.current = { x: touch.clientX, y: touch.clientY, horizontal: false }
+    }
+
+    const onTouchMove = (event) => {
+      const start = sidebarTouchStart.current
+      const touch = event.touches?.[0]
+      if (!start || !touch || window.innerWidth >= 1024) return
+      const dx = touch.clientX - start.x
+      const dy = touch.clientY - start.y
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      if (Math.abs(dy) > Math.abs(dx) * 1.15) {
+        sidebarTouchStart.current = null
+        return
+      }
+      start.horizontal = true
+    }
+
+    const onTouchEnd = (event) => {
+      const start = sidebarTouchStart.current
+      sidebarTouchStart.current = null
+      const touch = event.changedTouches?.[0]
+      if (!start || !touch || !start.horizontal || window.innerWidth >= 1024) return
+      const dx = touch.clientX - start.x
+      const dy = touch.clientY - start.y
+      // Accept a short deliberate swipe from anywhere, not just a long gesture.
+      if (Math.abs(dx) < 24 || Math.abs(dx) < Math.abs(dy) * 1.1) return
+      if (!mobileOpen && dx < 0) setMobileOpen(true)
+      else if (mobileOpen && dx > 0) setMobileOpen(false)
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [mobileOpen])
+
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 1024) setCollapsed(false) }
     window.addEventListener('resize', onResize)
