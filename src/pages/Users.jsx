@@ -281,23 +281,30 @@ export default function UsersPage() {
 
   const handleDelete = useCallback(async () => {
     const target = deleteModal.data
-    if (!target) return
+    if (!target || busyId) return
 
     setBusyId(target.id)
-    setItems((prev) => prev.filter((x) => x.id !== target.id))
-    deleteModal.close()
-
     try {
-      await apiClient.delete(`/users/${target.id}`)
-      toast.success('User deleted')
+      // Only remove the row after the API confirms the transactional erasure.
+      // Keeping the dialog open on failure makes the error actionable and avoids
+      // a misleading optimistic disappearance when the server rolls back.
+      const response = await apiClient.delete(`/users/${target.id}`)
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'The server did not delete this user.')
+      }
+      setItems(prev => prev.filter(user => String(user.id) !== String(target.id)))
       pag.setTotal(Math.max(0, pag.total - 1))
+      deleteModal.close()
+      toast.success('User and associated activity deleted')
+      // Reconcile pagination/counts with the server after a confirmed delete.
+      await load()
     } catch (err) {
-      toast.error(getErrorMessage(err))
-      load() // Refetch to restore
+      const message = getErrorMessage(err)
+      toast.error(message || 'User deletion failed. No changes were confirmed.')
     } finally {
       setBusyId(null)
     }
-  }, [deleteModal, load, pag, toast])
+  }, [deleteModal, busyId, load, pag, toast])
 
   /* ── Export CSV ────────────────────────────────────────────────────────── */
 
@@ -710,9 +717,10 @@ export default function UsersPage() {
         title="Delete this user?"
         description={
           deleteModal.data
-            ? `This permanently removes ${deleteModal.data.full_name || deleteModal.data.email} and all their data. This cannot be undone.`
-            : 'This permanently removes the user account and all their data.'
+            ? `This permanently removes ${deleteModal.data.full_name || deleteModal.data.email}, their owned conversations, shared-chat messages, memberships, bookings, notifications, comments, likes and other linked activity. This cannot be undone.`
+            : 'This permanently removes the user account and all their linked data.'
         }
+        loading={!!busyId}
       />
     </div>
   )
