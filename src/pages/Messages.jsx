@@ -2074,7 +2074,7 @@ export default function Messages() {
                         }
                       }}
                       rows={1}
-                      placeholder="Write a message…" aria-label="Write a message"
+                      placeholder="Write a message…"
                       aria-label="Type a message"
                       className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
                                  bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
