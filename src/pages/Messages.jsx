@@ -997,6 +997,7 @@ export default function Messages() {
     if (!id) {
       activeIdRef.current = null
       setActiveId(null); setActiveConv(null)
+      setActiveConversationError('')
       setMessages([]); setReplyToId(null)
       setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
       setUserTyping(null); setLoadingMsgs(false)
