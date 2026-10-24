@@ -210,3 +210,113 @@
   .message-modal-card, .messages-admin-shell .group\/bubble { animation: none !important; }
   .messages-admin-shell button, .message-modal-card button { transition: none !important; }
 }
+
+
+/* Final resilience pass: keep the message log as the primary scroll surface. */
+.messages-admin-shell {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+.messages-admin-shell main,
+.messages-admin-shell main > aside,
+.messages-admin-shell main > section {
+  min-width: 0;
+  min-height: 0;
+}
+.messages-admin-shell main {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.messages-admin-shell main > aside {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.messages-admin-shell main > aside > div:nth-child(2) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.messages-admin-shell main > section {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+.messages-admin-shell [role="log"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+.messages-admin-shell .messages-chat-composer {
+  position: relative;
+  z-index: 12;
+  flex-shrink: 0;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.messages-admin-shell button:focus-visible,
+.messages-admin-shell input:focus-visible,
+.messages-admin-shell textarea:focus-visible,
+.message-modal-card button:focus-visible,
+.message-modal-card input:focus-visible,
+.message-modal-card textarea:focus-visible {
+  outline: 3px solid rgba(16, 185, 129, .34);
+  outline-offset: 2px;
+}
+.messages-admin-shell aside > div:nth-child(2)::-webkit-scrollbar,
+.messages-admin-shell [role="log"]::-webkit-scrollbar {
+  width: 6px;
+}
+.messages-admin-shell aside > div:nth-child(2)::-webkit-scrollbar-thumb,
+.messages-admin-shell [role="log"]::-webkit-scrollbar-thumb {
+  background: #cbd8d2;
+  border-radius: 999px;
+}
+@media (max-width: 767px) {
+  .messages-admin-shell {
+    height: 100%;
+    max-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .messages-admin-shell main > aside,
+  .messages-admin-shell main > section {
+    width: 100%;
+    min-height: 0;
+  }
+  .messages-admin-shell [role="log"] {
+    scroll-padding-block: 12px;
+  }
+  .messages-admin-shell .messages-chat-composer textarea {
+    max-height: min(28dvh, 148px) !important;
+    font-size: 16px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .messages-admin-shell [role="log"] {
+    scroll-behavior: auto;
+  }
+  .messages-admin-shell *,
+  .messages-admin-shell *::before,
+  .messages-admin-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
