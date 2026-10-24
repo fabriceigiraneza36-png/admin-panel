@@ -1848,9 +1848,8 @@ export default function Messages() {
                       conv={c}
                       active={c.id === activeId}
                       onSelect={(conversationId) => {
-                        // On phones, selecting a row must switch from the inbox
-                        // pane to the actual conversation pane, not just highlight it.
-                        setShowMobileChat(true)
+                        // The mobile chat pane is derived from activeId below.
+                        // Selecting a conversation updates that state through openConversation.
                         setSidebarOpen(false)
                         openConversation(conversationId)
                       }}
