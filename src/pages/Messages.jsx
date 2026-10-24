@@ -1604,14 +1604,30 @@ export default function Messages() {
 
   useEffect(() => {
     const h = e => {
+      const target = e.target
+      const typing = target instanceof HTMLElement &&
+        (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
       if (e.key === 'Escape') {
         if (showEmoji) { setShowEmoji(false); return }
-        if (replyToId) { setReplyToId(null) }
+        if (replyToId) { setReplyToId(null); return }
+        return
+      }
+      // Fast, discoverable chat navigation shortcuts; never steal keys while typing.
+      if (typing || e.altKey || e.metaKey) return
+      if ((e.ctrlKey || e.key === '/') && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        conversationSearchRef.current?.focus()
+        return
+      }
+      if (e.key === 'r' && activeId) {
+        e.preventDefault()
+        setComposerVisible(true)
+        requestAnimationFrame(() => textareaRef.current?.focus())
       }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [showEmoji, replyToId])
+  }, [showEmoji, replyToId, activeId])
 
   const replyMap = useMemo(() => new Map(messages.map(m => [String(m.id), m])), [messages])
   const msgGroups = useMemo(() => groupMessages(messages), [messages])
