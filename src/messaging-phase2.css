@@ -320,3 +320,15 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* White background requested for the admin messaging workspace. */
+.messages-admin-shell,
+.messages-admin-shell main,
+.messages-admin-shell main > section,
+.messages-admin-shell [role="log"] {
+  background-color: #fff !important;
+}
+.messages-admin-shell .messages-chat-composer {
+  background: #fff !important;
+}
