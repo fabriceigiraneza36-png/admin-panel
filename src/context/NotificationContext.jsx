@@ -63,7 +63,8 @@ const isIncomingUserMessageNotification = (notification) => {
     metadata.messageId != null || metadata.message_id != null ||
     /^message-/.test(String(notification.id || ""));
   if (!isMessageNotification) return true;
-  if (["admin", "support", "staff", "agent", "system"].includes(senderType)) return false;
+  if (["admin", "support", "staff", "agent", "system", "guest", "traveller", "traveler", "anonymous"].includes(senderType)) return false;
+  if (senderType && !["user", "customer"].includes(senderType)) return false;
   if (/(?:from|by|sent by)\s+(?:the\s+)?(?:admin|support|staff|agent|administrator)\b/i.test(title + " " + message)) return false;
   if (/^(?:support|admin|staff|agent)\s+(?:message|reply|response)\b/i.test(title.trim())) return false;
   return true;
@@ -355,9 +356,9 @@ export function NotificationProvider({ children }) {
     };
 
     const onMessage = (payload = {}) => {
-      if (payload.senderType && !["user", "guest", "traveller", "traveler", "customer"].includes(String(payload.senderType).toLowerCase())) return;
+      if (String(payload.senderType || payload.sender_type || "").toLowerCase() !== "user") return;
       const message = payload.message || {};
-      if (message.senderType && !["user", "guest", "traveller", "traveler", "customer"].includes(String(message.senderType).toLowerCase())) return;
+      if (String(message.senderType || message.sender_type || "").toLowerCase() !== "user") return;
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
       const messageId = message.id || payload.messageId || null;
@@ -365,13 +366,13 @@ export function NotificationProvider({ children }) {
         id: `message-${messageId || conversationId}`,
         type: "message_new",
         category: "message",
-        title: `New message from ${payload.senderName || message.senderName || payload.senderEmail || "User"}`,
+        title: `New message from ${payload.senderName || message.senderName || "Registered user"}`,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
         metadata: {
           conversationId,
           ...(messageId ? { messageId: String(messageId) } : {}),
-          senderName: payload.senderName || message.senderName || payload.senderEmail || "User",
+          senderName: payload.senderName || message.senderName || "Registered user",
         },
         is_read: false,
         created_at: new Date().toISOString(),
