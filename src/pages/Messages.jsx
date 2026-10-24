@@ -252,11 +252,43 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
   const title = conv.groupName || conv.subject || conv.guestName || 'Registered user'
   const hasUnread = (conv.unreadAdmin || 0) > 0
+  const pointerStartRef = useRef(null)
+  const skipSyntheticClickRef = useRef(false)
+
+  // Some mobile browsers suppress the synthetic click after touch interactions.
+  // Handle a stationary tap on pointer-up as a fallback, while letting vertical
+  // swipes remain native scrolling. Suppress the following click to avoid double opens.
+  const handlePointerDown = (event) => {
+    if (event.pointerType !== 'touch') return
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+  }
+  const handlePointerUp = (event) => {
+    const start = pointerStartRef.current
+    pointerStartRef.current = null
+    if (event.pointerType !== 'touch' || !start) return
+    const movedX = Math.abs(event.clientX - start.x)
+    const movedY = Math.abs(event.clientY - start.y)
+    if (movedX > 10 || movedY > 10) return
+    skipSyntheticClickRef.current = true
+    onSelect(conv)
+    window.setTimeout(() => { skipSyntheticClickRef.current = false }, 500)
+  }
+  const handleClick = () => {
+    if (skipSyntheticClickRef.current) {
+      skipSyntheticClickRef.current = false
+      return
+    }
+    onSelect(conv)
+  }
 
   return (
     <button
       type="button"
-      onClick={() => onSelect(conv)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStartRef.current = null }}
+      onClick={handleClick}
+      style={{ touchAction: 'pan-y' }}
       aria-pressed={active}
       className={`w-full text-left px-3.5 py-3 transition-all border-l-[3px]
                   flex items-start gap-3 outline-none
