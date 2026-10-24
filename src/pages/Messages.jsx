@@ -1728,7 +1728,7 @@ export default function Messages() {
               <UsersRound size={14} />
               <span className="hidden sm:inline">Group</span>
             </button>
-            <button onClick={() => setShowNewChat(true)}
+            <button onClick={() => setShowNewChat(true)} title="New conversation · Ctrl/⌘+N"
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600
                          text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/20
                          active:scale-95 transition-all">
@@ -1758,6 +1758,8 @@ export default function Messages() {
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search people, destinations or messages…"
+                  title="Search conversations · Ctrl/⌘+K"
+                  aria-label="Search conversations"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
               </div>
