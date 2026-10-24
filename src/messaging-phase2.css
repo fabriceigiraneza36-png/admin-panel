@@ -320,3 +320,55 @@
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Open conversation: polished, familiar messenger-style reading and reply flow. */
+.messages-admin-shell [role="log"] {
+  background-color: #f0f5f3 !important;
+  background-image:
+    radial-gradient(circle at 18% 24%, rgba(5,150,105,.045) 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 66%, rgba(15,23,42,.035) 0 2px, transparent 3px) !important;
+  background-size: 44px 44px, 58px 58px !important;
+  padding-top: 22px;
+  padding-bottom: 24px;
+}
+.messages-admin-shell .group\\/bubble { margin-bottom: 12px; }
+.messages-admin-shell .group\\/bubble > div:last-child { min-width: 0; }
+.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.rounded-2xl {
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 10px 14px;
+  box-shadow: 0 2px 5px rgba(15,23,42,.055);
+}
+.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.bg-gradient-to-br {
+  border-radius: 18px 18px 5px 18px;
+  box-shadow: 0 3px 9px rgba(4,120,87,.14);
+}
+.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.bg-white {
+  border-radius: 18px 18px 18px 5px;
+  background: #fff;
+}
+.messages-admin-shell .messages-chat-composer { padding-left: 0; padding-right: 0; }
+.messages-admin-shell .messages-chat-composer > div:last-child { padding-top: 10px; padding-bottom: 10px; }
+.messages-admin-shell .messages-chat-composer > div:last-child > div:first-child {
+  border-radius: 24px;
+  border-color: #dce8e2;
+  background: #f7faf8;
+  padding: 5px;
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 44px !important;
+}
+.messages-admin-shell .messages-chat-composer textarea:focus { outline: none; }
+.messages-admin-shell section > header { background: linear-gradient(110deg, #ffffff 0%, #f6fbf8 100%); }
+@media (max-width: 767px) {
+  .messages-admin-shell [role="log"] { padding: 16px 12px 20px; }
+  .messages-admin-shell .group\\/bubble { margin-bottom: 10px; }
+  .messages-admin-shell .group\\/bubble > div:last-child { max-width: 88%; }
+  .messages-admin-shell .messages-chat-composer { padding-bottom: max(4px, env(safe-area-inset-bottom)); }
+  .messages-admin-shell .messages-chat-composer > div:last-child { padding-left: 10px; padding-right: 10px; }
+  .messages-admin-shell section > header { min-height: 68px; }
+}
