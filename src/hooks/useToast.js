@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast'
 import { useCallback } from 'react'
-import { Info, MessageSquareText, AlertTriangle } from 'lucide-react'
+import { MessageSquareText, AlertTriangle } from 'lucide-react'
 
 /* ── Safe stringify any value to a displayable string ── */
 const toStr = (msg) => {
