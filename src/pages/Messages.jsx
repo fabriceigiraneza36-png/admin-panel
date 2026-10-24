@@ -330,7 +330,7 @@ const MsgBubble = React.memo(function MsgBubble({
       {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
-        {!mine && <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">{message.senderName || 'User'}</span>}
+        {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : (message.senderName || 'Registered traveler')}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
@@ -896,11 +896,17 @@ export default function Messages() {
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
   useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
 
-  // Ctrl/⌘+K focuses inbox search; Ctrl/⌘+N starts a separate conversation.
+  // Ctrl/⌘+K focuses inbox search; Ctrl/⌘+N starts a new conversation.
+  // Do not steal shortcuts while the user is typing in a form or composing a message.
   useEffect(() => {
     const handleShortcut = event => {
       const command = event.ctrlKey || event.metaKey
-      if (!command || event.altKey) return
+      if (!command || event.altKey || event.repeat) return
+      const target = event.target
+      const typing = target?.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName)
+      if (typing) return
+
       const key = event.key.toLowerCase()
       if (key === 'k') {
         event.preventDefault()
@@ -1513,11 +1519,20 @@ export default function Messages() {
 
     const onNewFromUser = (payload) => {
       scheduleConversationRefresh()
+      const senderName = payload.senderName || payload.message?.senderName || payload.senderEmail || 'Registered traveler'
+      const conversationId = payload.conversationId || payload.message?.conversationId
+      const preview = String(payload.message?.body || '').trim().slice(0, 90)
+
+      // The current thread already shows the incoming bubble, so use a toast
+      // when the message belongs to another conversation.
+      if (String(conversationId || '') !== String(activeIdRef.current || '')) {
+        toast.info(`New message from ${senderName}${preview ? ': ' + preview : ''}`)
+      }
       if (document.hidden) {
         showDesktopNotif(
-          `New message from ${payload.senderName || payload.message?.senderName || payload.senderEmail || 'traveler'}`,
-          payload.message?.body?.slice(0, 120) || 'New message',
-          payload.conversationId
+          `New message from ${senderName}`,
+          preview || 'New message received',
+          conversationId
         )
       }
     }
@@ -1591,7 +1606,7 @@ export default function Messages() {
       off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
     }
-  }, [on, off, emit, scheduleConversationRefresh, showDesktopNotif])
+  }, [on, off, emit, scheduleConversationRefresh, showDesktopNotif, toast.info])
 
   useEffect(() => {
     if (!emit || !activeId) return
@@ -1750,6 +1765,8 @@ export default function Messages() {
               <div className="grid grid-cols-5 gap-1 p-1 bg-slate-100 rounded-lg" role="tablist" aria-label="Filter conversations by status">
                 {['open', 'pending', 'closed', 'archived', 'all'].map(f => (
                   <button key={f} onClick={() => setFilter(f)}
+                    role="tab"
+                    aria-selected={filter === f}
                     className={`py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all
                                 ${filter === f
                                   ? 'bg-white text-emerald-700 shadow-sm'
@@ -2107,7 +2124,7 @@ export default function Messages() {
 
                   {/* Shortcut hint */}
                   <p className="hidden sm:block text-center text-[10px] text-slate-300 font-semibold uppercase tracking-wider pb-2 select-none">
-                    Enter to send · Shift+Enter for new line · Esc to cancel reply
+                    Enter to send · Shift+Enter for new line · Esc to cancel reply · Ctrl/⌘+K search · Ctrl/⌘+N new chat
                   </p>
                 </div>
               </>
