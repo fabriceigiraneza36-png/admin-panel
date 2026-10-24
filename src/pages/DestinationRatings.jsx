@@ -178,7 +178,7 @@ export default function DestinationRatings() {
             {FILTERS.map((item) => (
               <button key={item.value} type="button" onClick={() => setFilter(item.value)}
                 aria-pressed={filter === item.value}
-                className={`rounded-xl px-3.5 py-2 text-sm font-bold transition ${filter === item.value ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                className={"rounded-xl px-3.5 py-2 text-sm font-bold transition " + (filter === item.value ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>
                 {item.label}
               </button>
             ))}
