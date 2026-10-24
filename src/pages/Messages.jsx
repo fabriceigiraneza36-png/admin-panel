@@ -1705,7 +1705,7 @@ export default function Messages() {
         has fixed height, and only ONE child inside scrolls (the message log)
         ═══════════════════════════════════════════════════════════════════════
       */}
-      <div className="messages-admin-shell flex flex-1 min-h-0 min-w-0 w-full flex-col bg-slate-50" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div className="messages-admin-shell flex flex-1 min-h-0 min-w-0 w-full flex-col bg-white" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
 
         {/* ═══ TOP HEADER (fixed, non-scrolling) ═══ */}
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
@@ -1864,7 +1864,7 @@ export default function Messages() {
           {/* ═══════════════════════════════════════════════════════════
               RIGHT: CHAT PANEL — Fixed header + Scrollable log + Fixed composer
               ═══════════════════════════════════════════════════════════ */}
-          <section className={`flex-1 w-0 flex flex-col bg-slate-50 min-h-0 min-w-0 relative ${showMobileChat ? "flex" : "hidden md:flex"}`}>
+          <section className={`flex-1 w-0 flex flex-col bg-white min-h-0 min-w-0 relative ${showMobileChat ? "flex" : "hidden md:flex"}`}>
             {!sidebarOpen && !showMobileChat && <button onClick={() => setSidebarOpen(true)} className="absolute left-3 top-3 z-30 w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Show conversations" title="Show conversations"><PanelLeftOpen size={17} /></button>}
 
             {!activeConv ? (
@@ -1968,14 +1968,11 @@ export default function Messages() {
                 <div
                   ref={scrollRef}
                   onScroll={onScroll}
-                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 py-4
-                             bg-gradient-to-b from-slate-50 to-white"
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 py-4 bg-white"
                   role="log"
                   aria-live="polite"
                   style={{
-                    // Subtle pattern (like Instagram)
-                    backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(16,185,129,0.03) 1px, transparent 0)',
-                    backgroundSize: '24px 24px',
+                    backgroundColor: '#ffffff',
                   }}
                 >
                   {loadingMsgs && messages.length === 0 ? (
