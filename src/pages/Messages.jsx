@@ -1847,7 +1847,13 @@ export default function Messages() {
                       key={c.id}
                       conv={c}
                       active={c.id === activeId}
-                      onSelect={openConversation}
+                      onSelect={(conversationId) => {
+                        // On phones, selecting a row must switch from the inbox
+                        // pane to the actual conversation pane, not just highlight it.
+                        setShowMobileChat(true)
+                        setSidebarOpen(false)
+                        openConversation(conversationId)
+                      }}
                       isTyping={typingConvIds.has(String(c.id))}
                     />
                   ))}
