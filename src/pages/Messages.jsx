@@ -810,6 +810,7 @@ export default function Messages() {
   const [messages, setMessages] = useState([])
   const [loadingList, setLoadingList] = useState(true)
   const [conversationLoadError, setConversationLoadError] = useState('')
+  const [activeConversationError, setActiveConversationError] = useState('')
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
@@ -996,6 +997,7 @@ export default function Messages() {
     if (!id) {
       activeIdRef.current = null
       setActiveId(null); setActiveConv(null)
+      setActiveConversationError('')
       setMessages([]); setReplyToId(null)
       setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
       setUserTyping(null); setLoadingMsgs(false)
@@ -1005,6 +1007,8 @@ export default function Messages() {
     activeIdRef.current = String(id)
     pendingScrollToLatestRef.current = true
     setActiveId(id)
+    setActiveConv(null)
+    setActiveConversationError('')
     setReplyToId(null); setDraft('')
     setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
     setLoadingMsgs(true); setMessages([])
@@ -1015,10 +1019,11 @@ export default function Messages() {
     setNewMsgsWhileScrolled(0)
 
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${id}?limit=10`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(id)}?limit=10`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || `Could not open conversation (HTTP ${res.status})`)
       if (String(activeIdRef.current) !== String(id)) return
+      if (!data?.data || typeof data.data !== 'object') throw new Error('The conversation details were not returned. Please try again.')
       setActiveConv(data.data)
       setMessages(data.data?.messages || [])
       setHasMoreMessages(Boolean(data.data?.hasMoreMessages))
@@ -1029,9 +1034,13 @@ export default function Messages() {
         prev.map(c => c.id === id ? { ...c, unreadAdmin: 0 } : c)
       )
     } catch (err) {
+      if (String(activeIdRef.current) === String(id)) {
+        setActiveConversationError(err.message || 'Could not open this conversation. Please try again.')
+        setActiveConv(null)
+      }
       console.error('[AdminMessages] open error:', err.message)
     } finally {
-      setLoadingMsgs(false)
+      if (String(activeIdRef.current) === String(id)) setLoadingMsgs(false)
     }
   }, [])
 
@@ -1854,6 +1863,20 @@ export default function Messages() {
             {!sidebarOpen && !showMobileChat && <button onClick={() => setSidebarOpen(true)} className="absolute left-3 top-3 z-30 w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Show conversations" title="Show conversations"><PanelLeftOpen size={17} /></button>}
 
             {!activeConv ? (
+              loadingMsgs ? (
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 p-8 bg-white" role="status" aria-live="polite">
+                  <span className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center"><RefreshCw size={20} className="animate-spin text-emerald-600" /></span>
+                  <p className="text-sm font-semibold text-slate-700">Opening conversation…</p>
+                  <p className="text-xs text-slate-400 text-center">Loading messages and preparing your reply box.</p>
+                </div>
+              ) : activeConversationError ? (
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center p-8 bg-white" role="alert">
+                  <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-3"><MessageSquare size={23} className="text-rose-500" /></div>
+                  <h3 className="text-sm font-bold text-slate-800">This conversation could not be opened</h3>
+                  <p className="text-xs text-slate-500 mt-2 max-w-sm">{activeConversationError}</p>
+                  <button type="button" onClick={() => openConversation(activeId)} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"><RefreshCw size={14} /> Try again</button>
+                </div>
+              ) : (
               /* EMPTY STATE */
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-white">
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50
@@ -1871,6 +1894,7 @@ export default function Messages() {
                   <span>Start Conversation</span>
                 </button>
               </div>
+              )
             ) : (
               <>
                 {/* ═══ CHAT HEADER (fixed, non-scrolling) ═══ */}
@@ -2061,8 +2085,8 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="px-3 sm:px-5 py-3 bg-white">
-                    <div className="w-full flex items-end gap-2 min-w-0 rounded-2xl border border-transparent bg-white p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
+                  <div className="px-3 sm:px-5 py-3 bg-white min-w-0">
+                    <div className="relative w-full flex items-end gap-2 min-w-0 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
                     <div className="relative flex-shrink-0">
@@ -2106,10 +2130,10 @@ export default function Messages() {
                       rows={1}
                       placeholder="Write a message…"
                       aria-label="Type a message"
-                      className="flex-1 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
+                      className="flex-1 w-0 min-w-0 resize-none text-[14px] px-3.5 sm:px-4 py-2.5 rounded-xl border-0
                                  bg-transparent outline-none leading-relaxed transition-all focus:ring-0 focus:outline-none
-                                 placeholder:text-slate-400"
-                      style={{ minHeight: 40, maxHeight: 120 }}
+                                 placeholder:text-slate-400 break-words"
+                      style={{ minHeight: 44, maxHeight: 'min(28dvh, 148px)' }}
                     />
                     {aiSuggestions.length > 0 && (
                       <div className="absolute bottom-[calc(100%+8px)] left-2 right-2 z-30 rounded-xl border border-emerald-100 bg-white p-2 shadow-xl shadow-slate-900/10 sm:left-12" role="group" aria-label="Optional writing suggestions">
