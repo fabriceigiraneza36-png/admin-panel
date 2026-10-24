@@ -22,6 +22,7 @@ import Notifications from '@pages/Notifications'
 import Countries     from '@pages/Countries'
 import Destinations  from '@pages/Destinations'
 import Comments      from '@pages/Comments'
+import DestinationRatings from '@pages/DestinationRatings'
 import Bookings      from '@pages/Bookings'
 import Packages      from '@pages/Packages'
 import Users         from '@pages/Users'
@@ -175,6 +176,10 @@ const router = createBrowserRouter(
                 {
                     path:    'comments',
                     element: <Page title="Comments"><Comments /></Page>,
+                },
+                {
+                    path:    'destination-ratings',
+                    element: <Page title="Destination Ratings"><DestinationRatings /></Page>,
                 },
                 {
                     path:    'bookings',
