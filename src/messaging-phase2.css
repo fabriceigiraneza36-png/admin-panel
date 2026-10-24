@@ -332,19 +332,19 @@
   padding-top: 22px;
   padding-bottom: 24px;
 }
-.messages-admin-shell .group\\/bubble { margin-bottom: 12px; }
-.messages-admin-shell .group\\/bubble > div:last-child { min-width: 0; }
-.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.rounded-2xl {
+.messages-admin-shell [data-message-id] { margin-bottom: 12px; }
+.messages-admin-shell [data-message-id] > div:last-child { min-width: 0; }
+.messages-admin-shell [data-message-id] > div:last-child > div.relative > div.rounded-2xl {
   font-size: 14px;
   line-height: 1.55;
   padding: 10px 14px;
   box-shadow: 0 2px 5px rgba(15,23,42,.055);
 }
-.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.bg-gradient-to-br {
+.messages-admin-shell [data-message-id] > div:last-child > div.relative > div.bg-gradient-to-br {
   border-radius: 18px 18px 5px 18px;
   box-shadow: 0 3px 9px rgba(4,120,87,.14);
 }
-.messages-admin-shell .group\\/bubble > div:last-child > div.relative > div.bg-white {
+.messages-admin-shell [data-message-id] > div:last-child > div.relative > div.bg-white {
   border-radius: 18px 18px 18px 5px;
   background: #fff;
 }
@@ -366,8 +366,8 @@
 .messages-admin-shell section > header { background: linear-gradient(110deg, #ffffff 0%, #f6fbf8 100%); }
 @media (max-width: 767px) {
   .messages-admin-shell [role="log"] { padding: 16px 12px 20px; }
-  .messages-admin-shell .group\\/bubble { margin-bottom: 10px; }
-  .messages-admin-shell .group\\/bubble > div:last-child { max-width: 88%; }
+  .messages-admin-shell [data-message-id] { margin-bottom: 10px; }
+  .messages-admin-shell [data-message-id] > div:last-child { max-width: 88%; }
   .messages-admin-shell .messages-chat-composer { padding-bottom: max(4px, env(safe-area-inset-bottom)); }
   .messages-admin-shell .messages-chat-composer > div:last-child { padding-left: 10px; padding-right: 10px; }
   .messages-admin-shell section > header { min-height: 68px; }
