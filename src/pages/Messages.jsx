@@ -1614,7 +1614,7 @@ export default function Messages() {
       }
       // Fast, discoverable chat navigation shortcuts; never steal keys while typing.
       if (typing || e.altKey || e.metaKey) return
-      if ((e.ctrlKey || e.key === '/') && e.key.toLowerCase() === 'k') {
+      if ((e.ctrlKey && e.key.toLowerCase() === 'k') || e.key === '/') {
         e.preventDefault()
         conversationSearchRef.current?.focus()
         return
