@@ -178,7 +178,7 @@ export default function DestinationRatings() {
             {FILTERS.map((item) => (
               <button key={item.value} type="button" onClick={() => setFilter(item.value)}
                 aria-pressed={filter === item.value}
-                className={\`rounded-xl px-3.5 py-2 text-sm font-bold transition ${filter === item.value ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}\`}>
+                className={`rounded-xl px-3.5 py-2 text-sm font-bold transition ${filter === item.value ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
                 {item.label}
               </button>
             ))}
@@ -212,7 +212,7 @@ export default function DestinationRatings() {
                     <span className="inline-flex items-center gap-1 text-sm font-extrabold text-slate-900">
                       <MapPin size={13} className="text-emerald-600" /> {item.destinationName || "Unknown destination"}
                     </span>
-                    <span className={\`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${item.isApproved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}\`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${item.isApproved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                       {item.isApproved ? "Visible" : "Hidden"}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export default function DestinationRatings() {
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
                   <button type="button" disabled={busyId === item.id} onClick={() => toggleApproval(item)}
-                    className={\`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition disabled:opacity-50 ${item.isApproved ? "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100" : "bg-emerald-600 text-white hover:bg-emerald-700"}\`}>
+                    className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition disabled:opacity-50 ${item.isApproved ? "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
                     {item.isApproved ? <><EyeOff size={14} /> Hide</> : <><CheckCircle2 size={14} /> Show</>}
                   </button>
                   <button type="button" disabled={busyId === item.id} onClick={() => deleteRating(item)}
