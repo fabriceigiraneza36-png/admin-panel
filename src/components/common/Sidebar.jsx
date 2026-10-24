@@ -596,6 +596,7 @@ const NAV_GROUPS = [
       { path: '/countries', label: 'Countries', icon: 'Globe2' },
       { path: '/destinations', label: 'Destinations', icon: 'MapPin' },
       { path: '/comments', label: 'Comments', icon: 'MessageSquare' },
+      { path: '/destination-ratings', label: 'Destination Ratings', icon: 'Star' },
       { path: '/likes', label: 'Likes', icon: 'Heart' },
       { path: '/posts', label: 'Blog Posts', icon: 'FileText' },
       { path: '/tips', label: 'Travel Tips', icon: 'Lightbulb' },
