@@ -243,6 +243,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
 
   return (
     <button
+      type="button"
       onClick={() => onSelect(conv.id)}
       aria-pressed={active}
       className={`w-full text-left px-3.5 py-3 transition-all border-l-[3px]
@@ -326,7 +327,7 @@ const MsgBubble = React.memo(function MsgBubble({
   const isEditing = String(editingId) === String(message.id)
 
   return (
-    <div className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full`}>
+    <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
       {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
@@ -893,6 +894,7 @@ export default function Messages() {
   const conversationRefreshTimer = useRef(null)
   const conversationRequestRef = useRef(0)
   const requestedConversationOpenedRef = useRef(null)
+  const pendingScrollToLatestRef = useRef(false)
 
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
   useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
@@ -1001,6 +1003,7 @@ export default function Messages() {
       return
     }
     activeIdRef.current = String(id)
+    pendingScrollToLatestRef.current = true
     setActiveId(id)
     setReplyToId(null); setDraft('')
     setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
@@ -1129,9 +1132,28 @@ export default function Messages() {
     }
   }, [hasMoreMessages, loadOlderMessages])
 
-  // Auto-scroll on message load
+  // When a conversation is opened from a notification or selected in the inbox,
+  // scroll the newest loaded message into view after React has rendered its bubble.
   useEffect(() => {
-    if (!loadingMsgs && messages.length > 0) {
+    if (loadingMsgs || !activeConv || !messages.length || !pendingScrollToLatestRef.current) return
+    const latestMessage = messages[messages.length - 1]
+    if (!latestMessage?.id) {
+      pendingScrollToLatestRef.current = false
+      requestAnimationFrame(() => scrollToBottom(false))
+      return
+    }
+    const messageId = String(latestMessage.id)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = document.getElementById(`admin-message-${messageId}`)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+      else scrollToBottom(false)
+      pendingScrollToLatestRef.current = false
+    }))
+  }, [loadingMsgs, activeConv, activeId, messages, scrollToBottom])
+
+  // Keep the normal inbox load anchored to the latest message as well.
+  useEffect(() => {
+    if (!loadingMsgs && messages.length > 0 && !pendingScrollToLatestRef.current) {
       requestAnimationFrame(() => scrollToBottom(false))
     }
   }, [loadingMsgs, activeId, scrollToBottom]) // eslint-disable-line
