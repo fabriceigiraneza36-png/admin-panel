@@ -53,6 +53,18 @@ const authFetch = (url, opts = {}) => {
 const QUICK_EMOJIS = ['👍','❤️','😂','🎉','👏','😮','👎','🔥','🙏','✨','😊','😢']
 const QUICK_REACTIONS = ['👍','❤️','😂','🎉','👏','😮','🙏','🔥']
 
+// The API has historically returned camelCase and database-style IDs in
+// different endpoints. Normalize IDs at the boundary so every click opens
+// the same conversation regardless of which shape the backend returned.
+const resolveConversationId = (conversation) =>
+  conversation?.id ?? conversation?.conversationId ?? conversation?.conversation_id ?? null
+
+const normalizeConversation = (conversation) => {
+  if (!conversation || typeof conversation !== 'object') return conversation
+  const id = resolveConversationId(conversation)
+  return { ...conversation, id: id == null || String(id).trim() === '' ? null : String(id) }
+}
+
 const fmtRelative = (d) => {
   if (!d) return ''
   const diff = Date.now() - new Date(d).getTime()
@@ -240,11 +252,43 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
   const title = conv.groupName || conv.subject || conv.guestName || 'Registered user'
   const hasUnread = (conv.unreadAdmin || 0) > 0
+  const pointerStartRef = useRef(null)
+  const skipSyntheticClickRef = useRef(false)
+
+  // Some mobile browsers suppress the synthetic click after touch interactions.
+  // Handle a stationary tap on pointer-up as a fallback, while letting vertical
+  // swipes remain native scrolling. Suppress the following click to avoid double opens.
+  const handlePointerDown = (event) => {
+    if (event.pointerType !== 'touch') return
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+  }
+  const handlePointerUp = (event) => {
+    const start = pointerStartRef.current
+    pointerStartRef.current = null
+    if (event.pointerType !== 'touch' || !start) return
+    const movedX = Math.abs(event.clientX - start.x)
+    const movedY = Math.abs(event.clientY - start.y)
+    if (movedX > 10 || movedY > 10) return
+    skipSyntheticClickRef.current = true
+    onSelect(conv)
+    window.setTimeout(() => { skipSyntheticClickRef.current = false }, 500)
+  }
+  const handleClick = () => {
+    if (skipSyntheticClickRef.current) {
+      skipSyntheticClickRef.current = false
+      return
+    }
+    onSelect(conv)
+  }
 
   return (
     <button
       type="button"
-      onClick={() => onSelect(conv.id)}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStartRef.current = null }}
+      onClick={handleClick}
+      style={{ touchAction: 'pan-y' }}
       aria-pressed={active}
       className={`w-full text-left px-3.5 py-3 transition-all border-l-[3px]
                   flex items-start gap-3 outline-none
@@ -967,7 +1011,8 @@ export default function Messages() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (requestId === conversationRequestRef.current) {
-        setConversations(Array.isArray(data.data) ? data.data : [])
+        const rows = Array.isArray(data.data) ? data.data.map(normalizeConversation) : []
+        setConversations(rows)
         setConversationLoadError('')
         conversationsLoadedRef.current = true
       }
@@ -994,7 +1039,7 @@ export default function Messages() {
   }, [loadConversations])
 
   const openConversation = useCallback(async (id) => {
-    if (!id) {
+    if (id == null || String(id).trim() === '') {
       activeIdRef.current = null
       setActiveId(null); setActiveConv(null)
       setActiveConversationError('')
@@ -1004,9 +1049,10 @@ export default function Messages() {
       setSidebarOpen(true)
       return
     }
-    activeIdRef.current = String(id)
+    const conversationId = String(id).trim()
+    activeIdRef.current = conversationId
     pendingScrollToLatestRef.current = true
-    setActiveId(id)
+    setActiveId(conversationId)
     setActiveConv(null)
     setActiveConversationError('')
     setReplyToId(null); setDraft('')
@@ -1019,30 +1065,42 @@ export default function Messages() {
     setNewMsgsWhileScrolled(0)
 
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(id)}?limit=10`)
+      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}?limit=10`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message || `Could not open conversation (HTTP ${res.status})`)
-      if (String(activeIdRef.current) !== String(id)) return
+      if (String(activeIdRef.current) !== conversationId) return
       if (!data?.data || typeof data.data !== 'object') throw new Error('The conversation details were not returned. Please try again.')
       setActiveConv(data.data)
       setMessages(data.data?.messages || [])
       setHasMoreMessages(Boolean(data.data?.hasMoreMessages))
 
-      authFetch(`${API_BASE}/messages/conversations/${id}/read`, { method: 'PATCH' }).catch(() => {})
+      authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}/read`, { method: 'PATCH' }).catch(() => {})
 
       setConversations(prev =>
-        prev.map(c => c.id === id ? { ...c, unreadAdmin: 0 } : c)
+        prev.map(c => String(c.id) === conversationId ? { ...c, unreadAdmin: 0 } : c)
       )
     } catch (err) {
-      if (String(activeIdRef.current) === String(id)) {
+      if (String(activeIdRef.current) === conversationId) {
         setActiveConversationError(err.message || 'Could not open this conversation. Please try again.')
         setActiveConv(null)
       }
       console.error('[AdminMessages] open error:', err.message)
     } finally {
-      if (String(activeIdRef.current) === String(id)) setLoadingMsgs(false)
+      if (String(activeIdRef.current) === conversationId) setLoadingMsgs(false)
     }
   }, [])
+
+  const handleSelectConversation = useCallback((conversation) => {
+    const conversationId = resolveConversationId(conversation)
+    if (conversationId == null || String(conversationId).trim() === '') {
+      console.error('[AdminMessages] Cannot open conversation: the list item has no conversation ID.', conversation)
+      toast.error('This conversation is missing its ID. Refresh the inbox and try again.')
+      return
+    }
+    setFocusComposerOnOpen(false)
+    setSidebarOpen(false)
+    void openConversation(String(conversationId))
+  }, [openConversation, toast])
 
   // Only notification links should open a thread automatically. Entering
   // the Messages page normally always starts at the full conversation list.
@@ -1846,13 +1904,8 @@ export default function Messages() {
                     <ConvRow
                       key={c.id}
                       conv={c}
-                      active={c.id === activeId}
-                      onSelect={(conversationId) => {
-                        // The mobile chat pane is derived from activeId below.
-                        // Selecting a conversation updates that state through openConversation.
-                        setSidebarOpen(false)
-                        openConversation(conversationId)
-                      }}
+                      active={String(c.id) === String(activeId)}
+                      onSelect={handleSelectConversation}
                       isTyping={typingConvIds.has(String(c.id))}
                     />
                   ))}
