@@ -27,9 +27,9 @@ export const bookingsAPI = {
 
   // ── NEW: Cancellation / refund requests ──────────────────────────────────
   getCancellationRequests: (params) =>
-    apiClient.get(`${BASE}/cancellation-requests`, { params }),
+    apiClient.get(`${BASE}/cancel-requests`, { params }),
   reviewCancellation: (id, data) =>
-    apiClient.post(`${BASE}/${id}/review-cancellation`, data),
+    apiClient.post(`${BASE}/${id}/cancel-review`, data),
   requestPortrait: (id) => apiClient.post(`/booking-identity/${id}/request`),
   confirmWithPortrait: (id) => apiClient.post(`/booking-identity/${id}/confirm`),
 }
