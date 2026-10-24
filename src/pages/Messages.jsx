@@ -238,7 +238,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
-  const title = conv.subject || conv.guestName || conv.guestEmail || 'Conversation'
+  const title = conv.subject || conv.guestName || 'Registered user'
   const hasUnread = (conv.unreadAdmin || 0) > 0
 
   return (
@@ -252,7 +252,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
                     : 'border-l-transparent hover:bg-slate-50'}`}
     >
       <Avatar
-        name={conv.guestName || conv.guestEmail || '?'}
+        name={conv.guestName || 'Registered user'}
         src={conv.guestAvatar}
         size="md"
         online={conv.isOnline}
@@ -764,11 +764,11 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
                   aria-pressed={selected}
                   className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}`}>
                   <span className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-bold flex items-center justify-center">
-                    {(conv.guestName || conv.guestEmail || conv.subject || 'C').trim().slice(0, 1).toUpperCase()}
+                    {(conv.guestName || conv.subject || 'U').trim().slice(0, 1).toUpperCase()}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-slate-800 truncate">{conv.subject || conv.guestName || conv.guestEmail || 'Conversation'}</span>
-                    <span className="block text-xs text-slate-500 truncate">{conv.guestName && conv.subject ? conv.guestName + ' · ' : ''}{conv.lastMessage || conv.guestEmail || 'No messages yet'}</span>
+                    <span className="block text-sm font-semibold text-slate-800 truncate">{conv.subject || conv.guestName || 'Registered user'}</span>
+                    <span className="block text-xs text-slate-500 truncate">{conv.guestName && conv.subject ? conv.guestName + ' · ' : ''}{conv.lastMessage || 'No messages yet'}</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${selected ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
                     {selected && <Check size={10} className="text-white"/>}
@@ -1851,7 +1851,7 @@ export default function Messages() {
                     </button>
 
                     <Avatar
-                      name={activeConv.guestName || activeConv.guestEmail || '?'}
+                      name={activeConv.guestName || 'Registered user'}
                       src={activeConv.guestAvatar}
                       size="md"
                       online={activeConv.isOnline}
@@ -1867,7 +1867,7 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : (activeConv.guestEmail || 'Guest'))}
+                              : (activeConv.guestName || 'Registered user'))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
