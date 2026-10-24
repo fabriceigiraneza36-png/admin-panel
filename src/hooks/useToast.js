@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast'
-import { useCallback } from 'react'
+import React, { useCallback } from 'react'
+import { MessageSquareText, AlertTriangle } from 'lucide-react'
 
 /* ── Safe stringify any value to a displayable string ── */
 const toStr = (msg) => {
@@ -52,7 +53,7 @@ export const useToast = () => {
 
   const info = useCallback((msg) => {
     toast(toStr(msg), {
-      icon: 'ℹ️',
+      icon: React.createElement(MessageSquareText, { size: 18, strokeWidth: 2 }),
       duration: 3000,
       style: {
         background:   '#fff',
@@ -67,7 +68,7 @@ export const useToast = () => {
 
   const warn = useCallback((msg) => {
     toast(toStr(msg), {
-      icon: '⚠️',
+      icon: React.createElement(AlertTriangle, { size: 18, strokeWidth: 2 }),
       duration: 3500,
       style: {
         background:   '#fff',

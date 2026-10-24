@@ -238,7 +238,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
-  const title = conv.subject || conv.guestName || 'Registered user'
+  const title = conv.groupName || conv.subject || conv.guestName || 'Registered user'
   const hasUnread = (conv.unreadAdmin || 0) > 0
 
   return (
@@ -330,7 +330,7 @@ const MsgBubble = React.memo(function MsgBubble({
       {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
-        {!mine && <span className="text-[10px] font-bold text-emerald-700 mb-1 ml-1 uppercase tracking-wider">{message.senderName || 'User'}</span>}
+        {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : (message.senderName || 'Registered user')}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
@@ -898,10 +898,15 @@ export default function Messages() {
   useEffect(() => { atBottomRef.current = atBottom }, [atBottom])
 
   // Ctrl/⌘+K focuses inbox search; Ctrl/⌘+N starts a separate conversation.
+  // Preserve native editing shortcuts while typing in a form or composing a message.
   useEffect(() => {
     const handleShortcut = event => {
       const command = event.ctrlKey || event.metaKey
-      if (!command || event.altKey) return
+      if (!command || event.altKey || event.repeat) return
+      const target = event.target
+      const typing = target?.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName)
+      if (typing) return
       const key = event.key.toLowerCase()
       if (key === 'k') {
         event.preventDefault()
@@ -1628,10 +1633,12 @@ export default function Messages() {
       ? `Last active ${fmtElapsed(activePresence.lastSeenAt, now)}`
       : 'Offline'
 
-  const convTitle = activeConv?.subject
-    || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
-    || activeConv?.guestName
-    || 'Conversation'
+  const convTitle = activeConv?.groupId
+    ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
+    : (activeConv?.subject
+      || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
+      || activeConv?.guestName
+      || 'Conversation')
 
   const showMobileChat = !!activeId
 
@@ -1714,7 +1721,7 @@ export default function Messages() {
               <UsersRound size={14} />
               <span className="hidden sm:inline">Group</span>
             </button>
-            <button onClick={() => setShowNewChat(true)} aria-label="Start a new conversation"
+            <button onClick={() => setShowNewChat(true)} title="New conversation · Ctrl/⌘+N" aria-label="Start a new conversation"
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600
                          text-white text-xs font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/20
                          active:scale-95 transition-all">
@@ -1744,6 +1751,7 @@ export default function Messages() {
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search people, destinations or messages…"
+                  title="Search conversations · Ctrl/⌘+K"
                   aria-label="Search conversations"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
@@ -2109,7 +2117,7 @@ export default function Messages() {
 
                   {/* Shortcut hint */}
                   <p className="hidden sm:block text-center text-[10px] text-slate-300 font-semibold uppercase tracking-wider pb-2 select-none">
-                    Enter to send · Shift+Enter for new line · Esc to cancel reply
+                    Enter to send · Shift+Enter for new line · Esc to cancel reply · Ctrl/⌘+K search · Ctrl/⌘+N new chat
                   </p>
                 </div>
               </>

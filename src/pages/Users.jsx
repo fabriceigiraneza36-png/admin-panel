@@ -277,27 +277,33 @@ export default function UsersPage() {
     }
   }, [toast])
 
-  /* ── Optimistic delete ─────────────────────────────────────────────────── */
+  /* ── Confirmed delete: keep the row until the server confirms ──────────── */
 
   const handleDelete = useCallback(async () => {
     const target = deleteModal.data
-    if (!target) return
+    if (!target || busyId === target.id) return
 
     setBusyId(target.id)
-    setItems((prev) => prev.filter((x) => x.id !== target.id))
-    deleteModal.close()
-
     try {
-      await apiClient.delete(`/users/${target.id}`)
-      toast.success('User deleted')
+      const response = await apiClient.delete(`/users/${encodeURIComponent(String(target.id))}`)
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'The server did not delete this user.')
+      }
+
+      setItems((prev) => prev.filter((item) => String(item.id) !== String(target.id)))
       pag.setTotal(Math.max(0, pag.total - 1))
+      deleteModal.close()
+      toast.success(`${target.full_name || target.email || 'User'} deleted successfully`)
+
+      // Removing the final row on a later page should return to a populated page.
+      if (items.length === 1 && pag.page > 1) pag.prev()
     } catch (err) {
-      toast.error(getErrorMessage(err))
-      load() // Refetch to restore
+      // Keep the selected user and dialog visible so the administrator can retry.
+      toast.error(getErrorMessage(err) || 'Could not delete this user. The account remains unchanged.')
     } finally {
       setBusyId(null)
     }
-  }, [deleteModal, load, pag, toast])
+  }, [deleteModal, toast, busyId, items.length, pag])
 
   /* ── Export CSV ────────────────────────────────────────────────────────── */
 
@@ -707,6 +713,7 @@ export default function UsersPage() {
         onClose={deleteModal.close}
         onConfirm={handleDelete}
         type="delete"
+        loading={Boolean(deleteModal.data && busyId === deleteModal.data.id)}
         title="Delete this user?"
         description={
           deleteModal.data
