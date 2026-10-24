@@ -277,27 +277,36 @@ export default function UsersPage() {
     }
   }, [toast])
 
-  /* ── Optimistic delete ─────────────────────────────────────────────────── */
+  /* ── Confirmed delete (never hide a user before the API succeeds) ──────── */
 
   const handleDelete = useCallback(async () => {
     const target = deleteModal.data
-    if (!target) return
+    if (!target || busyId === target.id) return
 
     setBusyId(target.id)
-    setItems((prev) => prev.filter((x) => x.id !== target.id))
-    deleteModal.close()
-
     try {
-      await apiClient.delete(`/users/${target.id}`)
-      toast.success('User deleted')
+      const response = await apiClient.delete(`/users/${encodeURIComponent(String(target.id))}`)
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'The server did not delete this user.')
+      }
+
+      // Update the UI only after the server commits the deletion. On failure,
+      // the row and confirmation dialog remain available so the action can be
+      // retried without losing the selected user.
+      setItems((prev) => prev.filter((item) => String(item.id) !== String(target.id)))
       pag.setTotal(Math.max(0, pag.total - 1))
+      deleteModal.close()
+      toast.success(`${target.full_name || target.email || 'User'} deleted successfully`)
+
+      // If the last row on a non-first page was removed, move back so the
+      // table does not remain on an empty page.
+      if (items.length === 1 && pag.page > 1) pag.prev()
     } catch (err) {
-      toast.error(getErrorMessage(err))
-      load() // Refetch to restore
+      toast.error(getErrorMessage(err) || 'Could not delete this user. The account remains unchanged.')
     } finally {
       setBusyId(null)
     }
-  }, [deleteModal, load, pag, toast])
+  }, [deleteModal, pag, toast, busyId, items.length])
 
   /* ── Export CSV ────────────────────────────────────────────────────────── */
 
@@ -707,6 +716,7 @@ export default function UsersPage() {
         onClose={deleteModal.close}
         onConfirm={handleDelete}
         type="delete"
+        loading={Boolean(deleteModal.data && busyId === deleteModal.data.id)}
         title="Delete this user?"
         description={
           deleteModal.data
