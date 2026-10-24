@@ -25,3 +25,69 @@
 @media (prefers-reduced-motion:reduce) {
   .messages-admin-shell * { scroll-behavior:auto!important; transition-duration:0s!important; animation-duration:0s!important; }
 }
+
+/* Messaging command-center polish: calm contrast, resilient mobile sizing,
+   predictable nested scrolling, subtle motion and clear keyboard focus. */
+.messages-admin-shell {
+  color: #10251f;
+  background: linear-gradient(145deg,#f8fbf9 0%,#f4f8f6 100%);
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+.messages-admin-shell button,
+.messages-admin-shell a,
+.messages-admin-shell input,
+.messages-admin-shell textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+.messages-admin-shell button:not(:disabled) {
+  transition: background-color .18s ease, border-color .18s ease,
+    color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.messages-admin-shell button:not(:disabled):active { transform: scale(.985); }
+.messages-admin-shell button:focus-visible,
+.messages-admin-shell [role="button"]:focus-visible,
+.messages-admin-shell input:focus-visible,
+.messages-admin-shell textarea:focus-visible {
+  outline: 3px solid rgba(5,150,105,.35);
+  outline-offset: 2px;
+}
+.messages-admin-shell aside,
+.messages-admin-shell main,
+.messages-admin-shell section,
+.messages-admin-shell [data-message-scroll] {
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.messages-admin-shell aside { scrollbar-width: thin; scrollbar-color: #cbd5d1 transparent; }
+.messages-admin-shell aside::-webkit-scrollbar,
+.messages-admin-shell main::-webkit-scrollbar { width: 6px; }
+.messages-admin-shell aside::-webkit-scrollbar-thumb,
+.messages-admin-shell main::-webkit-scrollbar-thumb { background: #cbd5d1; border-radius: 99px; }
+.messages-admin-shell textarea { resize: none; max-height: 120px; overflow-y: auto; }
+.messages-admin-shell img { max-width: 100%; }
+@keyframes messageItemEnter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.messages-admin-shell [data-message-item] { animation: messageItemEnter .18s ease-out both; }
+@media (max-width: 767px) {
+  .messages-admin-shell {
+    border-radius: 0;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
+  }
+  .messages-admin-shell aside { max-width: 100%; }
+  .messages-admin-shell textarea { font-size: 16px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .messages-admin-shell *,
+  .messages-admin-shell *::before,
+  .messages-admin-shell *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
