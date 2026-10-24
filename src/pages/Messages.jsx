@@ -1884,7 +1884,9 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : (activeConv.guestEmail || 'Guest'))}
+                              : (activeConv.groupId
+                              ? (activeConv.groupName || 'Group conversation')
+                              : (activeConv.userId ? (activeConv.guestEmail || 'Registered traveler') : ''))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
