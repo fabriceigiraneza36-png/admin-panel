@@ -399,11 +399,13 @@ const MsgBubble = React.memo(function MsgBubble({
     window.addEventListener('altuvera:message-actions-open', closeOtherMenus)
     return () => window.removeEventListener('altuvera:message-actions-open', closeOtherMenus)
   }, [message.id])
-  const toggleMessageMenu = () => {
-    if (!menuOpen) {
-      window.dispatchEvent(new CustomEvent('altuvera:message-actions-open', { detail: String(message.id) }))
-    }
-    setMenuOpen(open => !open)
+  const openMessageMenu = (event) => {
+    // This control can sit inside nested interactive/chat layouts on mobile.
+    // Prevent form submission and parent handlers from swallowing the tap.
+    event?.preventDefault()
+    event?.stopPropagation()
+    window.dispatchEvent(new CustomEvent('altuvera:message-actions-open', { detail: String(message.id) }))
+    setMenuOpen(true)
   }
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
   const reactions = useMemo(() => {
@@ -474,12 +476,18 @@ const MsgBubble = React.memo(function MsgBubble({
 
           {!isPending && !isDeleted && !isEditing && (
             <div className="relative flex-shrink-0">
-              <button onClick={toggleMessageMenu} aria-label="Message actions"
+              <button type="button" onClick={openMessageMenu} aria-label="Message actions"
                 className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 transition">
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && createPortal(
-                <div className="message-actions-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}>
+                <div
+                  className="message-actions-backdrop"
+                  role="presentation"
+                  onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}
+                  onClick={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}
+                  style={{ position: 'fixed', inset: 0, zIndex: 2147483647, display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', padding: 12, background: 'rgba(15, 23, 42, .48)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
+                >
                   <section className="message-actions-modal" role="dialog" aria-modal="true"
                            aria-label="Message actions">
                     <div className="message-actions-modal-header">
