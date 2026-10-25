@@ -1084,37 +1084,54 @@
 }
 
 
-/* Keep the three-dot actions surface above every chat layer without affecting
-   message layout or shifting surrounding controls. */
+/* Compact, anchored three-dot menu: no page-sized backdrop, no blur,
+   and no scroll lock. The message list remains scrollable while it is open. */
 .message-actions-backdrop {
-  position: fixed !important;
-  inset: 0 !important;
+  position: absolute !important;
+  inset: calc(100% + 4px) 0 auto auto !important;
   z-index: 30000 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  box-sizing: border-box !important;
-  overflow: auto !important;
+  display: block !important;
+  width: max-content !important;
+  max-width: min(280px, calc(100vw - 24px)) !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
   isolation: isolate !important;
-  pointer-events: auto !important;
+  pointer-events: none !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
 }
 .message-actions-modal {
-  flex: 0 1 360px !important;
-  width: min(360px, calc(100vw - 24px)) !important;
-  max-width: calc(100vw - 24px) !important;
-  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px) !important;
-  margin: auto !important;
+  position: relative !important;
+  width: min(250px, calc(100vw - 24px)) !important;
+  max-width: min(250px, calc(100vw - 24px)) !important;
+  max-height: min(60dvh, 360px) !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .18) !important;
+  pointer-events: auto !important;
   z-index: 30001 !important;
 }
+.message-actions-modal-header { padding: 4px 4px 7px !important; gap: 8px !important; }
+.message-actions-list { gap: 2px !important; }
+.message-actions-list button { min-height: 34px !important; padding: 7px 8px !important; font-size: 12px !important; }
 @media (max-width: 767px) {
   .message-actions-backdrop {
-    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+    max-width: min(250px, calc(100vw - 20px)) !important;
   }
   .message-actions-modal {
-    width: min(100%, 420px) !important;
-    border-radius: 18px !important;
+    width: min(230px, calc(100vw - 20px)) !important;
+    max-width: min(230px, calc(100vw - 20px)) !important;
+    max-height: 50dvh !important;
+    border-radius: 12px !important;
   }
 }
+/* Show 20 compact, tappable reactions without enlarging the page overlay. */
+.message-actions-modal .grid.grid-cols-4 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+.message-actions-modal .grid.grid-cols-4 button { height: 36px !important; font-size: 20px !important; }
