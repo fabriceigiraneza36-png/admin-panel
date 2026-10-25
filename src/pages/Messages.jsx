@@ -10,7 +10,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
-  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -396,6 +396,8 @@ const MsgBubble = React.memo(function MsgBubble({
   const isPending = String(message.id).startsWith('tmp-')
   const isDeleted = Boolean(message.deleted)
   const isEditing = String(editingId) === String(message.id)
+  const messageSenderId = message?.senderId ?? message?.sender_id
+  const isOwnMessage = mine && currentUserId != null && messageSenderId != null && String(messageSenderId) === String(currentUserId)
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
@@ -441,10 +443,23 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className={`absolute top-full mt-1 z-40 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute top-full mt-1 z-40 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
                   <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
-                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> {isOwnMessage ? 'Reply to yourself' : 'Reply'}</button>
                   <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
+                  {isOwnMessage && !message.isRead && (
+                    <button type="button" onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Pencil size={15}/> Edit message</button>
+                  )}
+                  {isOwnMessage && (
+                    <button type="button" onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend for everyone</button>
+                  )}
+                  {canModerate && (
+                    <>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button type="button" onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin message'}</button>
+                      <button type="button" onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
+                    </>
+                  )}
                 </div>
               )}
               {reactionPickerOpen && (
