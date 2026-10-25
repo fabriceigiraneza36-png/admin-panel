@@ -51,7 +51,7 @@ const authFetch = (url, opts = {}) => {
 /* ─── Constants & Formatting ───────────────────────────────────────────────── */
 
 const QUICK_EMOJIS = ['👍','❤️','😂','🎉','👏','😮','👎','🔥','🙏','✨','😊','😢']
-const QUICK_REACTIONS = ['👍','❤️','😂','🎉','👏','😮','🙏','🔥']
+const QUICK_REACTIONS = ['👍','❤️','😂','🎉','👏','😮','🙏','🔥','😍','🥰','😢','😡','🤔','💯','🙌','🤝','💚','💐','✅','👀']
 
 // The API has historically returned camelCase and database-style IDs in
 // different endpoints. Normalize IDs at the boundary so every click opens
@@ -459,9 +459,7 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className="message-actions-backdrop fixed inset-0 z-[120] flex items-center justify-center"
-                     role="presentation"
-                     onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}>
+                <div className="message-actions-backdrop" role="presentation">
                   <section className="message-actions-modal" role="dialog" aria-modal="true"
                            aria-label="Message actions">
                     <div className="message-actions-modal-header">
