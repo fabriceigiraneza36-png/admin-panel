@@ -65,6 +65,11 @@ const normalizeConversation = (conversation) => {
   return { ...conversation, id: id == null || String(id).trim() === '' ? null : String(id) }
 }
 
+const safeEndUserName = (name) => {
+  const value = String(name || '').trim()
+  return !value || /^(super\\s*admin|admin|administrator|altuvera support)$/i.test(value) ? 'End user' : value
+}
+
 const fmtRelative = (d) => {
   if (!d) return ''
   const diff = Date.now() - new Date(d).getTime()
@@ -249,7 +254,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
-  const title = conv.groupName || conv.subject || conv.guestName || 'End user'
+  const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
   const hasUnread = (conv.unreadAdmin || 0) > 0
   const pointerStartRef = useRef(null)
   const skipSyntheticClickRef = useRef(false)
@@ -296,7 +301,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
                     : 'border-l-transparent hover:bg-slate-50'}`}
     >
       <Avatar
-        name={conv.guestName || 'End user'}
+        name={safeEndUserName(conv.guestName)}
         src={conv.guestAvatar}
         size="md"
         online={conv.isOnline}
@@ -370,10 +375,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
   // Some legacy records incorrectly store the admin account's display name on
   // an end-user message. Prefer the conversation participant in that case.
   if (!name || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(name)) {
-    const safeGuestName = String(guestName || '').trim()
-    return safeGuestName && !/^(super\s*admin|admin|administrator|altuvera support)$/i.test(safeGuestName)
-      ? safeGuestName
-      : 'End user'
+    return safeEndUserName(guestName)
   }
   return name
 }
@@ -1994,7 +1996,7 @@ export default function Messages() {
                     </button>
 
                     <Avatar
-                      name={activeConv.guestName || 'End user'}
+                      name={safeEndUserName(activeConv.guestName)}
                       src={activeConv.guestAvatar}
                       size="md"
                       online={activeConv.isOnline}
@@ -2010,7 +2012,7 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : (activeConv.guestName || 'End user'))}
+                              : safeEndUserName(activeConv.guestName))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
