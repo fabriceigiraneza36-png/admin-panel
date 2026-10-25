@@ -66,6 +66,9 @@ export default function ItineraryBuilder() {
       if (existing?.days?.length) {
         setItinerary({
           ...existing,
+          // Older saved itineraries may predate the mode field. Always choose a
+          // real editor mode so neither conditional editor can disappear.
+          mode: existing.mode === 'assisted' ? 'assisted' : 'manual',
           planningChecklist: existing.planningChecklist?.length
             ? existing.planningChecklist
             : DEFAULT_CHECKLIST.map(item => ({...item})),
