@@ -117,7 +117,9 @@ export default function ItineraryBuilder() {
       const res = await itinerariesAPI.publish(bookingId, { ...itinerary, deliveryMode, itineraryImageUrl: itineraryImageUrl.trim() })
       const data = res?.data?.data || res?.data || res
       if (data) setBooking(data)
-      toast.success('Itinerary sent to the traveller dashboard and email.')
+      toast.success(data?.delivery?.email === 'processing'
+        ? 'Itinerary published to the traveller dashboard. Email delivery is processing.'
+        : (data?.message || 'Itinerary published successfully.'))
     } catch(e) { toast.error(getErrorMessage(e)) } finally { setSending(false) }
   }
 
