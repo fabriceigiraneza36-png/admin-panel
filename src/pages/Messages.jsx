@@ -447,6 +447,25 @@ const MsgBubble = React.memo(function MsgBubble({
               ${mine ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-br-md' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-md'}
               ${isPending ? 'opacity-60' : ''} ${isDeleted ? 'italic opacity-60' : ''} transition-all`}
               style={{ wordBreak: 'break-word' }}>
+              {!isDeleted && message.metadata?.bookingNumber && (
+                <div className={`mb-2 rounded-lg border px-2.5 py-2 text-[10px] ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-emerald-100 bg-emerald-50 text-emerald-900'}`}>
+                  <div className="flex items-center gap-1.5 font-extrabold"><FileText size={12}/> Booking #{message.metadata.bookingNumber}</div>
+                  <p className="mt-1">{message.metadata.booking?.destination_name || 'Safari booking'}{message.metadata.booking?.status ? ` · ${String(message.metadata.booking.status).replaceAll('_',' ')}` : ''}</p>
+                  {message.metadata.booking?.travel_date && <p className="mt-0.5 opacity-80">Travel date: {message.metadata.booking.travel_date}</p>}
+                </div>
+              )}
+              {!isDeleted && message.metadata?.resource?.name && (
+                <div className={`mb-2 rounded-lg border px-2.5 py-2 text-[10px] ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                  <div className="flex items-center gap-1.5 font-extrabold"><Search size={12}/> {message.metadata.resource.type || 'Resource'} · {message.metadata.resource.name}</div>
+                </div>
+              )}
+              {!isDeleted && (message.msgType === 'itinerary' || message.metadata?.kind === 'itinerary') && (
+                <div className={`mb-2 rounded-lg border px-2.5 py-2 text-[10px] ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-emerald-100 bg-emerald-50 text-emerald-900'}`}>
+                  <div className="flex items-center gap-1.5 font-extrabold"><FileText size={12}/> Itinerary published</div>
+                  <p className="mt-1">{message.metadata?.itinerary?.title || 'Personalized itinerary'}{message.metadata?.bookingNumber ? ` · #${message.metadata.bookingNumber}` : ''}</p>
+                  <p className="mt-1">Email: {message.metadata?.emailStatus === 'sent' ? 'accepted by provider' : 'failed or not confirmed'}</p>
+                </div>
+              )}
               {isDeleted ? 'This message was unsent' : message.body}
               {message.edited && !isDeleted && <span className={`ml-2 text-[9px] ${mine ? 'text-emerald-100' : 'text-slate-400'}`}>edited</span>}
             </div>
