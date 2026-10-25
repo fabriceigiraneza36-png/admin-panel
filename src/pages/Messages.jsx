@@ -7,6 +7,7 @@ import EmojiPickerNative from "emoji-picker-react";
 import React, {
   useState, useEffect, useRef, useMemo, useCallback,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
@@ -477,8 +478,8 @@ const MsgBubble = React.memo(function MsgBubble({
                 className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 transition">
                 <MoreHorizontal size={15} />
               </button>
-              {menuOpen && (
-                <div className="message-actions-backdrop" role="presentation">
+              {menuOpen && createPortal(
+                <div className="message-actions-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}>
                   <section className="message-actions-modal" role="dialog" aria-modal="true"
                            aria-label="Message actions">
                     <div className="message-actions-modal-header">
@@ -508,7 +509,8 @@ const MsgBubble = React.memo(function MsgBubble({
                       )}
                     </div>
                   </section>
-                </div>
+                </div>,
+                document.body,
               )}
               {reactionPickerOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/25 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setReactionPickerOpen(false) }}>

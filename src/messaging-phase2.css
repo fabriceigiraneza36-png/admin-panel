@@ -779,11 +779,19 @@
 }
 
 
-/* Message action menu is a viewport-centered modal, not a bubble-anchored popover. */
+/* Rendered into document.body so chat/reply stacking contexts cannot cover it. */
 .message-actions-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+  box-sizing: border-box;
   padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
            max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
-  background: rgba(15, 23, 42, .38);
+  background: rgba(15, 23, 42, .48);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
 }
