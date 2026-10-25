@@ -2166,7 +2166,7 @@ export default function Messages() {
                         <CornerUpLeft size={13} className="text-emerald-600 flex-shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                            Replying to {getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}
+                            {isAdminMessage(replyMsg) && String(replyMsg?.senderId ?? replyMsg?.sender_id) === String(user?.id) ? 'Replying to yourself' : `Replying to ${getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}`}
                           </span>
                           <span className="text-xs text-slate-600 truncate block">
                             {replyMsg.body}
