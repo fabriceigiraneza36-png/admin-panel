@@ -1865,7 +1865,7 @@ export default function Messages() {
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search people, destinations or messages…"
+                  placeholder="Search names, subjects or messages…"
                   title="Search conversations · Ctrl/⌘+K"
                   aria-label="Search conversations"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
