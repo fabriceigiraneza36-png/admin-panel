@@ -1051,7 +1051,7 @@ export default function Packages() {
     setSaving(true)
     try {
       await packagesAPI.createInfoRequest(infoModal.data.id, infoForm)
-      toast.success('Info request sent to user')
+      toast.success('Info request sent to traveler')
       infoModal.close()
       loadSubData(viewModal.data, 'info')
     } catch (e) {
@@ -1898,7 +1898,7 @@ export default function Packages() {
               className="input min-h-[160px] resize-none"
               value={replyBody}
               onChange={e => setReplyBody(e.target.value)}
-              placeholder="Write your message to the user…"
+              placeholder="Write your message to the traveler…"
             />
             <p className="text-xs text-slate-400 mt-1">
               {replyBody.length} characters
@@ -1926,7 +1926,7 @@ export default function Packages() {
               disabled={saving}>
               {saving
                 ? <><RefreshCw size={14} className="animate-spin" /> Sending…</>
-                : <><Send size={14} /> Send Form to User</>}
+                : <><Send size={14} /> Send Form to Traveler</>}
             </button>
           </div>
         }
@@ -1945,7 +1945,7 @@ export default function Packages() {
               <textarea className="input min-h-[70px] resize-none"
                 value={infoForm.description}
                 onChange={e => infoUpd('description', e.target.value)}
-                placeholder="Explain to the user why you need this information…" />
+                placeholder="Explain to the traveler why you need this information…" />
             </div>
           </div>
 
