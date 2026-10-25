@@ -10,7 +10,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
-  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2, Copy,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -385,7 +385,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 const MsgBubble = React.memo(function MsgBubble({
   message, mine, replyTo, onReact, onReply, now, currentUserId, guestName,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
-  onUnsend, onPin, onHighlight, onForward, canModerate,
+  onUnsend, onPin, onHighlight, onForward, onCopy, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
@@ -447,6 +447,7 @@ const MsgBubble = React.memo(function MsgBubble({
                   <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
                   <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> {isOwnMessage ? 'Reply to yourself' : 'Reply'}</button>
                   <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
+                  <button type="button" onClick={() => { onCopy(message.body || ''); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Copy size={15}/> Copy message</button>
                   {isOwnMessage && !message.isRead && (
                     <button type="button" onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Pencil size={15}/> Edit message</button>
                   )}
@@ -1391,6 +1392,15 @@ export default function Messages() {
     }
   }, [draft, sending, connected, emit, user, loadConversations, replyToId, emitAdminTyping, toast])
 
+  const copyMessageText = useCallback(async (body) => {
+    try {
+      await navigator.clipboard.writeText(String(body || ''))
+      toast.success('Message copied')
+    } catch {
+      toast.error('Could not copy this message on this device')
+    }
+  }, [toast])
+
   const toggleReaction = useCallback(async (messageId, emoji) => {
     const convId = activeIdRef.current
     if (!convId) return
@@ -2115,6 +2125,7 @@ export default function Messages() {
                             onPin={(id, value) => setMessageFlag(id, 'pin', value)}
                             onHighlight={(id, value) => setMessageFlag(id, 'highlight', value)}
                             onForward={(message) => setForwardMessage({ ...message, conversationId: activeId })}
+                            onCopy={copyMessageText}
                             canModerate={true}
                           />
                         )
