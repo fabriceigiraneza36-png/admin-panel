@@ -912,7 +912,6 @@ export default function Messages() {
     }, 650)
     return () => clearTimeout(timer)
   }, [draft])
-  const [focusComposerOnOpen, setFocusComposerOnOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [presenceByConversation, setPresenceByConversation] = useState({})
   // Show every conversation by default so threads are never hidden by the initial filter.
@@ -1015,7 +1014,6 @@ export default function Messages() {
         window.focus()
         n.close()
         if (convId) {
-          setFocusComposerOnOpen(true)
           setShowMobileChat(true)
           setSidebarOpen(false)
           openConversation(convId)
@@ -1127,7 +1125,6 @@ export default function Messages() {
       toast.error('This conversation is missing its ID. Refresh the inbox and try again.')
       return
     }
-    setFocusComposerOnOpen(false)
     setSidebarOpen(false)
     setShowMobileChat(true)
     void openConversation(String(conversationId))
@@ -1145,7 +1142,6 @@ export default function Messages() {
     const target = conversations.find(c => String(c.id) === requestKey)
     if (target) {
       requestedConversationOpenedRef.current = requestKey
-      setFocusComposerOnOpen(true)
       setSidebarOpen(false)
       openConversation(target.id)
     }
@@ -1179,23 +1175,8 @@ export default function Messages() {
     }
   }, [hasMoreMessages, messages, toast])
 
-  // Normal entry to Messages must remain on the conversation inbox.
-  // A conversation is opened automatically only by an explicit notification deep-link above.
-
-  // Notification deep-links open the requested thread and focus the reply composer.
-  useEffect(() => {
-    if (!requestedConversationId || String(activeId) !== String(requestedConversationId)) return
-    if (loadingMsgs || !activeConv) return
-    setComposerVisible(true)
-    requestAnimationFrame(() => textareaRef.current?.focus())
-  }, [requestedConversationId, activeId, loadingMsgs, activeConv])
-
-  useEffect(() => {
-    if (!focusComposerOnOpen || loadingMsgs || !activeConv) return
-    setComposerVisible(true)
-    requestAnimationFrame(() => textareaRef.current?.focus())
-    setFocusComposerOnOpen(false)
-  }, [focusComposerOnOpen, loadingMsgs, activeConv])
+  // Opening a conversation is passive: show the chat and composer without
+  // automatically focusing the textarea or another control.
 
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollRef.current
@@ -1230,21 +1211,20 @@ export default function Messages() {
     }
   }, [hasMoreMessages, loadOlderMessages])
 
-  // When a conversation is opened from a notification or selected in the inbox,
-  // scroll the newest loaded message into view after React has rendered its bubble.
+  // When a conversation opens, anchor the message log to its newest message
+  // immediately. Smooth programmatic scrolling can be mistaken for a user
+  // scrolling down and hide the composer before the chat has finished opening.
   useEffect(() => {
-    if (loadingMsgs || !activeConv || !messages.length || !pendingScrollToLatestRef.current) return
-    const latestMessage = messages[messages.length - 1]
-    if (!latestMessage?.id) {
+    if (loadingMsgs || !activeConv || !pendingScrollToLatestRef.current) return
+    if (!messages.length) {
       pendingScrollToLatestRef.current = false
-      requestAnimationFrame(() => scrollToBottom(false))
+      setComposerVisible(true)
       return
     }
-    const messageId = String(latestMessage.id)
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const target = document.getElementById(`admin-message-${messageId}`)
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
-      else scrollToBottom(false)
+      scrollToBottom(false)
+      setComposerVisible(true)
+      lastScrollTopRef.current = scrollRef.current?.scrollTop ?? 0
       pendingScrollToLatestRef.current = false
     }))
   }, [loadingMsgs, activeConv, activeId, messages, scrollToBottom])
@@ -1256,10 +1236,12 @@ export default function Messages() {
     }
   }, [loadingMsgs, activeId, scrollToBottom]) // eslint-disable-line
 
-  // Auto-scroll on new messages if at bottom
+  // Keep the latest message in view without triggering the scroll-direction
+  // animation that is reserved for deliberate user scrolling.
   useEffect(() => {
+    if (pendingScrollToLatestRef.current) return
     if (atBottom) {
-      requestAnimationFrame(() => scrollToBottom(true))
+      requestAnimationFrame(() => scrollToBottom(false))
     }
   }, [messages.length, atBottom, scrollToBottom])
 
@@ -2173,7 +2155,7 @@ export default function Messages() {
                   )}
 
                   {/* Input row */}
-                  <div className="px-3 sm:px-5 py-3 bg-white min-w-0">
+                  <div className="px-3 sm:px-5 py-3 bg-white min-w-0 w-full max-w-4xl mx-auto">
                     <div className="relative w-full flex items-end gap-2 min-w-0 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm focus-within:border-emerald-400 focus-within:shadow-md transition-all">
 
                     {/* Emoji button */}
