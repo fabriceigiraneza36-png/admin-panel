@@ -952,6 +952,13 @@ export default function Messages() {
     return () => clearInterval(t)
   }, [])
 
+  // Update relative timestamps in message notifications without creating a
+  // separate notification for each incoming message.
+  useEffect(() => {
+    const timer = setInterval(() => setNotificationNow(Date.now()), 15000)
+    return () => clearInterval(timer)
+  }, [])
+
   const [userTyping, setUserTyping] = useState(null)
   const [typingConvIds, setTypingConvIds] = useState(new Set())
 
@@ -971,7 +978,11 @@ export default function Messages() {
   const scrollRef = useRef(null)
   const textareaRef = useRef(null)
   const conversationSearchRef = useRef(null)
-  const notifRef = useRef(new Set())
+  const [incomingNotifications, setIncomingNotifications] = useState([])
+  const [notificationNow, setNotificationNow] = useState(Date.now())
+  const incomingNotificationIdsRef = useRef(new Set())
+  const conversationsRef = useRef([])
+  conversationsRef.current = conversations
   const typingTimers = useRef({})
   const isAdminTypingRef = useRef(false)
   const adminTypingTimer = useRef(null)
@@ -1010,33 +1021,87 @@ export default function Messages() {
     return () => window.removeEventListener('keydown', handleShortcut)
   }, [])
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {})
-    }
-  }, [])
+  // The admin Messages page owns these in-app notifications. Events emitted
+  // by both message channels are de-duplicated by message ID and grouped by
+  // conversation, so a follow-up message updates the existing card.
+  const pushIncomingMessageNotification = useCallback((eventPayload, forceIncoming = false) => {
+    if (!eventPayload || typeof eventPayload !== 'object') return
+    const nestedMessage = eventPayload.message && typeof eventPayload.message === 'object'
+      ? eventPayload.message
+      : null
+    const message = nestedMessage ? { ...eventPayload, ...nestedMessage } : eventPayload
+    const conversationId = eventPayload.conversationId
+      ?? eventPayload.conversation_id
+      ?? message.conversationId
+      ?? message.conversation_id
+    if (conversationId == null || String(conversationId).trim() === '') return
 
-  const showDesktopNotif = useCallback((title, body, convId) => {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return
-    if (!document.hidden) return
-    const key = `${convId}-${Math.floor(Date.now() / 5000)}`
-    if (notifRef.current.has(key)) return
-    notifRef.current.add(key)
-    try {
-      const n = new Notification(`Altuvera — ${title}`, {
-        body, icon: '/favicon.ico', tag: `conv-${convId}`,
-      })
-      n.onclick = () => {
-        window.focus()
-        n.close()
-        if (convId) {
-          setShowMobileChat(true)
-          setSidebarOpen(false)
-          openConversation(convId)
+    const senderType = String(
+      message.senderType ?? message.sender_type ?? eventPayload.senderType ?? eventPayload.sender_type ?? ''
+    ).toLowerCase()
+    if (!forceIncoming && senderType && !['user', 'traveler', 'guest'].includes(senderType)) return
+
+    const conversationKey = String(conversationId)
+    const conversation = conversationsRef.current.find(item => String(item.id) === conversationKey)
+    const bodyValue = message.body ?? message.text ?? message.content ?? eventPayload.body ?? ''
+    const body = String(bodyValue || '').trim() || 'Sent a message'
+    const createdAt = message.createdAt ?? message.created_at
+      ?? eventPayload.createdAt ?? eventPayload.created_at
+      ?? eventPayload.timestamp ?? new Date().toISOString()
+    const rawMessageId = message.id ?? message.messageId ?? message.message_id
+      ?? eventPayload.messageId ?? eventPayload.message_id
+    const messageKey = rawMessageId != null
+      ? `${conversationKey}:${String(rawMessageId)}`
+      : `${conversationKey}:${String(createdAt)}:${body}`
+
+    if (incomingNotificationIdsRef.current.has(messageKey)) return
+    incomingNotificationIdsRef.current.add(messageKey)
+    if (incomingNotificationIdsRef.current.size > 500) {
+      const firstKey = incomingNotificationIdsRef.current.values().next().value
+      incomingNotificationIdsRef.current.delete(firstKey)
+    }
+
+    const candidateName = [
+      message.senderName, message.sender_name, eventPayload.senderName,
+      eventPayload.sender_name, eventPayload.user?.fullName, eventPayload.user?.name,
+      conversation?.guestName,
+    ].find(value => typeof value === 'string' && value.trim())
+    const senderName = String(candidateName || 'Traveler').trim()
+    const senderAvatar = message.senderAvatar ?? message.sender_avatar
+      ?? eventPayload.senderAvatar ?? eventPayload.sender_avatar
+      ?? eventPayload.user?.avatarUrl ?? eventPayload.user?.avatar
+      ?? conversation?.guestAvatar ?? conversation?.avatarUrl ?? conversation?.avatar ?? ''
+
+    const incomingMessage = {
+      id: messageKey,
+      body: body.slice(0, 240),
+      createdAt,
+    }
+    const updatedAt = Date.now()
+    setIncomingNotifications(previous => {
+      const existing = previous.find(item => String(item.conversationId) === conversationKey)
+      if (existing) {
+        const next = {
+          ...existing,
+          senderName: senderName !== 'Traveler' ? senderName : existing.senderName,
+          senderAvatar: senderAvatar || existing.senderAvatar,
+          messages: [...existing.messages, incomingMessage].slice(-4),
+          count: (existing.count || existing.messages.length || 0) + 1,
+          updatedAt,
         }
+        return [next, ...previous.filter(item => String(item.conversationId) !== conversationKey)]
+          .slice(0, 5)
       }
-      setTimeout(() => notifRef.current.delete(key), 30000)
-    } catch { /* non-fatal */ }
+
+      return [{
+        conversationId: conversationKey,
+        senderName,
+        senderAvatar,
+        messages: [incomingMessage],
+        count: 1,
+        updatedAt,
+      }, ...previous].slice(0, 5)
+    })
   }, [])
 
   const loadConversations = useCallback(async () => {
@@ -1094,6 +1159,7 @@ export default function Messages() {
       return
     }
     const conversationId = String(id).trim()
+    setIncomingNotifications(previous => previous.filter(item => String(item.conversationId) !== conversationId))
     activeIdRef.current = conversationId
     pendingScrollToLatestRef.current = true
     setActiveId(conversationId)
@@ -1133,6 +1199,15 @@ export default function Messages() {
       if (String(activeIdRef.current) === conversationId) setLoadingMsgs(false)
     }
   }, [])
+
+  const openIncomingNotification = useCallback((notification) => {
+    const conversationId = notification?.conversationId
+    if (conversationId == null || String(conversationId).trim() === '') return
+    setIncomingNotifications(previous => previous.filter(item => String(item.conversationId) !== String(conversationId)))
+    setSidebarOpen(false)
+    setShowMobileChat(true)
+    void openConversation(String(conversationId))
+  }, [openConversation])
 
   const handleSelectConversation = useCallback((conversation) => {
     const conversationId = resolveConversationId(conversation)
@@ -1565,7 +1640,8 @@ export default function Messages() {
       if (!payload) return
       const cid = String(payload.conversationId)
 
-      if (payload.senderType === 'user') {
+      if (String(payload.senderType ?? payload.sender_type ?? '').toLowerCase() === 'user') {
+        pushIncomingMessageNotification(payload)
         clearTimeout(typingTimers.current[cid])
         delete typingTimers.current[cid]
         setTypingConvIds(prev => { const s = new Set(prev); s.delete(cid); return s })
@@ -1613,13 +1689,6 @@ export default function Messages() {
         return [item, ...updated]
       })
 
-      if (payload.senderType !== 'admin' && document.hidden) {
-        showDesktopNotif(
-          `New message from ${payload.senderName || 'traveler'}`,
-          payload.body?.slice(0, 120),
-          payload.conversationId
-        )
-      }
     }
 
     const onTyping = (payload) => {
@@ -1645,14 +1714,8 @@ export default function Messages() {
     }
 
     const onNewFromUser = (payload) => {
+      pushIncomingMessageNotification(payload, true)
       scheduleConversationRefresh()
-      if (document.hidden) {
-        showDesktopNotif(
-          `New message from ${payload.senderName || payload.message?.senderName || payload.senderEmail || 'traveler'}`,
-          payload.message?.body?.slice(0, 120) || 'New message',
-          payload.conversationId
-        )
-      }
     }
 
     const onConvUpdated = (conv) => {
@@ -1724,7 +1787,7 @@ export default function Messages() {
       off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
     }
-  }, [on, off, emit, scheduleConversationRefresh, showDesktopNotif])
+  }, [on, off, emit, scheduleConversationRefresh, pushIncomingMessageNotification])
 
   useEffect(() => {
     if (!emit || !activeId) return
@@ -1801,7 +1864,61 @@ export default function Messages() {
         has fixed height, and only ONE child inside scrolls (the message log)
         ═══════════════════════════════════════════════════════════════════════
       */}
-      <div className="messages-admin-shell flex flex-1 min-h-0 min-w-0 w-full flex-col bg-white" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div className="messages-admin-shell relative flex flex-1 min-h-0 min-w-0 w-full flex-col bg-white" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+
+        {incomingNotifications.length > 0 && (
+          <div className="messages-incoming-notification-stack" aria-label="New messages" aria-live="polite">
+            {incomingNotifications.map(notification => (
+              <article key={notification.conversationId} className="messages-incoming-notification">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openIncomingNotification(notification)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openIncomingNotification(notification)
+                    }
+                  }}
+                  aria-label={`Open conversation with ${notification.senderName}`}
+                  className="messages-incoming-notification-content"
+                >
+                  <Avatar name={notification.senderName} src={notification.senderAvatar} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="messages-incoming-notification-name truncate">{notification.senderName}</span>
+                      <span className="messages-incoming-notification-count">
+                        {notification.count} {notification.count === 1 ? 'message' : 'messages'}
+                      </span>
+                    </div>
+                    <div className="messages-incoming-notification-snippets">
+                      {notification.messages.map(message => (
+                        <div key={message.id} className="messages-incoming-notification-snippet">
+                          <p>{message.body}</p>
+                          <time dateTime={String(message.createdAt)}>
+                            {fmtElapsed(message.createdAt, notificationNow)}
+                          </time>
+                        </div>
+                      ))}
+                    </div>
+                    <span className="messages-incoming-notification-open-hint">
+                      Open conversation <CornerUpLeft size={11} />
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="messages-incoming-notification-dismiss"
+                  aria-label={`Dismiss notification from ${notification.senderName}`}
+                  title="Dismiss"
+                  onClick={() => setIncomingNotifications(previous => previous.filter(item => String(item.conversationId) !== String(notification.conversationId)))}
+                >
+                  <X size={14} />
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
 
         {/* ═══ TOP HEADER (fixed, non-scrolling) ═══ */}
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
