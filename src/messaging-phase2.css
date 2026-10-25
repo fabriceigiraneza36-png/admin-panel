@@ -489,3 +489,59 @@
     display: block;
   }
 }
+
+
+/* Persistent composer: keep the reply field docked to the bottom of the chat
+   panel regardless of message count or scroll direction. */
+.messages-admin-shell {
+  height: 100%;
+  min-height: 0;
+}
+.messages-admin-shell main {
+  min-height: 0;
+  height: 0;
+}
+.messages-admin-shell main > section[data-mobile-active="true"],
+.messages-admin-shell main > section:not([data-mobile-active]) {
+  min-height: 0;
+  height: 100%;
+}
+.messages-admin-shell [role="log"] {
+  flex: 1 1 0%;
+  min-height: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.messages-admin-shell .messages-chat-composer {
+  position: sticky;
+  bottom: 0;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-top: auto;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 30;
+  background: #fff !important;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+@media (max-width: 767px) {
+  .messages-admin-shell {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+  .messages-admin-shell main {
+    height: 0;
+    min-height: 0;
+  }
+  .messages-admin-shell main > section[data-mobile-active="true"] {
+    height: 100%;
+    min-height: 0;
+  }
+  .messages-admin-shell .messages-chat-composer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 18px rgba(15, 23, 42, .07);
+  }
+}
