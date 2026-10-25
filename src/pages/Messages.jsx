@@ -1205,9 +1205,9 @@ export default function Messages() {
     const el = scrollRef.current
     if (!el) return
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
-    const previousTop = lastScrollTopRef.current
-    if (bottom || el.scrollTop < previousTop - 2) setComposerVisible(true)
-    else if (el.scrollTop > previousTop + 2) setComposerVisible(false)
+    // The composer is persistent: scrolling the message history must never
+    // hide the reply field or move it below the visible chat panel.
+    setComposerVisible(true)
     lastScrollTopRef.current = el.scrollTop
     setAtBottom(bottom)
     atBottomRef.current = bottom
@@ -2157,7 +2157,7 @@ export default function Messages() {
                 */}
                 <div className="messages-chat-composer flex-shrink-0 bg-white border-t border-slate-200
                                 shadow-[0_-2px_10px_-2px_rgba(0,0,0,0.04)] z-10"
-                     style={{ transform: composerVisible ? "translateY(0)" : "translateY(110%)", opacity: composerVisible ? 1 : 0, pointerEvents: composerVisible ? "auto" : "none", transition: "transform 180ms ease, opacity 180ms ease" }}>
+                     aria-label="Message composer">
 
                   {/* Reply preview */}
                   {replyMsg && (
