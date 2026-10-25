@@ -355,7 +355,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
 const ADMIN_MESSAGE_TYPES = new Set(['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor', 'support', 'staff', 'agent'])
 
 const isAdminMessage = (message) => ADMIN_MESSAGE_TYPES.has(
-  String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase().replace(/[\\s-]+/g, '_')
+  String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')
 )
 
 const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
