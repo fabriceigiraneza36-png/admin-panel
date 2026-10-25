@@ -332,3 +332,27 @@
 .messages-admin-shell .messages-chat-composer {
   background: #fff !important;
 }
+
+
+/* Mobile chat/list switch must outrank structural flex rules above. */
+@media (max-width: 767px) {
+  .messages-admin-shell main > aside[data-mobile-hidden="true"] {
+    display: none !important;
+  }
+  .messages-admin-shell main > aside[data-mobile-hidden="false"] {
+    display: flex !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    border-right: 0;
+  }
+  .messages-admin-shell main > section[data-mobile-active="false"] {
+    display: none !important;
+  }
+  .messages-admin-shell main > section[data-mobile-active="true"] {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0;
+    flex: 1 1 100% !important;
+    height: 100%;
+  }
+}
