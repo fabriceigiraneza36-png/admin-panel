@@ -443,24 +443,38 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className={`absolute top-full mt-1 z-40 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
-                  <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
-                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> {isOwnMessage ? 'Reply to yourself' : 'Reply'}</button>
-                  <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
-                  <button type="button" onClick={() => { onCopy(message.body || ''); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Copy size={15}/> Copy message</button>
-                  {isOwnMessage && !message.isRead && (
-                    <button type="button" onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Pencil size={15}/> Edit message</button>
-                  )}
-                  {isOwnMessage && (
-                    <button type="button" onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend for everyone</button>
-                  )}
-                  {canModerate && (
-                    <>
-                      <div className="my-1 border-t border-slate-100" />
-                      <button type="button" onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin message'}</button>
-                      <button type="button" onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
-                    </>
-                  )}
+                <div className="message-actions-backdrop fixed inset-0 z-[120] flex items-center justify-center"
+                     role="presentation"
+                     onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false) }}>
+                  <section className="message-actions-modal" role="dialog" aria-modal="true"
+                           aria-label="Message actions">
+                    <div className="message-actions-modal-header">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800">Message actions</p>
+                        <p className="text-xs text-slate-500 truncate">{getMessageSenderLabel(message, { currentUserId, guestName })} · {fmtShort(message.createdAt)}</p>
+                      </div>
+                      <button type="button" aria-label="Close message actions" onClick={() => setMenuOpen(false)} className="message-actions-close"><X size={17}/></button>
+                    </div>
+                    <div className="message-actions-list">
+                      <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }}><Smile size={17}/> React</button>
+                      <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }}><CornerUpLeft size={17}/> {isOwnMessage ? 'Reply to yourself' : 'Reply'}</button>
+                      <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }}><Forward size={17}/> Forward to chat</button>
+                      <button type="button" onClick={() => { onCopy(message.body || ''); setMenuOpen(false) }}><Copy size={17}/> Copy message</button>
+                      {isOwnMessage && !message.isRead && (
+                        <button type="button" onClick={() => { onStartEdit(message); setMenuOpen(false) }}><Pencil size={17}/> Edit message</button>
+                      )}
+                      {isOwnMessage && (
+                        <button type="button" className="danger" onClick={() => { onUnsend(message.id); setMenuOpen(false) }}><Undo2 size={17}/> Unsend for everyone</button>
+                      )}
+                      {canModerate && (
+                        <>
+                          <div className="message-actions-divider" />
+                          <button type="button" onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }}><Pin size={17}/> {message.isPinned ? 'Unpin' : 'Pin message'}</button>
+                          <button type="button" onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }}><Highlighter size={17}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
+                        </>
+                      )}
+                    </div>
+                  </section>
                 </div>
               )}
               {reactionPickerOpen && (
