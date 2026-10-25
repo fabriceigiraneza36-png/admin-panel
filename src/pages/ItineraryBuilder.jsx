@@ -115,11 +115,12 @@ export default function ItineraryBuilder() {
     try {
       if (deliveryMode === 'email_image' && !/^https:\/\//i.test(itineraryImageUrl.trim())) return toast.error('Add a secure HTTPS image URL for the image-only itinerary email.')
       const res = await itinerariesAPI.publish(bookingId, { ...itinerary, deliveryMode, itineraryImageUrl: itineraryImageUrl.trim() })
-      const data = res?.data?.data || res?.data || res
+      const responseBody = res?.data || res
+      const data = responseBody?.data?.data || responseBody?.data || responseBody
       if (data) setBooking(data)
-      toast.success(data?.delivery?.email === 'processing'
+      toast.success(responseBody?.delivery?.email === 'processing'
         ? 'Itinerary published to the traveller dashboard. Email delivery is processing.'
-        : (data?.message || 'Itinerary published successfully.'))
+        : (responseBody?.message || 'Itinerary published successfully.'))
     } catch(e) { toast.error(getErrorMessage(e)) } finally { setSending(false) }
   }
 
