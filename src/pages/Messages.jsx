@@ -218,10 +218,9 @@ function EmojiPicker({ onPick, onClose }) {
         onEmojiClick={(emojiData) => onPick(emojiData.emoji)}
         emojiStyle="native"
         theme="light"
-        width={340}
-        height={420}
+        width={300}
+        height={340}
         lazyLoadEmojis
-        autoFocusSearch
         searchPlaceHolder="Search emojis..."
         previewConfig={{ showPreview: false }}
         skinTonesDisabled={false}
@@ -1247,7 +1246,7 @@ export default function Messages() {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`
   }, [draft])
 
   const emitAdminTyping = useCallback((convId, isTyping) => {
