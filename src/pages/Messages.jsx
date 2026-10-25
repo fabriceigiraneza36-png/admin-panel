@@ -374,7 +374,8 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
   const name = String(message?.senderName ?? message?.sender_name ?? '').trim()
   // Some legacy records incorrectly store the admin account's display name on
   // an end-user message. Prefer the conversation participant in that case.
-  if (!name || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(name)) {
+  // Generic legacy sender labels should not override the real conversation participant.
+  if (!name || /^(super\s*admin|admin|administrator|altuvera support|guest|guest user|visitor|traveler|end user)$/i.test(name)) {
     return safeEndUserName(guestName)
   }
   return name
@@ -383,7 +384,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
 const MsgBubble = React.memo(function MsgBubble({
-  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName,
+  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
   onUnsend, onPin, onHighlight, onForward, onCopy, canModerate,
 }) {
@@ -401,7 +402,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar} size="xs" /></div>}
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || guestAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
         {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}</span>}
@@ -2242,6 +2243,7 @@ export default function Messages() {
                             mine={isAdminMessage(item.data)}
                             currentUserId={user?.id}
                             guestName={activeConv?.guestName}
+                            guestAvatar={activeConv?.guestAvatar}
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
                             onReply={setReplyToId}
