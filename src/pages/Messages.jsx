@@ -67,7 +67,7 @@ const normalizeConversation = (conversation) => {
 
 const safeEndUserName = (name) => {
   const value = String(name || '').trim()
-  return !value || /^(super\\s*admin|admin|administrator|altuvera support)$/i.test(value) ? 'End user' : value
+  return !value || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(value) ? 'End user' : value
 }
 
 const fmtRelative = (d) => {
