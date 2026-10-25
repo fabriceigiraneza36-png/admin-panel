@@ -1092,25 +1092,7 @@
 }
 
 
-/* Compact, anchored three-dot menu: no page-sized backdrop, no blur,
-   and no scroll lock. The message list remains scrollable while it is open. */
-.message-actions-backdrop {
-  position: absolute !important;
-  inset: calc(100% + 4px) 0 auto auto !important;
-  z-index: 30000 !important;
-  display: block !important;
-  width: max-content !important;
-  max-width: min(280px, calc(100vw - 24px)) !important;
-  height: auto !important;
-  max-height: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  isolation: isolate !important;
-  pointer-events: none !important;
-  background: transparent !important;
-  backdrop-filter: none !important;
-}
+/* Keep the action backdrop fixed to the viewport; the modal itself stays compact. */
 .message-actions-modal {
   position: relative !important;
   width: min(250px, calc(100vw - 24px)) !important;
