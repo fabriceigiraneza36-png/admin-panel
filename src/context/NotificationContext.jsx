@@ -70,6 +70,14 @@ const isIncomingUserMessageNotification = (notification) => {
   return true;
 };
 
+const safeIncomingSenderName = (name) => {
+  const value = String(name || '').trim()
+  const normalized = value.toLowerCase()
+  return !normalized || ['super admin', 'admin', 'administrator', 'altuvera support'].includes(normalized)
+    ? 'End user'
+    : value
+}
+
 const messageIdOf = (notification) => {
   const id = notification?.metadata?.messageId ?? notification?.metadata?.message_id;
   if (id != null) return String(id);
@@ -362,17 +370,18 @@ export function NotificationProvider({ children }) {
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
       const messageId = message.id || payload.messageId || null;
+      const senderName = safeIncomingSenderName(payload.senderName || message.senderName);
       const notification = {
         id: `message-${messageId || conversationId}`,
         type: "message_new",
         category: "message",
-        title: `New message from ${payload.senderName || message.senderName || "End user"}`,
+        title: `New message from ${senderName}`,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
         metadata: {
           conversationId,
           ...(messageId ? { messageId: String(messageId) } : {}),
-          senderName: payload.senderName || message.senderName || "End user",
+          senderName,
         },
         is_read: false,
         created_at: new Date().toISOString(),
