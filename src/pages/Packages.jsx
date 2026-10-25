@@ -1856,7 +1856,7 @@ export default function Packages() {
       <Modal
         isOpen={replyModal.isOpen}
         onClose={replyModal.close}
-        title="Send Message to User"
+        title="Reply to End User"
         size="md"
         icon={<Send size={18} />}
         footer={
@@ -1879,7 +1879,7 @@ export default function Packages() {
             <div className="flex items-center gap-2 bg-blue-50 border
               border-blue-100 rounded-xl px-4 py-2.5 text-sm text-blue-700">
               <MessageSquare size={14} />
-              Replying to message from user{' '}
+              Replying to end-user message{' '}
               {replyTarget.user_id ? `#${replyTarget.user_id}` : '(guest)'}
             </div>
           )}
