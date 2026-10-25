@@ -65,6 +65,11 @@ const normalizeConversation = (conversation) => {
   return { ...conversation, id: id == null || String(id).trim() === '' ? null : String(id) }
 }
 
+const safeEndUserName = (name) => {
+  const value = String(name || '').trim()
+  return !value || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(value) ? 'End user' : value
+}
+
 const fmtRelative = (d) => {
   if (!d) return ''
   const diff = Date.now() - new Date(d).getTime()
@@ -249,7 +254,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
-  const title = conv.groupName || conv.subject || conv.guestName || 'Registered user'
+  const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
   const hasUnread = (conv.unreadAdmin || 0) > 0
   const pointerStartRef = useRef(null)
   const skipSyntheticClickRef = useRef(false)
@@ -296,7 +301,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
                     : 'border-l-transparent hover:bg-slate-50'}`}
     >
       <Avatar
-        name={conv.guestName || 'Registered user'}
+        name={safeEndUserName(conv.guestName)}
         src={conv.guestAvatar}
         size="md"
         online={conv.isOnline}
@@ -352,10 +357,33 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
   )
 })
 
+const ADMIN_MESSAGE_TYPES = new Set(['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor', 'support', 'staff', 'agent'])
+
+const isAdminMessage = (message) => ADMIN_MESSAGE_TYPES.has(
+  String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+)
+
+const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
+  if (isAdminMessage(message)) {
+    const senderId = message?.senderId ?? message?.sender_id
+    return currentUserId != null && senderId != null && String(senderId) === String(currentUserId)
+      ? 'You'
+      : 'Admin'
+  }
+
+  const name = String(message?.senderName ?? message?.sender_name ?? '').trim()
+  // Some legacy records incorrectly store the admin account's display name on
+  // an end-user message. Prefer the conversation participant in that case.
+  if (!name || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(name)) {
+    return safeEndUserName(guestName)
+  }
+  return name
+}
+
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
 const MsgBubble = React.memo(function MsgBubble({
-  message, mine, replyTo, onReact, onReply, now,
+  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
   onUnsend, onPin, onHighlight, onForward, canModerate,
 }) {
@@ -371,15 +399,15 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
-        {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : (message.senderName || 'Registered user')}</span>}
+        {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
             <div className={`border-l-2 pl-2.5 py-1 pr-3 rounded-lg truncate max-w-[280px] ${mine ? 'border-emerald-300 bg-emerald-50 text-emerald-800/80' : 'border-slate-300 bg-slate-100 text-slate-600'}`}>
-              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">↩ {replyTo.senderName || 'Message'}</span>
+              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">↩ {getMessageSenderLabel(replyTo, { currentUserId, guestName })}</span>
               <span className="block truncate text-[11px] mt-0.5">{replyTo.body || ''}</span>
             </div>
           </div>
@@ -504,7 +532,7 @@ function NewChatModal({ onClose, onCreated }) {
   }, [search])
 
   const handleCreate = async () => {
-    if (!selected) { setError('Please select a user.'); return }
+    if (!selected) { setError('Please select an end user.'); return }
     if (!firstMsg.trim()) { setError('Please enter a message.'); return }
     setError(''); setCreating(true)
     try {
@@ -555,7 +583,7 @@ function NewChatModal({ onClose, onCreated }) {
                 <input ref={searchRef} value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search by name or email…"
-                  aria-label="Search registered users"
+                  aria-label="Search end users"
                   className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100
                              bg-slate-50 focus:bg-white transition" />
@@ -812,7 +840,7 @@ function ForwardMessageModal({ message, conversations, onClose, onForward, sendi
                     {(conv.guestName || conv.subject || 'U').trim().slice(0, 1).toUpperCase()}
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-slate-800 truncate">{conv.subject || conv.guestName || 'Registered user'}</span>
+                    <span className="block text-sm font-semibold text-slate-800 truncate">{conv.subject || conv.guestName || 'End user'}</span>
                     <span className="block text-xs text-slate-500 truncate">{conv.guestName && conv.subject ? conv.guestName + ' · ' : ''}{conv.lastMessage || 'No messages yet'}</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${selected ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
@@ -1323,7 +1351,7 @@ export default function Messages() {
           clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
-            toast.success('Message sent to user')
+            toast.success('Message sent to end user')
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
             toast.error(ack?.error || 'The message could not be sent. Please try again.')
@@ -1350,7 +1378,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
-          toast.success('Message sent to user')
+          toast.success('Message sent to end user')
         }
       } else {
         const payload = await res.json().catch(() => ({}))
@@ -1729,7 +1757,7 @@ export default function Messages() {
     ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
     : (activeConv?.subject
       || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
-      || activeConv?.guestName
+      || safeEndUserName(activeConv?.guestName)
       || 'Conversation')
 
   const [showMobileChat, setShowMobileChat] = useState(false)
@@ -1842,7 +1870,7 @@ export default function Messages() {
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input ref={conversationSearchRef} value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search people, destinations or messages…"
+                  placeholder="Search names, subjects or messages…"
                   title="Search conversations · Ctrl/⌘+K"
                   aria-label="Search conversations"
                   className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg
@@ -1968,7 +1996,7 @@ export default function Messages() {
                     </button>
 
                     <Avatar
-                      name={activeConv.guestName || 'Registered user'}
+                      name={safeEndUserName(activeConv.guestName)}
                       src={activeConv.guestAvatar}
                       size="md"
                       online={activeConv.isOnline}
@@ -1984,7 +2012,7 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : (activeConv.guestName || 'Registered user'))}
+                              : safeEndUserName(activeConv.guestName))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
@@ -2073,7 +2101,9 @@ export default function Messages() {
                           <MsgBubble
                             key={item.key}
                             message={item.data}
-                            mine={item.data.senderType === 'admin'}
+                            mine={isAdminMessage(item.data)}
+                            currentUserId={user?.id}
+                            guestName={activeConv?.guestName}
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
                             onReply={setReplyToId}
@@ -2128,7 +2158,7 @@ export default function Messages() {
                         <CornerUpLeft size={13} className="text-emerald-600 flex-shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                            Replying to {replyMsg.senderName || 'Message'}
+                            Replying to {getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}
                           </span>
                           <span className="text-xs text-slate-600 truncate block">
                             {replyMsg.body}
