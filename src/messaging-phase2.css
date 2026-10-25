@@ -1082,3 +1082,39 @@
     padding: 6px 9px !important;
   }
 }
+
+
+/* Keep the three-dot actions surface above every chat layer without affecting
+   message layout or shifting surrounding controls. */
+.message-actions-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 30000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  box-sizing: border-box !important;
+  overflow: auto !important;
+  isolation: isolate !important;
+  pointer-events: auto !important;
+}
+.message-actions-modal {
+  flex: 0 1 360px !important;
+  width: min(360px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px) !important;
+  margin: auto !important;
+  z-index: 30001 !important;
+}
+@media (max-width: 767px) {
+  .message-actions-backdrop {
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .message-actions-modal {
+    width: min(100%, 420px) !important;
+    border-radius: 18px !important;
+  }
+}
