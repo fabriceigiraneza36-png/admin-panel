@@ -389,6 +389,21 @@ const MsgBubble = React.memo(function MsgBubble({
   onUnsend, onPin, onHighlight, onForward, onCopy, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // Keep a single message-actions modal open across every message bubble.
+  // Opening another message's menu tells all other bubbles to close theirs.
+  useEffect(() => {
+    const closeOtherMenus = event => {
+      if (String(event.detail) !== String(message.id)) setMenuOpen(false)
+    }
+    window.addEventListener('altuvera:message-actions-open', closeOtherMenus)
+    return () => window.removeEventListener('altuvera:message-actions-open', closeOtherMenus)
+  }, [message.id])
+  const toggleMessageMenu = () => {
+    if (!menuOpen) {
+      window.dispatchEvent(new CustomEvent('altuvera:message-actions-open', { detail: String(message.id) }))
+    }
+    setMenuOpen(open => !open)
+  }
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
   const reactions = useMemo(() => {
     const r = message.reactions || {}
@@ -439,7 +454,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
           {!isPending && !isDeleted && !isEditing && (
             <div className="relative flex-shrink-0">
-              <button onClick={() => setMenuOpen(v => !v)} aria-label="Message actions"
+              <button onClick={toggleMessageMenu} aria-label="Message actions"
                 className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover/bubble:opacity-100 transition">
                 <MoreHorizontal size={15} />
               </button>
