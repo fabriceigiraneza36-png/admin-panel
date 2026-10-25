@@ -381,7 +381,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
 const MsgBubble = React.memo(function MsgBubble({
-  message, mine, replyTo, onReact, onReply, now,
+  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
   onUnsend, onPin, onHighlight, onForward, canModerate,
 }) {
@@ -2099,7 +2099,9 @@ export default function Messages() {
                           <MsgBubble
                             key={item.key}
                             message={item.data}
-                            mine={isAdminMessage(item.data)}\n                            currentUserId={user?.id}\n                            guestName={activeConv?.guestName}
+                            mine={isAdminMessage(item.data)}
+                            currentUserId={user?.id}
+                            guestName={activeConv?.guestName}
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
                             onReply={setReplyToId}
