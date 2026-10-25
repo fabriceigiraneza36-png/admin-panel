@@ -370,7 +370,10 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
   // Some legacy records incorrectly store the admin account's display name on
   // an end-user message. Prefer the conversation participant in that case.
   if (!name || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(name)) {
-    return guestName || 'End user'
+    const safeGuestName = String(guestName || '').trim()
+    return safeGuestName && !/^(super\s*admin|admin|administrator|altuvera support)$/i.test(safeGuestName)
+      ? safeGuestName
+      : 'End user'
   }
   return name
 }
