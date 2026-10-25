@@ -356,3 +356,136 @@
     height: 100%;
   }
 }
+
+
+/* Compact, quiet composer + contained emoji panel (mobile and desktop). */
+.messages-admin-shell .messages-chat-composer {
+  padding-top: 5px;
+  border-top: 1px solid #edf2ef;
+  box-shadow: 0 -4px 14px rgba(15, 23, 42, .025);
+}
+.messages-admin-shell .messages-chat-composer > div:last-of-type {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.messages-admin-shell .messages-chat-composer > div:last-of-type > .relative {
+  gap: 6px;
+  padding: 3px;
+  border: 0 !important;
+  border-radius: 15px;
+  background: #f5f8f6;
+  box-shadow: inset 0 0 0 1px #e8efeb;
+}
+.messages-admin-shell .messages-chat-composer > div:last-of-type > .relative:focus-within {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #a7d9c0, 0 2px 8px rgba(4, 120, 87, .045);
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  display: block;
+  min-height: 38px !important;
+  max-height: min(32dvh, 180px) !important;
+  height: 38px;
+  padding: 9px 8px !important;
+  margin: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  resize: none !important;
+  overflow-y: auto;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+  line-height: 1.45;
+}
+.messages-admin-shell .messages-chat-composer textarea::-webkit-scrollbar,
+.messages-admin-shell [role="log"]::-webkit-scrollbar,
+.messages-admin-shell aside > div:nth-child(2)::-webkit-scrollbar,
+.messages-admin-shell .emoji-picker-react *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.messages-admin-shell .messages-chat-composer .relative.flex-shrink-0 > button {
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+.messages-admin-shell .messages-chat-composer button[aria-label="Send"],
+.messages-admin-shell .messages-chat-composer button[aria-label="Send message"] {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  border-radius: 11px;
+}
+.messages-admin-shell .messages-chat-composer button:focus-visible {
+  outline-offset: 1px;
+}
+.messages-admin-shell [role="log"] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+  scrollbar-gutter: auto;
+}
+.messages-admin-shell aside > div:nth-child(2) {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react {
+  width: min(300px, calc(100vw - 28px)) !important;
+  max-width: calc(100vw - 28px);
+  height: min(340px, 38dvh) !important;
+  max-height: 38dvh;
+  border: 1px solid #e4ece7 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .15) !important;
+  overflow: hidden;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react .epr-header {
+  padding: 7px 8px 5px !important;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react .epr-search-container {
+  padding: 0 6px 6px !important;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react input.epr-search {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 5px 9px !important;
+  font-size: 12px !important;
+  border: 1px solid #e7eeea !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react .epr-body {
+  overflow-y: auto;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+.messages-admin-shell .messages-chat-composer .emoji-picker-react .epr-body::-webkit-scrollbar {
+  display: none !important;
+}
+@media (max-width: 767px) {
+  .messages-admin-shell .messages-chat-composer {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .messages-admin-shell .messages-chat-composer > div:last-of-type {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  .messages-admin-shell .messages-chat-composer textarea {
+    font-size: 16px !important;
+    max-height: min(28dvh, 160px) !important;
+  }
+  .messages-admin-shell .messages-chat-composer .emoji-picker-react {
+    height: min(320px, 36dvh) !important;
+    max-height: 36dvh;
+  }
+  .messages-admin-shell .messages-chat-composer .emoji-picker-react .epr-search-container {
+    display: block;
+  }
+}
