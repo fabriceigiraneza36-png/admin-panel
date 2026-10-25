@@ -1885,7 +1885,7 @@ export default function Messages() {
     try {
       const response = await authFetch(`${API_BASE}/itineraries/${encodeURIComponent(ref)}`)
       const payload = await response.json().catch(() => ({}))
-      if (!response.ok || payload?.success === false) throw new Error(payload.message || 'The booking could not be loaded.')
+      if (!response.ok || payload?.success === false) throw new Error(payload.message || payload.error || 'The booking could not be loaded.')
       const data = payload?.data?.data || payload?.data || payload
       if (!data?.booking) throw new Error('The backend did not return a booking record.')
       const saved = data.itinerary && typeof data.itinerary === 'object' ? data.itinerary : {}
@@ -1942,7 +1942,7 @@ export default function Messages() {
         body: JSON.stringify({ ...itineraryDraft, deliveryMode: 'dashboard_pdf' }),
       })
       const payload = await response.json().catch(() => ({}))
-      if (!response.ok || payload?.success === false) throw new Error(payload.message || 'The itinerary could not be sent.')
+      if (!response.ok || payload?.success === false) throw new Error(payload.message || payload.error || 'The itinerary could not be sent.')
       setItineraryBooking(payload?.data?.data || payload?.data || itineraryBooking)
       setItineraryComposerOpen(false)
       if (payload?.delivery?.email === 'failed') {
@@ -1981,7 +1981,9 @@ export default function Messages() {
                 <input value={itineraryBookingRef} onChange={event=>setItineraryBookingRef(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();loadItineraryDraft(itineraryBookingRef)}}} placeholder="Booking ID" aria-label="Booking ID" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/>
                 <button type="button" onClick={()=>loadItineraryDraft(itineraryBookingRef)} disabled={itineraryLoadBusy||itinerarySendBusy} className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60">{itineraryLoadBusy?'Loading…':'Load booking'}</button>
               </div>
-              {itineraryBooking && <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs"><p className="font-extrabold text-slate-900">{itineraryBooking.full_name || 'Traveller'} · #{itineraryBooking.booking_number || itineraryBooking.id}</p><p className="mt-1 text-emerald-800">{itineraryBooking.destination_name || 'Safari destination'} · {itineraryBooking.travel_date || 'Flexible dates'}{itineraryBooking.return_date ? ' → ' + itineraryBooking.return_date : ''}</p><p className="mt-1 text-slate-500">{itineraryBooking.email || ''}</p></div>}
+              {itineraryBooking && <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs"><p className="font-extrabold text-slate-900">{itineraryBooking.full_name || 'Traveller'} · #{itineraryBooking.booking_number || itineraryBooking.id}</p><p className="mt-1 text-emerald-800">{itineraryBooking.destination_name || 'Safari destination'} · {itineraryBooking.travel_date || 'Flexible dates'}{itineraryBooking.return_date ? ' → ' + itineraryBooking.return_date : ''}</p><p className="mt-1 text-slate-500">{itineraryBooking.email || ''}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-1 text-[10px] font-extrabold ${itineraryBooking.itinerary_email_status === 'sent' ? 'bg-emerald-100 text-emerald-800' : itineraryBooking.itinerary_email_status === 'failed' ? 'bg-rose-100 text-rose-700' : 'bg-white text-slate-600'}`}>Email: {itineraryBooking.itinerary_email_status || 'not_sent'}</span><span className="text-[10px] text-slate-500">{itineraryBooking.itinerary_email_status === 'sent' ? 'Accepted by email provider' : itineraryBooking.itinerary_email_status === 'failed' ? (itineraryBooking.itinerary_email_error || 'Provider did not confirm sending') : 'No successful email recorded yet'}</span></div>
+              </div>}
               <div><label className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Itinerary title</label><input value={itineraryDraft.title || ''} onChange={event=>setItineraryDraft(prev=>({...prev,title:event.target.value}))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/></div>
               <div><label className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Introduction</label><textarea rows={2} value={itineraryDraft.introduction || ''} onChange={event=>setItineraryDraft(prev=>({...prev,introduction:event.target.value}))} className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/></div>
               <div className="flex items-center justify-between gap-3"><h3 className="text-xs font-extrabold text-slate-800">Day-by-day plan</h3><button type="button" onClick={()=>setItineraryDraft(prev=>({...prev,days:[...(prev.days||[]),{date:'',title:'Explore & experience',location:itineraryBooking?.destination_name || '',activities:['Morning activity'],transport:'',accommodation:'',meals:'',notes:''}]}))} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700"><Plus size={13}/> Add day</button></div>
