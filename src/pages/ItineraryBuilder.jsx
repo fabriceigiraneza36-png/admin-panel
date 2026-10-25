@@ -280,6 +280,8 @@ export default function ItineraryBuilder() {
             <div><label className="text-xs font-bold uppercase text-slate-500">Introduction</label><textarea value={itinerary.introduction} onChange={e=>setItinerary(p=>({...p,introduction:e.target.value}))} className="input mt-1 min-h-[90px]"/></div>
           </div>
 
+          {itinerary.mode === 'manual' && (
+            <>
           {itinerary.days.map((day,i)=>(
             <div key={i} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
               <button onClick={()=>setOpenDay(openDay===i?-1:i)} className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50">
@@ -305,6 +307,49 @@ export default function ItineraryBuilder() {
           ))}
 
           <button onClick={addDay} className="w-full border-2 border-dashed border-emerald-200 text-emerald-700 rounded-2xl py-4 font-bold text-sm hover:bg-emerald-50"><Plus size={16} className="inline mr-1"/> Add itinerary day</button>
+            </>
+          )}
+
+          {itinerary.mode === 'assisted' && (
+            <div className="space-y-4">
+              <section className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Assisted planning workspace</p>
+                    <h2 className="mt-1 text-base font-extrabold text-slate-900">Build the itinerary step by step</h2>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">Complete the pre-trip checks, then outline each day below. Your day plan and checklist are saved together.</p>
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-center">
+                    <p className="text-xl font-extrabold text-emerald-700">{(itinerary.planningChecklist || []).filter(item=>item.done).length}/{(itinerary.planningChecklist || []).length}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Checks done</p>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-100"><div className="h-full rounded-full bg-emerald-600 transition-all" style={{width:`${(itinerary.planningChecklist || []).length ? ((itinerary.planningChecklist || []).filter(item=>item.done).length/(itinerary.planningChecklist || []).length)*100 : 0}%`}}/></div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={()=>{const dates=dateRange(booking.travel_date,booking.return_date);setItinerary(prev=>({...prev,days:dates.length?dates.map((date,i)=>({...dayTemplate(date,i),...(prev.days[i]||{})})):prev.days.length?prev.days:[dayTemplate('',0)]}));setOpenDay(0)}} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-extrabold text-white hover:bg-emerald-800"><CalendarDays size={14}/> Build days from booking dates</button>
+                  <button type="button" onClick={addDay} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50"><Plus size={14}/> Add a day</button>
+                </div>
+              </section>
+              <div className="space-y-3">
+                {(itinerary.days || []).map((day,i)=><section key={i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Day {i+1} of {(itinerary.days || []).length}</p><h3 className="text-sm font-extrabold text-slate-900">{day.title || 'Plan this day'}</h3></div>
+                    <button type="button" onClick={()=>removeDay(i)} aria-label={`Remove day ${i+1}`} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><Trash2 size={15}/></button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Date<input type="date" value={day.date||''} onChange={e=>updateDay(i,{date:e.target.value})} className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Day title<input value={day.title||''} onChange={e=>updateDay(i,{title:e.target.value})} placeholder="e.g. Gorilla trekking" className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 sm:col-span-2">Location / experience<input value={day.location||''} onChange={e=>updateDay(i,{location:e.target.value})} placeholder="Destination, park, activity area…" className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 sm:col-span-2">Activities (one per line)<textarea value={(day.activities||[]).join('\n')} onChange={e=>updateDay(i,{activities:e.target.value.split('\n')})} rows={3} placeholder="Morning activity\nLunch / local experience\nAfternoon activity" className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Transport<input value={day.transport||''} onChange={e=>updateDay(i,{transport:e.target.value})} placeholder="Driver, transfer, vehicle…" className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Accommodation / meals<input value={[` ${day.accommodation||''}`,` ${day.meals||''}`].join(' · ').trim()} onChange={e=>{const [accommodation='',meals='']=e.target.value.split('·').map(v=>v.trim());updateDay(i,{accommodation,meals})}} placeholder="Lodge · Breakfast" className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 sm:col-span-2">Coordinator notes<textarea value={day.notes||''} onChange={e=>updateDay(i,{notes:e.target.value})} rows={2} placeholder="Timing, permits, guest requests…" className="input mt-1"/></label>
+                  </div>
+                </section>)}
+                {!itinerary.days.length && <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-6 text-center"><CalendarDays size={24} className="mx-auto text-emerald-600"/><p className="mt-2 text-sm font-extrabold text-slate-800">No itinerary days yet</p><p className="mt-1 text-xs text-slate-500">Build days from the booking dates or add a day to begin.</p></div>}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="text-xs font-bold text-slate-600">What is included</label><textarea value={(itinerary.inclusions||[]).join('\n')} onChange={e=>setItinerary(p=>({...p,inclusions:e.target.value.split('\n')}))} className="input mt-1 min-h-[100px]" placeholder="One item per line"/></div>
