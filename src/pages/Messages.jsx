@@ -1757,7 +1757,7 @@ export default function Messages() {
     ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
     : (activeConv?.subject
       || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
-      || activeConv?.guestName
+      || safeEndUserName(activeConv?.guestName)
       || 'Conversation')
 
   const [showMobileChat, setShowMobileChat] = useState(false)
