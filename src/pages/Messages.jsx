@@ -1373,7 +1373,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
-          toast.success('Message sent to user')
+          toast.success('Message sent to end user')
         }
       } else {
         const payload = await res.json().catch(() => ({}))
@@ -1991,7 +1991,7 @@ export default function Messages() {
                     </button>
 
                     <Avatar
-                      name={activeConv.guestName || 'Registered user'}
+                      name={activeConv.guestName || 'End user'}
                       src={activeConv.guestAvatar}
                       size="md"
                       online={activeConv.isOnline}
@@ -2007,7 +2007,7 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : (activeConv.guestName || 'Registered user'))}
+                              : (activeConv.guestName || 'End user'))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
