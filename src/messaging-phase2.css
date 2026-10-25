@@ -912,3 +912,52 @@
     padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
   }
 }
+
+
+/* Mobile composer recovery: anchor the input to the actual viewport, not a
+   possibly height-collapsed chat ancestor. This also keeps reply previews and
+   the send button visible while the message log scrolls. */
+@media (max-width: 767px) {
+  .messages-admin-shell .messages-chat-composer {
+    position: fixed !important;
+    inset-inline: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    padding: 8px 0 max(10px, env(safe-area-inset-bottom)) !important;
+    background: #fff !important;
+    border-top: 1px solid #dce9e2 !important;
+    box-shadow: 0 -8px 24px rgba(15, 40, 29, .12) !important;
+  }
+  .messages-admin-shell .messages-chat-composer > div:last-of-type {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 6px 10px !important;
+    box-sizing: border-box !important;
+  }
+  .messages-admin-shell .messages-chat-composer textarea {
+    min-height: 42px !important;
+    max-height: min(24dvh, 132px) !important;
+    height: auto !important;
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  .messages-admin-shell [role="log"] {
+    padding-bottom: 190px !important;
+    scroll-padding-bottom: 190px !important;
+  }
+  .messages-admin-shell main > section .messages-chat-composer button[aria-label="Send"],
+  .messages-admin-shell main > section .messages-chat-composer button[aria-label="Send message"] {
+    min-width: 42px !important;
+    min-height: 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+  }
+}
