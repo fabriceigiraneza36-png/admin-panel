@@ -352,10 +352,10 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
   )
 })
 
-const ADMIN_MESSAGE_TYPES = new Set(['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor'])
+const ADMIN_MESSAGE_TYPES = new Set(['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor', 'support', 'staff', 'agent'])
 
 const isAdminMessage = (message) => ADMIN_MESSAGE_TYPES.has(
-  String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase()
+  String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase().replace(/[\\s-]+/g, '_')
 )
 
 const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
@@ -397,7 +397,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={message.senderName || 'User'} src={message.senderAvatar} size="xs" /></div>}
+      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar} size="xs" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
         {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}</span>}
