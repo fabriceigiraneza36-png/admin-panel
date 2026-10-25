@@ -11,7 +11,7 @@ import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
   PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2, Copy,
-  Archive, ArchiveRestore, Forward,
+  Archive, ArchiveRestore, Forward, FileText, CalendarDays,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
@@ -965,6 +965,13 @@ export default function Messages() {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
   const [showGroupChat, setShowGroupChat] = useState(false)
+  const [itineraryComposerOpen, setItineraryComposerOpen] = useState(false)
+  const [itineraryBookingRef, setItineraryBookingRef] = useState("")
+  const [itineraryBooking, setItineraryBooking] = useState(null)
+  const [itineraryDraft, setItineraryDraft] = useState({ title: "Personalized Altuvera Itinerary", introduction: "", mode: "assisted", days: [] })
+  const [itineraryLoadBusy, setItineraryLoadBusy] = useState(false)
+  const [itinerarySendBusy, setItinerarySendBusy] = useState(false)
+  const [itineraryEditorError, setItineraryEditorError] = useState("")
   const [forwardMessage, setForwardMessage] = useState(null)
   const [forwarding, setForwarding] = useState(false)
   const [editingMessageId, setEditingMessageId] = useState(null)
@@ -1858,12 +1865,145 @@ export default function Messages() {
       || safeEndUserName(activeConv?.guestName)
       || 'Conversation')
 
+  const lastBookingMessage = [...messages].reverse().find(message =>
+    message?.metadata?.bookingId != null || message?.metadata?.booking?.id != null
+  )
+  const activeBookingId = activeConv?.bookingId
+    || activeConv?.booking_id
+    || lastBookingMessage?.metadata?.bookingId
+    || lastBookingMessage?.metadata?.booking?.id
+    || null
+  const isBookingSupportConversation = activeConv?.conversationType === 'resource_support'
+    || activeConv?.conversation_type === 'resource_support'
+    || activeConv?.channel === 'booking_support'
+
+  const loadItineraryDraft = useCallback(async (reference) => {
+    const ref = String(reference || '').trim()
+    if (!ref) { setItineraryEditorError('Enter the booking ID first.'); return }
+    setItineraryLoadBusy(true)
+    setItineraryEditorError('')
+    try {
+      const response = await authFetch(`${API_BASE}/itineraries/${encodeURIComponent(ref)}`)
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload?.success === false) throw new Error(payload.message || 'The booking could not be loaded.')
+      const data = payload?.data?.data || payload?.data || payload
+      if (!data?.booking) throw new Error('The backend did not return a booking record.')
+      const saved = data.itinerary && typeof data.itinerary === 'object' ? data.itinerary : {}
+      const booking = data.booking
+      const days = Array.isArray(saved.days) && saved.days.length ? saved.days : [{
+        date: booking.travel_date || '',
+        title: 'Arrival & welcome',
+        location: booking.destination_name || '',
+        activities: ['Arrival transfer', 'Check-in and trip briefing'],
+        transport: '',
+        accommodation: '',
+        meals: 'Breakfast',
+        notes: '',
+      }]
+      setItineraryBooking(booking)
+      setItineraryBookingRef(String(booking.id))
+      setItineraryDraft({
+        title: saved.title || `${booking.destination_name || 'Your'} Adventure Itinerary`,
+        introduction: saved.introduction || `A personalized plan prepared by Altuvera Safaris for ${booking.full_name || 'our traveller'}.`,
+        mode: saved.mode === 'manual' ? 'manual' : 'assisted',
+        planningChecklist: Array.isArray(saved.planningChecklist) ? saved.planningChecklist : [],
+        days,
+        inclusions: Array.isArray(saved.inclusions) ? saved.inclusions : [],
+        essentials: Array.isArray(saved.essentials) ? saved.essentials : [],
+        contactNote: saved.contactNote || '',
+      })
+    } catch (error) {
+      setItineraryEditorError(error.message || 'The booking could not be loaded.')
+    } finally { setItineraryLoadBusy(false) }
+  }, [])
+
+  const openItineraryComposer = useCallback(async () => {
+    setItineraryComposerOpen(true)
+    setItineraryEditorError('')
+    const reference = activeBookingId || activeConv?.bookingNumber || ''
+    setItineraryBookingRef(String(reference))
+    if (reference) await loadItineraryDraft(reference)
+  }, [activeBookingId, activeConv?.bookingNumber, loadItineraryDraft])
+
+  const publishItineraryFromChat = useCallback(async () => {
+    if (!itineraryBooking?.id) {
+      setItineraryEditorError('Load a verified booking before sending the itinerary.')
+      return
+    }
+    if (!Array.isArray(itineraryDraft.days) || !itineraryDraft.days.length) {
+      setItineraryEditorError('Add at least one itinerary day.')
+      return
+    }
+    setItinerarySendBusy(true)
+    setItineraryEditorError('')
+    try {
+      const response = await authFetch(`${API_BASE}/itineraries/${encodeURIComponent(itineraryBooking.id)}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ ...itineraryDraft, deliveryMode: 'dashboard_pdf' }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload?.success === false) throw new Error(payload.message || 'The itinerary could not be sent.')
+      setItineraryBooking(payload?.data?.data || payload?.data || itineraryBooking)
+      setItineraryComposerOpen(false)
+      if (payload?.delivery?.email === 'failed') {
+        toast.error('The itinerary was published to the dashboard, but its email failed: ' + (payload.delivery.emailError || 'provider did not confirm success'))
+      } else {
+        toast.success(payload?.delivery?.email === 'sent'
+          ? 'Itinerary published in booking chat and email accepted by provider.'
+          : (payload.message || 'Itinerary sent.'))
+      }
+      loadConversations()
+    } catch (error) {
+      setItineraryEditorError(error.message || 'The itinerary could not be sent.')
+      toast.error(error.message || 'The itinerary could not be sent.')
+    } finally { setItinerarySendBusy(false) }
+  }, [itineraryBooking, itineraryDraft, toast, loadConversations])
+
   const [showMobileChat, setShowMobileChat] = useState(false)
 
   return (
     <>
       {showNewChat && (
         <NewChatModal onClose={() => setShowNewChat(false)} onCreated={handleNewConvCreated} />
+      )}
+      {itineraryComposerOpen && (
+        <div className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-slate-950/45 p-0 sm:p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !itinerarySendBusy) setItineraryComposerOpen(false) }}>
+          <section role="dialog" aria-modal="true" aria-label="Prepare itinerary in conversation" className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-emerald-100 bg-white shadow-2xl sm:rounded-2xl">
+            <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><FileText size={18}/></div>
+                <div className="min-w-0"><h2 className="truncate text-sm font-extrabold text-slate-900">Prepare traveller itinerary</h2><p className="text-[11px] text-slate-500">Publish to their booking chat and send an email</p></div>
+              </div>
+              <button type="button" onClick={() => !itinerarySendBusy && setItineraryComposerOpen(false)} aria-label="Close itinerary editor" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={17}/></button>
+            </header>
+            <div className="flex-1 min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
+              <div className="flex gap-2">
+                <input value={itineraryBookingRef} onChange={event=>setItineraryBookingRef(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();loadItineraryDraft(itineraryBookingRef)}}} placeholder="Booking ID" aria-label="Booking ID" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/>
+                <button type="button" onClick={()=>loadItineraryDraft(itineraryBookingRef)} disabled={itineraryLoadBusy||itinerarySendBusy} className="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60">{itineraryLoadBusy?'Loading…':'Load booking'}</button>
+              </div>
+              {itineraryBooking && <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 text-xs"><p className="font-extrabold text-slate-900">{itineraryBooking.full_name || 'Traveller'} · #{itineraryBooking.booking_number || itineraryBooking.id}</p><p className="mt-1 text-emerald-800">{itineraryBooking.destination_name || 'Safari destination'} · {itineraryBooking.travel_date || 'Flexible dates'}{itineraryBooking.return_date ? ' → ' + itineraryBooking.return_date : ''}</p><p className="mt-1 text-slate-500">{itineraryBooking.email || ''}</p></div>}
+              <div><label className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Itinerary title</label><input value={itineraryDraft.title || ''} onChange={event=>setItineraryDraft(prev=>({...prev,title:event.target.value}))} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/></div>
+              <div><label className="mb-1 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">Introduction</label><textarea rows={2} value={itineraryDraft.introduction || ''} onChange={event=>setItineraryDraft(prev=>({...prev,introduction:event.target.value}))} className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"/></div>
+              <div className="flex items-center justify-between gap-3"><h3 className="text-xs font-extrabold text-slate-800">Day-by-day plan</h3><button type="button" onClick={()=>setItineraryDraft(prev=>({...prev,days:[...(prev.days||[]),{date:'',title:'Explore & experience',location:itineraryBooking?.destination_name || '',activities:['Morning activity'],transport:'',accommodation:'',meals:'',notes:''}]}))} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700"><Plus size={13}/> Add day</button></div>
+              {(itineraryDraft.days || []).map((day,index)=><div key={index} className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <div className="flex items-center justify-between gap-3"><p className="text-xs font-extrabold text-slate-800">Day {index+1}</p><button type="button" onClick={()=>setItineraryDraft(prev=>({...prev,days:prev.days.filter((_,i)=>i!==index)}))} className="text-[10px] font-bold text-rose-600">Remove</button></div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <input type="date" aria-label={`Day ${index+1} date`} value={day.date || ''} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,date:event.target.value}:item)}))} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+                  <input aria-label={`Day ${index+1} title`} value={day.title || ''} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,title:event.target.value}:item)}))} placeholder="Day title" className="rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+                  <input aria-label={`Day ${index+1} location`} value={day.location || ''} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,location:event.target.value}:item)}))} placeholder="Location" className="rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+                  <input aria-label={`Day ${index+1} meals`} value={day.meals || ''} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,meals:event.target.value}:item)}))} placeholder="Meals" className="rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+                </div>
+                <textarea aria-label={`Day ${index+1} activities`} rows={3} value={(day.activities || []).map(item=>typeof item==='string'?item:item?.title||item?.name||'').join('\n')} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,activities:event.target.value.split('\n').filter(line=>line.trim())}:item)}))} placeholder="One activity per line" className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+                <textarea aria-label={`Day ${index+1} notes`} rows={2} value={day.notes || ''} onChange={event=>setItineraryDraft(prev=>({...prev,days:prev.days.map((item,i)=>i===index?{...item,notes:event.target.value}:item)}))} placeholder="Notes / transport / accommodation details" className="w-full resize-y rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+              </div>)}
+              {itineraryEditorError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{itineraryEditorError}</p>}
+            </div>
+            <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-white p-4 sm:flex-row sm:justify-end">
+              <button type="button" onClick={()=>setItineraryComposerOpen(false)} disabled={itinerarySendBusy} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={publishItineraryFromChat} disabled={itinerarySendBusy||itineraryLoadBusy||!itineraryBooking?.id||!itineraryDraft.days?.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white disabled:opacity-50">{itinerarySendBusy?<RefreshCw size={14} className="animate-spin"/>:<Send size={14}/>} {itinerarySendBusy?'Publishing & emailing…':'Publish & send itinerary'}</button>
+            </footer>
+          </section>
+        </div>
       )}
       {forwardMessage && (
         <ForwardMessageModal
@@ -2179,6 +2319,7 @@ export default function Messages() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {isBookingSupportConversation && <button type="button" onClick={openItineraryComposer} title="Prepare and send an itinerary in this booking-support conversation" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-extrabold text-emerald-800 hover:bg-emerald-100 sm:px-3"><FileText size={15}/><span className="hidden sm:inline">Prepare itinerary</span></button>}
                     <StatusBadge status={activeConv.status} />
                     <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
                       className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
