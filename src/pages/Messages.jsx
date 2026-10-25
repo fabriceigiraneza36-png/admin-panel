@@ -989,6 +989,8 @@ export default function Messages() {
         n.close()
         if (convId) {
           setFocusComposerOnOpen(true)
+          setShowMobileChat(true)
+          setSidebarOpen(false)
           openConversation(convId)
         }
       }
@@ -1047,6 +1049,7 @@ export default function Messages() {
       setHasMoreMessages(false); setLoadingOlderMessages(false); loadingOlderRef.current = false
       setUserTyping(null); setLoadingMsgs(false)
       setSidebarOpen(true)
+      setShowMobileChat(false)
       return
     }
     const conversationId = String(id).trim()
@@ -1099,6 +1102,7 @@ export default function Messages() {
     }
     setFocusComposerOnOpen(false)
     setSidebarOpen(false)
+    setShowMobileChat(true)
     void openConversation(String(conversationId))
   }, [openConversation, toast])
 
@@ -1428,7 +1432,7 @@ export default function Messages() {
   const handleNewConvCreated = useCallback((conv) => {
     setShowNewChat(false)
     loadConversations()
-    if (conv?.id) openConversation(conv.id)
+    if (conv?.id) { setShowMobileChat(true); setSidebarOpen(false); openConversation(conv.id) }
   }, [loadConversations, openConversation])
 
   const handleForwardToConversation = useCallback(async (targetId) => {
@@ -1729,7 +1733,7 @@ export default function Messages() {
       || activeConv?.guestName
       || 'Conversation')
 
-  const showMobileChat = !!activeId
+  const [showMobileChat, setShowMobileChat] = useState(false)
 
   return (
     <>
@@ -1959,7 +1963,7 @@ export default function Messages() {
                 <div className="flex-shrink-0 min-w-0 flex items-center justify-between px-3 sm:px-5 py-3
                                 bg-white border-b border-slate-200 z-10">
                   <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                    <button onClick={() => { navigate("/messages", { replace: true }); openConversation(null); setSidebarOpen(true) }} aria-label="Back"
+                    <button onClick={() => { navigate("/messages", { replace: true }); openConversation(null); setSidebarOpen(true); setShowMobileChat(false) }} aria-label="Back"
                       className="md:hidden -ml-1 p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition">
                       <ArrowLeft size={18} />
                     </button>
