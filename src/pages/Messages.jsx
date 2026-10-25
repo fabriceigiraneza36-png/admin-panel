@@ -10,7 +10,7 @@ import React, {
 import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
-  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter,
+  PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2, Copy,
   Archive, ArchiveRestore, Forward,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -385,7 +385,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 const MsgBubble = React.memo(function MsgBubble({
   message, mine, replyTo, onReact, onReply, now, currentUserId, guestName,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
-  onUnsend, onPin, onHighlight, onForward, canModerate,
+  onUnsend, onPin, onHighlight, onForward, onCopy, canModerate,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
@@ -396,6 +396,8 @@ const MsgBubble = React.memo(function MsgBubble({
   const isPending = String(message.id).startsWith('tmp-')
   const isDeleted = Boolean(message.deleted)
   const isEditing = String(editingId) === String(message.id)
+  const messageSenderId = message?.senderId ?? message?.sender_id
+  const isOwnMessage = mine && currentUserId != null && messageSenderId != null && String(messageSenderId) === String(currentUserId)
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
@@ -441,10 +443,24 @@ const MsgBubble = React.memo(function MsgBubble({
                 <MoreHorizontal size={15} />
               </button>
               {menuOpen && (
-                <div className={`absolute top-full mt-1 z-40 w-40 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
+                <div className={`absolute top-full mt-1 z-40 w-48 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl p-1 ${mine ? 'right-0' : 'left-0'}`}>
                   <button type="button" onClick={() => { setMenuOpen(false); setReactionPickerOpen(true) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Smile size={15}/> React</button>
-                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> Reply</button>
+                  <button type="button" onClick={() => { onReply(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><CornerUpLeft size={15}/> {isOwnMessage ? 'Reply to yourself' : 'Reply'}</button>
                   <button type="button" onClick={() => { onForward(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Forward size={15}/> Forward to chat</button>
+                  <button type="button" onClick={() => { onCopy(message.body || ''); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Copy size={15}/> Copy message</button>
+                  {isOwnMessage && !message.isRead && (
+                    <button type="button" onClick={() => { onStartEdit(message); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-emerald-50"><Pencil size={15}/> Edit message</button>
+                  )}
+                  {isOwnMessage && (
+                    <button type="button" onClick={() => { onUnsend(message.id); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-rose-600 hover:bg-rose-50"><Undo2 size={15}/> Unsend for everyone</button>
+                  )}
+                  {canModerate && (
+                    <>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button type="button" onClick={() => { onPin(message.id, !message.isPinned); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-slate-50"><Pin size={15}/> {message.isPinned ? 'Unpin' : 'Pin message'}</button>
+                      <button type="button" onClick={() => { onHighlight(message.id, !message.isHighlighted); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold hover:bg-amber-50"><Highlighter size={15}/> {message.isHighlighted ? 'Remove highlight' : 'Highlight'}</button>
+                    </>
+                  )}
                 </div>
               )}
               {reactionPickerOpen && (
@@ -1376,6 +1392,15 @@ export default function Messages() {
     }
   }, [draft, sending, connected, emit, user, loadConversations, replyToId, emitAdminTyping, toast])
 
+  const copyMessageText = useCallback(async (body) => {
+    try {
+      await navigator.clipboard.writeText(String(body || ''))
+      toast.success('Message copied')
+    } catch {
+      toast.error('Could not copy this message on this device')
+    }
+  }, [toast])
+
   const toggleReaction = useCallback(async (messageId, emoji) => {
     const convId = activeIdRef.current
     if (!convId) return
@@ -2100,6 +2125,7 @@ export default function Messages() {
                             onPin={(id, value) => setMessageFlag(id, 'pin', value)}
                             onHighlight={(id, value) => setMessageFlag(id, 'highlight', value)}
                             onForward={(message) => setForwardMessage({ ...message, conversationId: activeId })}
+                            onCopy={copyMessageText}
                             canModerate={true}
                           />
                         )
@@ -2140,7 +2166,7 @@ export default function Messages() {
                         <CornerUpLeft size={13} className="text-emerald-600 flex-shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                            Replying to {getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}
+                            {isAdminMessage(replyMsg) && String(replyMsg?.senderId ?? replyMsg?.sender_id) === String(user?.id) ? 'Replying to yourself' : `Replying to ${getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}`}
                           </span>
                           <span className="text-xs text-slate-600 truncate block">
                             {replyMsg.body}
