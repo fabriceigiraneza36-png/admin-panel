@@ -777,3 +777,138 @@
     padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
   }
 }
+
+
+/* Message action menu is a viewport-centered modal, not a bubble-anchored popover. */
+.message-actions-backdrop {
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+           max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: rgba(15, 23, 42, .38);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.message-actions-modal {
+  position: relative;
+  width: min(100%, 360px);
+  max-width: calc(100vw - 28px);
+  max-height: min(78dvh, 620px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e2eee7;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 90px rgba(2, 24, 17, .28);
+  animation: message-modal-in .18s cubic-bezier(.2,.75,.25,1) both;
+}
+.message-actions-modal-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 13px;
+  border-bottom: 1px solid #edf2ef;
+}
+.message-actions-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e5ece8;
+  color: #64746c;
+  background: #fff;
+}
+.message-actions-close:hover { background: #f3f8f5; color: #047857; }
+.message-actions-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.message-actions-list > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  color: #263a31;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 650;
+}
+.message-actions-list > button:hover,
+.message-actions-list > button:focus-visible {
+  background: #f0faf4;
+  border-color: #d9eee2;
+  outline: none;
+}
+.message-actions-list > button > svg { flex: 0 0 auto; color: #07845a; }
+.message-actions-list > button.danger { color: #be123c; }
+.message-actions-list > button.danger > svg { color: #e11d48; }
+.message-actions-divider { height: 1px; margin: 7px 8px; background: #edf2ef; }
+@media (max-width: 767px) {
+  .message-actions-backdrop { padding: 12px; }
+  .message-actions-modal {
+    width: 100%;
+    max-width: min(360px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    border-radius: 20px;
+  }
+  .message-actions-modal-header { padding: 13px 13px 11px; }
+  .message-actions-list { padding: 7px; }
+  .message-actions-list > button { min-height: 44px; padding: 10px 11px; }
+}
+
+/* Final docked composer layout: the input stays inside the visible chat viewport. */
+.messages-admin-shell main > section[data-mobile-active="true"],
+.messages-admin-shell main > section:not([data-mobile-active]) {
+  position: relative !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.messages-admin-shell [role="log"] {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  padding-bottom: 124px !important;
+  overflow-y: auto !important;
+}
+.messages-admin-shell .messages-chat-composer {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 40 !important;
+  background: #fff !important;
+  padding-bottom: max(6px, env(safe-area-inset-bottom)) !important;
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+@media (max-width: 767px) {
+  .messages-admin-shell main > section[data-mobile-active="true"] {
+    height: 100% !important;
+  }
+  .messages-admin-shell [role="log"] { padding-bottom: 116px !important; }
+  .messages-admin-shell .messages-chat-composer {
+    padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+}
