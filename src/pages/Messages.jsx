@@ -1879,7 +1879,7 @@ export default function Messages() {
         has fixed height, and only ONE child inside scrolls (the message log)
         ═══════════════════════════════════════════════════════════════════════
       */}
-      <div className="messages-admin-shell relative flex flex-1 min-h-0 min-w-0 w-full flex-col bg-white" style={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div className="messages-admin-shell relative flex flex-1 min-h-0 min-w-0 w-full flex-col bg-white" style={{ height: 'calc(100dvh - 112px)', minHeight: 0, maxHeight: 'calc(100dvh - 72px)', overflow: 'hidden' }}>
 
         {incomingNotifications.length > 0 && (
           <div className="messages-incoming-notification-stack" aria-label="New messages" aria-live="polite">
