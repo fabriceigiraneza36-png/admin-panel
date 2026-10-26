@@ -26,6 +26,7 @@ import { BOOKING_STATUSES } from '@utils/constants'
 import { getErrorMessage }  from '@api/client'
 import { downloadBlob }     from '@utils/helpers'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -326,6 +327,8 @@ export default function Bookings() {
   const msgScrollRef = useRef(null)
 
   const dSearch = useDebounce(search, 400)
+  const [searchParams] = useSearchParams()
+  const deepLinkHandled = useRef(false)
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
@@ -402,6 +405,31 @@ export default function Bookings() {
       window.removeEventListener('focus', onFocus)
     }
   }, [load])
+
+  // Deep links from admin notifications open the matching booking immediately.
+  // If it is outside the current page, search by its id/reference and open it
+  // after the filtered results load.
+  useEffect(() => {
+    const bookingId = searchParams.get('bookingId')
+    if (!bookingId || deepLinkHandled.current || loading) return
+
+    const match = items.find((booking) =>
+      String(booking.id) === String(bookingId) ||
+      String(booking.booking_id || '') === String(bookingId) ||
+      String(booking.booking_number || '') === String(bookingId)
+    )
+
+    if (match) {
+      deepLinkHandled.current = true
+      setSelected(match)
+      setReview({ decision: null, response: '' })
+      setView(VIEWS.VIEW)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    if (search !== bookingId) setSearch(bookingId)
+  }, [items, loading, searchParams, search])
 
   // ── Update status quick-action ─────────────────────────────────────────
 
