@@ -1125,3 +1125,268 @@
 /* Show 20 compact, tappable reactions without enlarging the page overlay. */
 .message-actions-modal .grid.grid-cols-4 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 .message-actions-modal .grid.grid-cols-4 button { height: 36px !important; font-size: 20px !important; }
+
+
+/* Final responsive inbox layout: preserve every control and keep both panes
+   reachable on narrow screens. These rules intentionally supersede legacy
+   mobile composer/sidebar overrides above. */
+.messages-admin-shell,
+.messages-admin-shell * {
+  box-sizing: border-box;
+}
+.messages-admin-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.messages-admin-shell > main {
+  width: 100%;
+  min-width: 0;
+}
+.messages-admin-shell > main > aside,
+.messages-admin-shell > main > section {
+  min-width: 0;
+}
+.messages-admin-shell > main > section > header {
+  min-width: 0;
+}
+.messages-admin-shell > main > section > header > div {
+  min-width: 0;
+}
+.messages-admin-shell button,
+.messages-admin-shell input,
+.messages-admin-shell textarea,
+.messages-admin-shell select {
+  max-width: 100%;
+}
+.messages-admin-shell .messages-chat-composer {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+}
+.messages-admin-shell .messages-chat-composer > div,
+.messages-admin-shell .messages-chat-composer > div > div {
+  min-width: 0;
+  max-width: 100%;
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow-wrap: anywhere;
+}
+.messages-admin-shell [role="log"] {
+  min-width: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+.messages-admin-shell .group\\/bubble {
+  min-width: 0;
+  max-width: 100%;
+}
+.messages-admin-shell .group\\/bubble > div {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+@media (max-width: 767px) {
+  .messages-admin-shell {
+    height: calc(100dvh - 100px) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 80px) !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+  }
+  .messages-admin-shell > header {
+    min-height: 58px !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+  }
+  .messages-admin-shell > header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 7px !important;
+  }
+  .messages-admin-shell > header > div:last-child {
+    flex: 0 0 auto;
+    max-width: 52% !important;
+    min-width: 0;
+    gap: 5px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .messages-admin-shell > header > div:last-child::-webkit-scrollbar {
+    display: none;
+  }
+  .messages-admin-shell > header button,
+  .messages-admin-shell > main > section > header button {
+    flex: 0 0 auto;
+    min-width: 36px;
+    min-height: 36px !important;
+    padding: 7px !important;
+  }
+  .messages-admin-shell > main {
+    position: relative !important;
+    display: flex !important;
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .messages-admin-shell > main > aside[data-mobile-hidden="true"] {
+    display: none !important;
+  }
+  .messages-admin-shell > main > aside[data-mobile-hidden="false"] {
+    display: flex !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    border-right: 0 !important;
+    overflow: hidden !important;
+  }
+  .messages-admin-shell > main > aside > div:first-child {
+    flex: 0 0 auto;
+    padding: 10px !important;
+  }
+  .messages-admin-shell > main > aside > div:nth-child(2) {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .messages-admin-shell > main > section[data-mobile-active="false"] {
+    display: none !important;
+  }
+  .messages-admin-shell > main > section[data-mobile-active="true"] {
+    display: flex !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  .messages-admin-shell > main > section > header {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 58px !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    overflow: visible !important;
+  }
+  .messages-admin-shell > main > section > header > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+  }
+  .messages-admin-shell > main > section > header > div:first-child > div {
+    min-width: 0 !important;
+  }
+  .messages-admin-shell > main > section > header > div:last-child {
+    display: flex !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 48% !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none;
+  }
+  .messages-admin-shell > main > section > header > div:last-child::-webkit-scrollbar {
+    display: none;
+  }
+  .messages-admin-shell > main > section > header > div:last-child > * {
+    flex: 0 0 auto !important;
+  }
+  .messages-admin-shell > main > section [role="log"] {
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 12px 10px 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .messages-admin-shell .messages-chat-composer {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    inset: auto !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 7px 0 max(8px, env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    z-index: 30 !important;
+  }
+  .messages-admin-shell .messages-chat-composer > div:last-of-type {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 5px 8px !important;
+    margin: 0 !important;
+  }
+  .messages-admin-shell .messages-chat-composer > div:last-of-type > div {
+    gap: 5px !important;
+    padding: 4px !important;
+  }
+  .messages-admin-shell .messages-chat-composer .relative.flex-shrink-0 > button {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .messages-admin-shell .messages-chat-composer textarea {
+    flex: 1 1 0% !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    min-height: 40px !important;
+    max-height: 22dvh !important;
+    padding: 8px !important;
+    font-size: 16px !important;
+  }
+  .messages-admin-shell .messages-chat-composer button[aria-label="Send"],
+  .messages-admin-shell .messages-chat-composer button[aria-label="Send message"] {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+  }
+  .messages-admin-shell .messages-chat-composer button[aria-label="Send"] span,
+  .messages-admin-shell .messages-chat-composer button[aria-label="Send message"] span {
+    display: none !important;
+  }
+  .messages-admin-shell .messages-chat-composer .hidden.sm\\:block {
+    display: none !important;
+  }
+  .messages-admin-shell .messages-chat-composer .absolute {
+    max-width: calc(100vw - 20px) !important;
+  }
+  .messages-admin-shell .group\\/bubble > div {
+    max-width: min(90%, calc(100vw - 64px)) !important;
+  }
+}
+@media (max-width: 380px) {
+  .messages-admin-shell > main > section > header > div:last-child {
+    max-width: 42% !important;
+  }
+  .messages-admin-shell > main > section > header > div:last-child button {
+    min-width: 32px !important;
+    padding: 5px !important;
+  }
+  .messages-admin-shell .messages-chat-composer .relative.flex-shrink-0 > button,
+  .messages-admin-shell .messages-chat-composer button[aria-label="Send"] {
+    width: 36px !important;
+    min-width: 36px !important;
+  }
+}
