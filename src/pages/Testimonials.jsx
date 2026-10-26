@@ -24,7 +24,7 @@ import React, {
 import {
   Star, Plus, Pencil, Trash2, RefreshCw,
   Eye, Quote, CheckCircle, XCircle,
-  BarChart2, Clock, Filter,
+  BarChart2, Clock, Filter, Database,
 } from "lucide-react";
 
 import { testimonialsAPI }  from "@api/testimonials";
