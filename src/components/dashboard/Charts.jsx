@@ -182,6 +182,7 @@ export function DestinationCategoryChart() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [available, setAvailable] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -206,9 +207,12 @@ export function DestinationCategoryChart() {
 
         setData(chartData)
         setAvailable(true)
-      } catch {
+        setLoadError('')
+      } catch (error) {
+        console.warn('[Dashboard] Destination category chart failed:', error?.response?.status, error?.message)
         setData([])
         setAvailable(false)
+        setLoadError(error?.response?.status ? `Request failed (${error.response.status})` : (error?.message || 'Network or API error'))
       } finally {
         setLoading(false)
       }
@@ -225,11 +229,13 @@ export function DestinationCategoryChart() {
         <p className="text-xs text-gray-400 mt-0.5">
           {available ? `${data.reduce((s, d) => s + d.value, 0)} total destinations` : 'Destination data unavailable'}
         </p>
+        {!available && loadError && <p className="mt-1 break-words text-[11px] text-rose-600">{loadError}</p>}
       </div>
 
       {loading ? <ChartSkeleton /> : data.length === 0 ? (
-        <div className="h-60 flex items-center justify-center">
-          <p className="text-sm text-gray-400">No destination data yet</p>
+        <div className="h-60 flex flex-col items-center justify-center gap-2 text-center">
+          <p className="text-sm text-gray-400">{loadError ? 'Could not load destination records' : 'No destination data yet'}</p>
+          {loadError && <p className="max-w-sm break-words text-xs text-gray-500">Check the admin session, API permissions, and backend response.</p>}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={240}>
@@ -269,6 +275,7 @@ export function ContinentChart() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [available, setAvailable] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -291,9 +298,12 @@ export function ContinentChart() {
 
         setData(chartData)
         setAvailable(true)
-      } catch {
+        setLoadError('')
+      } catch (error) {
+        console.warn('[Dashboard] Countries by continent chart failed:', error?.response?.status, error?.message)
         setData([])
         setAvailable(false)
+        setLoadError(error?.response?.status ? `Request failed (${error.response.status})` : (error?.message || 'Network or API error'))
       } finally {
         setLoading(false)
       }
@@ -310,11 +320,13 @@ export function ContinentChart() {
         <p className="text-xs text-gray-400 mt-0.5">
           {available ? `${data.reduce((s, d) => s + d.count, 0)} countries in database` : 'Country data unavailable'}
         </p>
+        {!available && loadError && <p className="mt-1 break-words text-[11px] text-rose-600">{loadError}</p>}
       </div>
 
       {loading ? <ChartSkeleton /> : data.length === 0 ? (
-        <div className="h-60 flex items-center justify-center">
-          <p className="text-sm text-gray-400">No country data yet</p>
+        <div className="h-60 flex flex-col items-center justify-center gap-2 text-center">
+          <p className="text-sm text-gray-400">{loadError ? 'Could not load country records' : 'No country data yet'}</p>
+          {loadError && <p className="max-w-sm break-words text-xs text-gray-500">Check the backend response and browser network errors.</p>}
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={240}>
