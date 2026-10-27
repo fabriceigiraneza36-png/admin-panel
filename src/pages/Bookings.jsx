@@ -1381,12 +1381,15 @@ export default function Bookings() {
                   <CheckCircle size={14} /> {selected.email_verified ? 'Confirm' : 'Awaiting email'}
                 </button>
               )}
-              <button
-                onClick={() => window.location.assign(`/itineraries/${selected.id}`)}
-                className="btn-primary btn-sm"
-                disabled={!selected.email_verified}>
-                <ClipboardCheck size={14} /> Itinerary
-              </button>
+{String(selected.status || "").toLowerCase() === "confirmed" && (
+                <button
+                  onClick={() => window.location.assign(`/itineraries/${selected.id}`)}
+                  className="btn-primary btn-sm"
+                  disabled={!selected.email_verified}
+                  title={!selected.email_verified ? "Traveller must confirm their email before itinerary delivery." : "Prepare this confirmed booking's itinerary"}>
+                  <ClipboardCheck size={14} /> Itinerary
+                </button>
+              )}
               <button onClick={() => openMsgModal(selected)}
                 className="btn-secondary btn-sm">
                 <MessageSquare size={14} /> Message
