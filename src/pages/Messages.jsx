@@ -496,6 +496,15 @@ const MsgBubble = React.memo(function MsgBubble({
                   {message.metadata.booking?.travel_date && <p className="mt-0.5 opacity-80">Travel date: {message.metadata.booking.travel_date}</p>}
                 </div>
               )}
+              {!isDeleted && message.metadata?.relatedResource?.title && (
+                <div className={"mb-2 flex items-center gap-2 rounded-xl border px-2.5 py-2 " + (mine ? "border-white/20 bg-white/10 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-900")}>
+                  {message.metadata.relatedResource.image && <img src={message.metadata.relatedResource.image} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />}
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-extrabold uppercase tracking-wider opacity-80">Imported {message.metadata.relatedResource.type || "resource"}</div>
+                    <div className="truncate text-[11px] font-bold">{message.metadata.relatedResource.title}</div>
+                  </div>
+                </div>
+              )}
               {!isDeleted && message.metadata?.resource?.name && (
                 <div className={`mb-2 rounded-lg border px-2.5 py-2 text-[10px] ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                   <div className="flex items-center gap-1.5 font-extrabold"><Search size={12}/> {message.metadata.resource.type || 'Resource'} · {message.metadata.resource.name}</div>
