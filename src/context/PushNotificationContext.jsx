@@ -20,7 +20,7 @@ function urlBase64ToUint8Array (base64String) {
 async function sendSubscriptionToBackend (subscription) {
   const apiBase = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
   const token = localStorage.getItem('altuvera_admin_token') || sessionStorage.getItem('altuvera_admin_token') || ''
-  await fetch(`${apiBase}/push/subscribe`, {
+  const response = await fetch(`${apiBase}/push/subscribe`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,6 +33,10 @@ async function sendSubscriptionToBackend (subscription) {
       userAgent: navigator.userAgent,
     }),
   })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || result.success === false || result.error) {
+    throw new Error(result.message || result.error || `Could not save push subscription (HTTP ${response.status}).`)
+  }
 }
 
 export function PushProvider ({ children }) {
@@ -56,8 +60,8 @@ export function PushProvider ({ children }) {
       try {
         const reg = await navigator.serviceWorker.register('/push-sw.js', { scope: '/' })
         setSubscriptionParams(reg)
-      } catch {
-        // Silent fail — push just won't work
+      } catch (err) {
+        console.error('[Altuvera push] Service worker registration failed:', err)
       }
     }
     registerSW()
@@ -75,7 +79,8 @@ export function PushProvider ({ children }) {
   const getVapidKey = useCallback(async () => {
     const apiBase = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
     const res = await fetch(`${apiBase}/push/vapid-public-key`)
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message || data.error || `Could not load push configuration (HTTP ${res.status}).`)
     return data.publicKey || ''
   }, [])
 
