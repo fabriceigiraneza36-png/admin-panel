@@ -2254,36 +2254,6 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                 </ModalSection>
               )}
 
-              {(() => {
-                const shown = new Set([
-                  'id','destination_id','country_id','created_at','updated_at','deleted_at','createdAt','updatedAt',
-                  'gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','banner_slides','bannerSlides',
-                  'image_url','imageUrl','hero_image','heroImage','cover_image_url','coverImageUrl','attractions','highlights','activities','wildlife',
-                  'local_tips','localTips','faqs','itinerary','tags','description','shortDescription','short_description','overview',
-                  'category','classification','difficulty','region','country','countryName','country_name','rating','reviewCount','review_count',
-                  'isActive','is_active','isFeatured','is_featured','isPopular','is_popular','isEcoFriendly','is_eco_friendly',
-                  'isFamilyFriendly','is_family_friendly','isSoldOut','is_sold_out','viewCount','view_count','bookingCount','booking_count',
-                  'gettingThere','getting_there','whatToExpect','what_to_expect','safetyInfo','safety_info'
-                ])
-                const extraEntries = Object.entries(d || {}).filter(([key, value]) =>
-                  !shown.has(key) && !/^(id|destination_id|country_id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
-                  value !== null && value !== undefined && value !== '' &&
-                  !(Array.isArray(value) && value.length === 0)
-                )
-                if (!extraEntries.length) return null
-                return <ModalSection title="Additional destination details">
-                  <p className="mb-3 text-xs leading-relaxed text-slate-500">Practical information and other saved details, grouped into easy-to-scan cards.</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {extraEntries.map(([key, value]) => (
-                      <article key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-emerald-200">
-                        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
-                        <div className="min-w-0 text-sm leading-relaxed text-slate-700"><ReadableViewValue value={value} label={key} /></div>
-                      </article>
-                    ))}
-                  </div>
-                </ModalSection>
-              })()}
-
               <ModalSection title="Stats & Flags">
                 <ModalGrid>
                   <ModalField label="Featured"        value={<BooleanBadge value={d.isFeatured||d.is_featured}/>}/>
@@ -2295,7 +2265,13 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                   <ModalField label="Bookings"        value={formatNumber(d.bookingCount||d.booking_count)}/>
                   <ModalField label="Total Photos"    value={viewImgs.length}/>
                 </ModalGrid>
-              </ModalSection>
+                              {(() => {
+                  const shown = new Set(['id','destination_id','country_id','created_at','updated_at','deleted_at','createdAt','updatedAt','gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','banner_slides','bannerSlides','image_url','imageUrl','hero_image','heroImage','hero_image_url','cover_image_url','coverImageUrl','cover_image','image','attractions','highlights','activities','wildlife','local_tips','localTips','faqs','itinerary','tags','description','shortDescription','short_description','overview','category','classification','destination_type','adventure_category','difficulty','region','country','countryName','country_name','rating','reviewCount','review_count','isActive','is_active','isFeatured','is_featured','isPopular','is_popular','isEcoFriendly','is_eco_friendly','isFamilyFriendly','is_family_friendly','isSoldOut','is_sold_out','viewCount','view_count','bookingCount','booking_count','gettingThere','getting_there','whatToExpect','what_to_expect','safetyInfo','safety_info','tagline','name','latitude','longitude','duration','duration_days','best_time_to_visit','bestTimeToVisit','price','currency','meta_title','meta_description'])
+                  const extras = Object.entries(d || {}).filter(([key,value]) => !shown.has(key) && value != null && value !== '' && !(Array.isArray(value) && !value.length))
+                  if (!extras.length) return null
+                  return <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">{extras.map(([key,value]) => <article key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p><div className="min-w-0 break-words text-sm leading-relaxed text-slate-700"><ReadableViewValue value={value} label={key}/></div></article>)}</div>
+                })()}
+</ModalSection>
 
 
             </div>
