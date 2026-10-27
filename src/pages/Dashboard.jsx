@@ -17,6 +17,7 @@ import {
   ContinentChart,
 } from '@components/dashboard/Charts'
 import apiClient               from '@api/client'
+import { destinationsAPI }      from '@api/destinations'
 import { getErrorMessage }     from '@api/client'
 
 /* ── Fetch all stats in parallel, each endpoint isolated ── */
@@ -26,16 +27,31 @@ const safeFetch = async (fn) => {
 }
 
 
+const getImageUrl = (value) => {
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (value && typeof value === 'object') {
+    return value.imageUrl || value.image_url || value.url || value.src || value.path || ''
+  }
+  return ''
+}
+
 const getDestinationImage = (item) =>
-  item?.cover_image || item?.featured_image || item?.image_url || item?.image ||
-  item?.thumbnail || item?.images?.[0]?.url || item?.images?.[0] ||
+  getImageUrl(item?.coverImageUrl) || getImageUrl(item?.cover_image_url) ||
+  getImageUrl(item?.cover_image) || getImageUrl(item?.heroImage) ||
+  getImageUrl(item?.hero_image) || getImageUrl(item?.featuredImage) ||
+  getImageUrl(item?.featured_image) || getImageUrl(item?.imageUrl) ||
+  getImageUrl(item?.image_url) || getImageUrl(item?.image) ||
+  getImageUrl(item?.thumbnailUrl) || getImageUrl(item?.thumbnail) ||
+  getImageUrl(item?.gallery?.[0]) || getImageUrl(item?.heroImages?.[0]) ||
+  getImageUrl(item?.images?.[0]) ||
   'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=900&q=80'
 
 const getDestinationName = (item) =>
-  item?.name || item?.title || item?.destination_name || 'Untitled destination'
+  item?.name || item?.title || item?.destinationName || item?.destination_name || 'Untitled destination'
 
 const getDestinationLocation = (item) =>
-  item?.country_name || item?.country?.name || item?.location || item?.region || 'East Africa'
+  item?.countryName || item?.country_name || item?.country?.name ||
+  item?.location || item?.region || item?.nearestCity || item?.nearest_city || 'East Africa'
 
 const DashboardSection = ({ eyebrow, title, description, children, action }) => (
   <section className="relative overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_18px_50px_rgba(5,150,105,0.07)]">
@@ -68,12 +84,15 @@ export default function Dashboard() {
   const [bookings,   setBookings]   = useState([])
   const [activities, setActivities] = useState([])
   const [destinations, setDestinations] = useState([])
+  const [destinationLoadError, setDestinationLoadError] = useState(null)
   const [activeDestinationIndex, setActiveDestinationIndex] = useState(0)
   const [lastRefresh, setLastRefresh] = useState(null)
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     if (!quiet) setError(null)
+    setDestinationLoadError(null)
+    let destinationRequestError = null
 
     try {
       /* ── Parallel requests — each wrapped so one failure doesn't block others ── */
@@ -88,7 +107,11 @@ export default function Dashboard() {
         bookingStatsRes,
       ] = await Promise.all([
         safeFetch(() => apiClient.get('/countries',    { params: { limit: 1, page: 1 } })),
-        safeFetch(() => apiClient.get('/destinations', { params: { limit: 12, page: 1, sortBy: 'created_at', order: 'desc' } })),
+        destinationsAPI.getAllAdmin({ limit: 12, page: 1, sort: 'newest', include: 'gallery' })
+          .catch((destinationError) => {
+            destinationRequestError = getErrorMessage(destinationError)
+            return null
+          }),
         safeFetch(() => apiClient.get('/bookings',     { params: { limit: 8, page: 1, sortBy: 'created_at', order: 'desc' } })),
         safeFetch(() => apiClient.get('/users',        { params: { limit: 1, page: 1 } })),
         safeFetch(() => apiClient.get('/posts',        { params: { limit: 1, page: 1 } })),
@@ -101,8 +124,11 @@ export default function Dashboard() {
       const getTotal = (res) =>
         res?.data?.pagination?.total ??
         res?.data?.pagination?.totalItems ??
+        res?.data?.data?.pagination?.total ??
         res?.data?.total             ??
         res?.data?.count             ??
+        (Array.isArray(res?.data?.data) ? res.data.data.length : null) ??
+        (Array.isArray(res?.data) ? res.data.length : null) ??
         null
 
       /* ── Helper to extract data array ── */
@@ -121,12 +147,20 @@ export default function Dashboard() {
       /* ── Booking stats (if endpoint exists) ── */
       const bStats = bookingStatsRes?.data?.data || {}
 
-      const destinationRows =
-        destinationsRes?.data?.data ??
-        destinationsRes?.data?.destinations ??
-        destinationsRes?.data?.items ??
-        []
-      setDestinations(Array.isArray(destinationRows) ? destinationRows.slice(0, 12) : [])
+      const destinationPayload = destinationsRes?.data
+      const destinationRows = Array.isArray(destinationPayload?.data)
+        ? destinationPayload.data
+        : Array.isArray(destinationPayload?.destinations)
+          ? destinationPayload.destinations
+          : Array.isArray(destinationPayload?.items)
+            ? destinationPayload.items
+            : Array.isArray(destinationPayload?.data?.destinations)
+              ? destinationPayload.data.destinations
+              : Array.isArray(destinationPayload)
+                ? destinationPayload
+                : []
+      setDestinationLoadError(destinationRequestError)
+      setDestinations(destinationRows.slice(0, 12))
 
       setStats({
         countries:       getTotal(countriesRes),
@@ -409,24 +443,17 @@ export default function Dashboard() {
                   )}
                 </AnimatePresence>
               </div>
-              {destinations.length > 1 && (
-                <div className="absolute bottom-3 right-4 z-10 flex items-center gap-2 sm:bottom-5 sm:right-6" aria-label="Choose featured destination">
-                  {destinations.map((destination, index) => (
-                    <button
-                      key={destination.id || destination._id || (getDestinationName(destination) + '-' + index)}
-                      type="button"
-                      onClick={() => setActiveDestinationIndex(index)}
-                      aria-label={`Show ${getDestinationName(destination)}`}
-                      aria-pressed={index === activeDestinationIndex}
-                      className={`h-2.5 rounded-full transition-all duration-300 ${index === activeDestinationIndex ? 'w-8 bg-white' : 'w-2.5 bg-white/55 hover:bg-white/85'}`}
-                    />
-                  ))}
-                </div>
-              )}
               <div className="pointer-events-none absolute right-5 top-5 z-10 rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold text-white/90 backdrop-blur-md">
                 {String(activeDestinationIndex + 1).padStart(2, '0')} / {String(destinations.length).padStart(2, '0')}
               </div>
             </div>
+          </div>
+        ) : destinationLoadError ? (
+          <div className="p-8 text-center">
+            <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-600"><AlertCircle size={21} /></div>
+            <p className="text-sm font-bold text-slate-800">Destination data could not be loaded</p>
+            <p className="mx-auto mt-1 max-w-xl text-xs text-slate-500">{destinationLoadError}</p>
+            <button type="button" onClick={() => load()} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-800"><RefreshCw size={13} /> Retry destination sync</button>
           </div>
         ) : (
           <div className="p-8 text-center">
