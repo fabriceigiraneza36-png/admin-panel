@@ -66,9 +66,19 @@ const normalizeConversation = (conversation) => {
   return { ...conversation, id: id == null || String(id).trim() === '' ? null : String(id) }
 }
 
+const GENERIC_SENDER_NAMES = new Set([
+  'super admin', 'admin', 'administrator', 'altuvera support',
+  'guest', 'guest user', 'visitor', 'traveler', 'traveller',
+  'end user', 'user', 'unknown member',
+])
+const isGenericSenderName = (value) => !String(value || '').trim()
+  || GENERIC_SENDER_NAMES.has(String(value).trim().toLowerCase().replace(/\s+/g, ' '))
+const firstRealSenderName = (...values) => values
+  .map(value => String(value ?? '').trim())
+  .find(value => value && !isGenericSenderName(value)) || ''
 const safeEndUserName = (name) => {
   const value = String(name || '').trim()
-  return !value || /^(super\s*admin|admin|administrator|altuvera support)$/i.test(value) ? 'End user' : value
+  return isGenericSenderName(value) ? 'Traveler' : value
 }
 
 const fmtRelative = (d) => {
@@ -364,7 +374,7 @@ const isAdminMessage = (message) => ADMIN_MESSAGE_TYPES.has(
   String(message?.senderType ?? message?.sender_type ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')
 )
 
-const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
+const getMessageSenderLabel = (message, { currentUserId, guestName, isGroup = false } = {}) => {
   if (isAdminMessage(message)) {
     const senderId = message?.senderId ?? message?.sender_id
     return currentUserId != null && senderId != null && String(senderId) === String(currentUserId)
@@ -373,23 +383,31 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
   }
 
   const sender = message?.sender || message?.user || message?.author || message?.profile || {};
-  const name = String(message?.senderName ?? message?.sender_name ?? message?.senderFullName ?? message?.sender_full_name ?? sender?.fullName ?? sender?.full_name ?? sender?.name ?? sender?.username ?? '').trim()
-  // Some legacy records incorrectly store the admin account's display name on
-  // an end-user message. Prefer the conversation participant in that case.
-  // Generic legacy sender labels should not override the real conversation participant.
-  if (!name || /^(super\s*admin|admin|administrator|altuvera support|guest|guest user|visitor|traveler|end user)$/i.test(name)) {
-    const fallback = String(guestName || '').trim();
-    // A group title identifies the thread, not the person who wrote the message.
-    if (/^group(?:\s|$)/i.test(fallback)) return 'End user'
-    return safeEndUserName(fallback)
-  }
-  return name
+  const name = firstRealSenderName(
+    message?.senderFullName, message?.sender_full_name,
+    sender?.fullName, sender?.full_name, sender?.name,
+    message?.senderName, message?.sender_name, message?.name,
+    message?.senderUsername, message?.sender_username, message?.username,
+    sender?.username, message?.userName, message?.user_name,
+    message?.metadata?.senderFullName, message?.metadata?.sender_full_name,
+    message?.metadata?.senderName, message?.metadata?.sender_name,
+    message?.metadata?.senderUsername, message?.metadata?.username,
+    message?.metadata?.user?.fullName, message?.metadata?.user?.full_name,
+    message?.metadata?.user?.username,
+  )
+  if (name) return name
+
+  // A group title describes the conversation, not the member who sent this message.
+  const fallback = isGroup || /^group(?:\s|$)/i.test(String(guestName || '').trim())
+    ? ''
+    : guestName
+  return safeEndUserName(fallback)
 }
 
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
 const MsgBubble = React.memo(function MsgBubble({
-  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar, adminAvatar,
+  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar, isGroup = false, adminAvatar,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
   onUnsend, onPin, onHighlight, onForward, onCopy, canModerate, showSenderIdentity = false,
 }) {
@@ -424,15 +442,15 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {(!mine || showSenderIdentity) && <div className={`flex-shrink-0 self-end mb-4 ${mine ? 'ml-2 order-last' : 'mr-2'}`}><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || message.sender_avatar_url || message.senderAvatarUrl || message.avatar_url || message.avatarUrl || message.profile_picture_url || message.profilePictureUrl || message.profile_picture || message.profilePicture || message.user_avatar || message.userAvatar || message.avatar || message.sender?.avatarUrl || message.sender?.avatar_url || message.sender?.profilePictureUrl || message.sender?.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url || message.user?.profilePictureUrl || message.user?.profile_picture_url || (mine ? adminAvatar : guestAvatar)} size="sm" /></div>}
+      {(!mine || showSenderIdentity) && <div className={`flex-shrink-0 self-end mb-4 ${mine ? 'ml-2 order-last' : 'mr-2'}`}><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName, isGroup })} src={message.senderAvatar || message.sender_avatar || message.sender_avatar_url || message.senderAvatarUrl || message.avatar_url || message.avatarUrl || message.profile_picture_url || message.profilePictureUrl || message.profile_picture || message.profilePicture || message.user_avatar || message.userAvatar || message.avatar || message.sender?.avatarUrl || message.sender?.avatar_url || message.sender?.profilePictureUrl || message.sender?.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url || message.user?.profilePictureUrl || message.user?.profile_picture_url || (mine ? adminAvatar : guestAvatar)} size="sm" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
-        {(!mine || showSenderIdentity) && <span className={`text-[11px] font-extrabold mb-1 ${mine ? 'mr-1 text-right' : 'ml-1 text-left'} ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : mine ? 'text-emerald-800' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}{mine && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">Admin</span>}</span>}
+        {(!mine || showSenderIdentity) && <span className={`text-[11px] font-extrabold mb-1 ${mine ? 'mr-1 text-right' : 'ml-1 text-left'} ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : mine ? 'text-emerald-800' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName, isGroup })}{mine && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">Admin</span>}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
             <div className={`border-l-2 pl-2.5 py-1 pr-3 rounded-lg truncate max-w-[280px] ${mine ? 'border-emerald-300 bg-emerald-50 text-emerald-800/80' : 'border-slate-300 bg-slate-100 text-slate-600'}`}>
-              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">↩ {getMessageSenderLabel(replyTo, { currentUserId, guestName })}</span>
+              <span className="font-bold block text-[9px] uppercase tracking-wide opacity-80">↩ {getMessageSenderLabel(replyTo, { currentUserId, guestName, isGroup })}</span>
               <span className="block truncate text-[11px] mt-0.5">{replyTo.body || ''}</span>
             </div>
           </div>
@@ -497,7 +515,7 @@ const MsgBubble = React.memo(function MsgBubble({
                     <div className="message-actions-modal-header">
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-800">Message actions</p>
-                        <p className="text-xs text-slate-500 truncate">{getMessageSenderLabel(message, { currentUserId, guestName })} · {fmtShort(message.createdAt)}</p>
+                        <p className="text-xs text-slate-500 truncate">{getMessageSenderLabel(message, { currentUserId, guestName, isGroup })} · {fmtShort(message.createdAt)}</p>
                       </div>
                       <button type="button" aria-label="Close message actions" onClick={() => setMenuOpen(false)} className="message-actions-close"><X size={17}/></button>
                     </div>
@@ -1129,19 +1147,45 @@ export default function Messages() {
       incomingNotificationIdsRef.current.delete(firstKey)
     }
 
-    const candidateName = [
-      message.senderName, message.sender_name, eventPayload.senderName,
-      eventPayload.sender_name, eventPayload.user?.fullName, eventPayload.user?.name,
-      conversation?.guestName,
-    ].find(value => typeof value === 'string' && value.trim())
-    const senderName = String(candidateName || 'Traveler').trim()
-    const senderAvatar = message.senderAvatar ?? message.sender_avatar
-      ?? eventPayload.senderAvatar ?? eventPayload.sender_avatar
-      ?? eventPayload.user?.avatarUrl ?? eventPayload.user?.avatar
-      ?? conversation?.guestAvatar ?? conversation?.avatarUrl ?? conversation?.avatar ?? ''
+    const isGroup = Boolean(
+      conversation?.groupId || conversation?.group_id || conversation?.isGroup || conversation?.is_group ||
+      String(conversation?.conversationType || conversation?.conversation_type || '').toLowerCase() === 'group' ||
+      conversation?.groupName || conversation?.group_name
+    )
+    const senderName = firstRealSenderName(
+      message.senderFullName, message.sender_full_name, message.senderName, message.sender_name,
+      message.senderUsername, message.sender_username, message.username, message.userName, message.user_name,
+      message.sender?.fullName, message.sender?.full_name, message.sender?.name, message.sender?.username,
+      message.user?.fullName, message.user?.full_name, message.user?.name, message.user?.username,
+      message.metadata?.senderFullName, message.metadata?.sender_full_name, message.metadata?.senderName,
+      message.metadata?.sender_name, message.metadata?.senderUsername, message.metadata?.username,
+      message.metadata?.user?.fullName, message.metadata?.user?.full_name, message.metadata?.user?.username,
+      eventPayload.senderFullName, eventPayload.sender_full_name, eventPayload.senderName, eventPayload.sender_name,
+      eventPayload.senderUsername, eventPayload.sender_username, eventPayload.username,
+      eventPayload.user?.fullName, eventPayload.user?.full_name, eventPayload.user?.name, eventPayload.user?.username,
+      !isGroup ? conversation?.guestName : '',
+    ) || (isGroup ? 'Unknown member' : 'Traveler')
+    const senderUsername = firstRealSenderName(
+      message.senderUsername, message.sender_username, message.username, message.userName, message.user_name,
+      message.sender?.username, message.user?.username,
+      message.metadata?.senderUsername, message.metadata?.sender_username, message.metadata?.username,
+      message.metadata?.user?.username,
+      eventPayload.senderUsername, eventPayload.sender_username, eventPayload.username,
+      eventPayload.user?.username,
+    )
+    const senderAvatar = message.senderAvatar ?? message.sender_avatar ?? message.sender_avatar_url
+      ?? message.avatarUrl ?? message.avatar_url ?? message.profilePictureUrl ?? message.profile_picture_url
+      ?? message.sender?.avatarUrl ?? message.sender?.avatar_url ?? message.sender?.profilePictureUrl ?? message.sender?.profile_picture_url
+      ?? message.user?.avatarUrl ?? message.user?.avatar_url ?? message.user?.profilePictureUrl ?? message.user?.profile_picture_url
+      ?? eventPayload.senderAvatar ?? eventPayload.sender_avatar ?? eventPayload.senderAvatarUrl ?? eventPayload.sender_avatar_url
+      ?? eventPayload.user?.avatarUrl ?? eventPayload.user?.avatar_url ?? eventPayload.user?.profilePictureUrl ?? eventPayload.user?.profile_picture_url
+      ?? (!isGroup ? conversation?.guestAvatar ?? conversation?.avatarUrl ?? conversation?.avatar : '') ?? ''
 
     const incomingMessage = {
       id: messageKey,
+      senderName,
+      senderUsername,
+      senderAvatar,
       body: body.slice(0, 240),
       createdAt,
     }
@@ -1151,8 +1195,10 @@ export default function Messages() {
       if (existing) {
         const next = {
           ...existing,
-          senderName: senderName !== 'Traveler' ? senderName : existing.senderName,
+          senderName: !['Traveler', 'Unknown member'].includes(senderName) ? senderName : existing.senderName,
+          senderUsername: senderUsername || existing.senderUsername,
           senderAvatar: senderAvatar || existing.senderAvatar,
+          isGroup: existing.isGroup || isGroup,
           messages: [...existing.messages, incomingMessage].slice(-4),
           count: (existing.count || existing.messages.length || 0) + 1,
           updatedAt,
@@ -1164,7 +1210,9 @@ export default function Messages() {
       return [{
         conversationId: conversationKey,
         senderName,
+        senderUsername,
         senderAvatar,
+        isGroup,
         messages: [incomingMessage],
         count: 1,
         updatedAt,
@@ -2138,7 +2186,7 @@ export default function Messages() {
                     <div className="messages-incoming-notification-snippets">
                       {notification.messages.map(message => (
                         <div key={message.id} className="messages-incoming-notification-snippet">
-                          <p>{message.body}</p>
+                          <p>{notification.isGroup && (message.senderUsername || message.senderName) ? <><span className="font-semibold text-slate-700">{message.senderUsername ? '@' + message.senderUsername : message.senderName}</span>{': '}</> : null}{message.body}</p>
                           <time dateTime={String(message.createdAt)}>
                             {fmtElapsed(message.createdAt, notificationNow)}
                           </time>
@@ -2498,8 +2546,9 @@ export default function Messages() {
                             message={item.data}
                             mine={isAdminMessage(item.data)}
                             currentUserId={user?.id}
-                            guestName={(activeConv?.groupId || activeConv?.group_id || activeConv?.isGroup || activeConv?.is_group) ? 'End user' : activeConv?.guestName}
+                            guestName={activeConv?.guestName}
                             guestAvatar={activeConv?.guestAvatar}
+                            isGroup={Boolean(activeConv?.groupId || activeConv?.group_id || activeConv?.isGroup || activeConv?.is_group || activeConv?.groupName || activeConv?.group_name || String(activeConv?.conversationType || activeConv?.conversation_type || '').toLowerCase() === 'group')}
                             adminAvatar={user?.avatar_url || user?.avatarUrl || user?.profile_picture_url || user?.profilePictureUrl || user?.avatar || user?.profilePicture}
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
