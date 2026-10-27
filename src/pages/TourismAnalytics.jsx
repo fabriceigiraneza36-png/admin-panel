@@ -114,7 +114,11 @@ export default function TourismAnalytics() {
     setLoading(false)
     setRefreshing(false)
   },[])
-  useEffect(()=>{void load()},[load])
+  useEffect(()=>{
+    void load()
+    const timer = setInterval(() => { void load(true) }, 60_000)
+    return () => clearInterval(timer)
+  },[load])
 
   const filtered = useMemo(()=>bookings.filter(booking=>{
     const created = dateValue(booking.created_at || booking.createdAt)
@@ -198,7 +202,7 @@ export default function TourismAnalytics() {
         <Metric label="Pending bookings" value={totals.bookingsOk?fmt(analytics.pending):'Unavailable'} detail="Requests awaiting a decision" icon={Users} tone="amber"/>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-sky-50 p-2 text-sky-700"><TrendingUp size={18}/></span><div><h2 className="font-extrabold text-slate-900">Six-month booking trend</h2><p className="mt-1 text-xs text-slate-500">Bookings created by month, using currently loaded records</p></div></div>
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-sky-50 p-2 text-sky-700"><TrendingUp size={18}/></span><div><h2 className="font-extrabold text-slate-900">Six-month booking trend</h2><p className="mt-1 text-xs text-slate-500">Bookings created by month; refreshes every minute using currently loaded records</p></div></div>
           <div className="mt-5 flex h-44 items-end gap-2 sm:gap-3">{analytics.months.map(m=><div key={m.key} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-extrabold text-slate-700">{m.count}</span><div className="flex h-32 w-full items-end overflow-hidden rounded-t-lg bg-slate-100"><div className="w-full rounded-t-lg bg-emerald-600" style={{height:`${Math.max(3,m.count/Math.max(1,...analytics.months.map(x=>x.count))*100)}%`}}/></div><span className="text-center text-[9px] font-semibold text-slate-500 sm:text-[10px]">{m.label}</span></div>)}</div>
         </section>
         <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-amber-50 p-2 text-amber-800"><Activity size={18}/></span><div><h2 className="font-extrabold text-slate-900">Booking status mix</h2><p className="mt-1 text-xs text-slate-500">Status counts for the filtered records</p></div></div>
