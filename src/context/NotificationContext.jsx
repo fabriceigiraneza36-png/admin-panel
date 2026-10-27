@@ -70,12 +70,65 @@ const isIncomingUserMessageNotification = (notification) => {
   return true;
 };
 
-const safeIncomingSenderName = (name) => {
-  const value = String(name || '').trim()
-  const normalized = value.toLowerCase()
-  return !normalized || ['super admin', 'admin', 'administrator', 'altuvera support', 'guest', 'guest user', 'visitor', 'traveler', 'traveller', 'end user'].includes(normalized)
-    ? 'User'
-    : value
+const GENERIC_INCOMING_SENDER_NAMES = new Set([
+  'super admin', 'admin', 'administrator', 'altuvera support',
+  'guest', 'guest user', 'visitor', 'traveler', 'traveller',
+  'end user', 'user', 'unknown member', 'deleted user',
+])
+const firstRealIncomingSenderName = (...names) => {
+  for (const name of names) {
+    const value = String(name || '').trim()
+    const normalized = value.toLowerCase().replace(/\s+/g, ' ')
+    if (value && !GENERIC_INCOMING_SENDER_NAMES.has(normalized)) return value
+  }
+  return ''
+}
+const safeIncomingSenderName = (...names) => firstRealIncomingSenderName(...names) || 'User'
+
+const normalizeMessageNotification = (row) => {
+  if (!row) return row
+  const metadata = row.metadata || row.metadata_json || {}
+  const isMessage = String(row.type || '').toLowerCase().includes('message')
+    || String(row.category || '').toLowerCase().includes('message')
+    || String(row.id || '').startsWith('message-')
+  if (!isMessage) return row
+
+  const senderUsername = firstRealIncomingSenderName(
+    row.senderUsername, row.sender_username, row.username,
+    metadata.senderUsername, metadata.sender_username, metadata.username,
+    metadata.user?.username, row.user?.username,
+  )
+  const senderName = safeIncomingSenderName(
+    row.senderFullName, row.sender_full_name, row.senderName, row.sender_name,
+    metadata.senderFullName, metadata.sender_full_name, metadata.senderName, metadata.sender_name,
+    metadata.user?.fullName, metadata.user?.full_name, metadata.user?.name,
+    row.user?.fullName, row.user?.full_name, row.user?.name,
+    senderUsername,
+  )
+  const senderAvatar = row.senderAvatar || row.sender_avatar || row.sender_avatar_url
+    || metadata.senderAvatar || metadata.sender_avatar || metadata.senderAvatarUrl || metadata.sender_avatar_url
+    || metadata.user?.avatarUrl || metadata.user?.avatar_url || metadata.user?.profilePictureUrl
+    || metadata.user?.profile_picture_url || row.user?.avatarUrl || row.user?.avatar_url || ''
+  let title = String(row.title || ('New message from ' + senderName))
+    .replace(/\b(?:end user|guest(?: user)?|travell?er)\b/ig, senderName)
+  if (senderUsername && /^new message from /i.test(title)
+      && !title.toLowerCase().includes('@' + senderUsername.toLowerCase())) {
+    title = title.replace(/^(New message from\s+[^·|]+?)(?=\s*(?:·|$))/i,
+      heading => heading.trim() + ' (@' + senderUsername + ')')
+  }
+  return {
+    ...row,
+    senderName,
+    senderUsername,
+    senderAvatar,
+    title,
+    metadata: {
+      ...metadata,
+      senderName,
+      ...(senderUsername ? { senderUsername } : {}),
+      ...(senderAvatar ? { senderAvatar } : {}),
+    },
+  }
 }
 
 const messageIdOf = (notification) => {
@@ -156,26 +209,9 @@ export function NotificationProvider({ children }) {
 
       failsRef.current = 0;   // reset on success
 
-      const rows = (data.data || []).filter(isIncomingUserMessageNotification).map(row => {
-        const metadata = row?.metadata || row?.metadata_json || {};
-        const senderName = safeIncomingSenderName(
-          row?.senderName || row?.sender_name || metadata.senderName || metadata.sender_name ||
-          metadata.username || metadata.user?.username || metadata.user?.fullName || metadata.user?.name
-        );
-        const senderAvatar = row?.senderAvatar || row?.sender_avatar || metadata.senderAvatar ||
-          metadata.sender_avatar || metadata.senderAvatarUrl || metadata.sender_avatar_url ||
-          metadata.user?.avatarUrl || metadata.user?.avatar_url || metadata.user?.profile_picture_url || "";
-        const isMessage = String(row?.type || "").toLowerCase().includes("message") ||
-          String(row?.category || "").toLowerCase().includes("message") || String(row?.id || "").startsWith("message-");
-        return {
-          ...row,
-          ...(isMessage ? {
-            senderName,
-            senderAvatar,
-            title: String(row?.title || `New message from ${senderName}`).replace(/\\bguest(?: user)?\\b/ig, senderName),
-          } : {}),
-        };
-      });
+      const rows = (data.data || [])
+        .filter(isIncomingUserMessageNotification)
+        .map(normalizeMessageNotification);
       notificationsRef.current = pageNum === 1
         ? rows
         : [...notificationsRef.current, ...rows.filter(row => !notificationsRef.current.some(existing => isSameNotification(existing, row)))];
@@ -355,17 +391,18 @@ export function NotificationProvider({ children }) {
 
     const onNew = (notif) => {
       if (!mountedRef.current || !notif || !isIncomingUserMessageNotification(notif)) return;
-      const existingIndex = notificationsRef.current.findIndex(existing => isSameNotification(existing, notif));
+      const normalizedNotif = normalizeMessageNotification(notif)
+      const existingIndex = notificationsRef.current.findIndex(existing => isSameNotification(existing, normalizedNotif));
       if (existingIndex >= 0) {
         // A real-time message alert may already have created a temporary inbox row.
         // Replace it with the durable API notification without counting it twice.
         const next = [...notificationsRef.current];
-        next[existingIndex] = { ...next[existingIndex], ...notif };
+        next[existingIndex] = { ...next[existingIndex], ...normalizedNotif };
         notificationsRef.current = next;
         setNotifications(next);
         return;
       }
-      notificationsRef.current = [notif, ...notificationsRef.current];
+      notificationsRef.current = [normalizedNotif, ...notificationsRef.current];
       setNotifications(notificationsRef.current);
       setUnreadCount((c) => c + 1);
       setTotal((c) => c + 1);
@@ -389,11 +426,20 @@ export function NotificationProvider({ children }) {
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
       const messageId = message.id || payload.messageId || null;
+      const senderUsername = firstRealIncomingSenderName(
+        payload.senderUsername, payload.sender_username, payload.username, payload.user?.username,
+        message.senderUsername, message.sender_username, message.username, message.user?.username,
+        message.metadata?.senderUsername, message.metadata?.sender_username, message.metadata?.username,
+        message.metadata?.user?.username,
+      );
       const senderName = safeIncomingSenderName(
-        payload.senderName || payload.username || payload.user?.username ||
-        payload.user?.fullName || payload.user?.full_name || payload.user?.name ||
-        message.senderName || message.sender_name || message.username ||
-        message.user?.username || message.user?.fullName || message.user?.full_name
+        payload.senderFullName, payload.sender_full_name, payload.senderName, payload.sender_name,
+        payload.user?.fullName, payload.user?.full_name, payload.user?.name,
+        message.senderFullName, message.sender_full_name, message.senderName, message.sender_name,
+        message.user?.fullName, message.user?.full_name, message.user?.name,
+        message.metadata?.senderFullName, message.metadata?.sender_full_name, message.metadata?.senderName,
+        message.metadata?.sender_name, message.metadata?.user?.fullName, message.metadata?.user?.full_name,
+        senderUsername,
       );
       const senderAvatar =
         payload.senderAvatar || payload.sender_avatar || payload.senderAvatarUrl ||
@@ -401,7 +447,9 @@ export function NotificationProvider({ children }) {
         payload.user?.profilePictureUrl || payload.user?.profile_picture_url ||
         message.senderAvatar || message.sender_avatar || message.sender_avatar_url ||
         message.avatarUrl || message.avatar_url || message.profilePictureUrl ||
-        message.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url || "";
+        message.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url ||
+        message.metadata?.senderAvatar || message.metadata?.sender_avatar ||
+        message.metadata?.user?.avatarUrl || message.metadata?.user?.avatar_url || "";
       const conversationLabel = String(
         payload.conversationName || payload.conversation_name || payload.groupName ||
         payload.group_name || message.conversationName || message.conversation_name ||
@@ -412,16 +460,18 @@ export function NotificationProvider({ children }) {
         id: `message-${messageId || conversationId}`,
         type: "message_new",
         category: "message",
-        title: `New message from ${senderName} · ${conversationLabel}`,
+        title: 'New message from ' + senderName + (senderUsername ? ' (@' + senderUsername + ')' : '') + ' · ' + conversationLabel,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
         senderName,
+        senderUsername,
         senderAvatar,
         conversationLabel,
         metadata: {
           conversationId: String(conversationId),
           conversationLabel,
           senderName,
+          senderUsername,
           senderAvatar,
           ...(messageId ? { messageId: String(messageId) } : {}),
           senderType: "user",
