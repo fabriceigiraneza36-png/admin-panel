@@ -148,7 +148,7 @@ export default function Itineraries() {
           {filtered.map((booking) => {
             const status = booking.itinerary_status || 'draft'
             const itinerary = booking.itinerary && typeof booking.itinerary === 'object' ? booking.itinerary : {}
-            const dates = [booking.travel_date, booking.return_date].filter(Boolean).map(formatDate)
+            const dates = [booking.travel_date || booking.arrival_date, booking.end_date || booking.return_date || booking.departure_date].filter(Boolean).map(formatDate)
             const travellerCount = booking.number_of_travelers || booking.number_of_adults || '—'
             return (
               <article key={booking.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
