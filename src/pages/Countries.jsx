@@ -1705,31 +1705,7 @@ export default function Countries() {
                   <ModalField label="Gallery"      value={`${(viewModal.data.gallery || []).length} photo(s)`} />
                 </ModalGrid>
               </ModalSection>
-              {(() => {
-                const data = viewModal.data || {}
-                const shown = new Set([
-                  'name','capital','continent','region','sub_region','population','area','currency','currency_symbol','timezone','calling_code','latitude','longitude',
-                  'best_time_to_visit','climate','languages','official_languages','visa_info','health_info','description','highlights','experiences','travel_tips',
-                  'is_featured','is_active','destination_count','view_count','gallery','image_url','cover_image_url','hero_image','flag_url','flag'
-                ])
-                const extraEntries = Object.entries(data).filter(([key, value]) =>
-                  !shown.has(key) && !/^(id|country_id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
-                  value !== null && value !== undefined && value !== '' &&
-                  !(Array.isArray(value) && value.length === 0)
-                )
-                if (!extraEntries.length) return null
-                return <ModalSection title="Additional country information">
-                  <p className="mb-3 text-xs leading-relaxed text-slate-500">Useful details about this country, organized for quick reading.</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {extraEntries.map(([key, value]) => (
-                      <article key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-emerald-200">
-                        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
-                        <div className="min-w-0 text-sm leading-relaxed text-slate-700"><ReadableViewValue value={value} label={key} /></div>
-                      </article>
-                    ))}
-                  </div>
-                </ModalSection>
-              })()}
+
 
             </div>
           )
