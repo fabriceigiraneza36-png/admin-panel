@@ -74,6 +74,8 @@ export default function TourismAnalytics() {
   const [countries,setCountries] = useState([])
   const [itineraries,setItineraries] = useState([])
   const [totals,setTotals] = useState({})
+  const [serverStats,setServerStats] = useState(null)
+  const [serverStatsOk,setServerStatsOk] = useState(false)
   const [loading,setLoading] = useState(true)
   const [refreshing,setRefreshing] = useState(false)
   const [error,setError] = useState('')
@@ -86,12 +88,13 @@ export default function TourismAnalytics() {
   const load = useCallback(async (quiet=false) => {
     quiet ? setRefreshing(true) : setLoading(true)
     setError('')
-    const [bookingRes,destinationRes,packageRes,countryRes,itineraryRes] = await Promise.allSettled([
+    const [bookingRes,destinationRes,packageRes,countryRes,itineraryRes,statsRes] = await Promise.allSettled([
       apiClient.get('/bookings',{params:{limit:100,page:1,sortBy:'created_at',order:'desc'}}),
       apiClient.get('/destinations',{params:{limit:100,page:1}}),
       apiClient.get('/packages',{params:{limit:100,page:1}}),
       apiClient.get('/countries',{params:{limit:100,page:1}}),
       itinerariesAPI.list(),
+      apiClient.get('/bookings/stats',{params:{period:'6months'}}),
     ])
     const failed = []
     const read = (result,label,keys=[]) => {
@@ -103,6 +106,10 @@ export default function TourismAnalytics() {
     const p = read(packageRes,'packages',['packages'])
     const c = read(countryRes,'countries',['countries'])
     const i = read(itineraryRes,'itineraries',['itineraries'])
+    const aggregate = statsRes.status === 'fulfilled' ? (statsRes.value?.data?.data || statsRes.value?.data || null) : null
+    setServerStats(aggregate)
+    setServerStatsOk(Boolean(aggregate?.overview && Array.isArray(aggregate?.monthly_trends)))
+    if (statsRes.status !== 'fulfilled') failed.push('server-side booking aggregates')
     setBookings(b.rows)
     setDestinations(d.rows)
     setPackages(p.rows)
@@ -166,8 +173,45 @@ export default function TourismAnalytics() {
     const amounts=filtered.map(b=>{for(const key of amountFields){const n=Number(b[key]);if(b[key]!==null&&b[key]!==undefined&&b[key]!==''&&Number.isFinite(n)&&n>=0)return n}return null})
     const hasAmounts=amounts.some(n=>n!==null)
     const sum=amounts.reduce((acc,n)=>acc+(n??0),0)
-    return {total,statuses,confirmed,cancelled,pending,conversion:total?confirmed/total*100:null,cancellation:total?cancelled/total*100:null,destinations:rankBy('destination_name'),packages:rankBy('package_name'),countries:rankBy('country_name'),months,suppliers,supplierConfirmed,checks,checksDone,tripsWithPlans,needsAttention,hasAmounts,amountTotal:sum,amountCoverage:amounts.filter(n=>n!==null).length}
-  },[filtered,itineraries])
+    const useAggregate = serverStatsOk && !from && !to && status === 'all' && !query.trim()
+    const overview = serverStats?.overview || {}
+    const aggregateStatuses = {
+      pending: Number(overview.pending || 0),
+      confirmed: Number(overview.confirmed || 0),
+      completed: Number(overview.completed || 0),
+      cancelled: Number(overview.cancelled || 0),
+      'on-hold': Number(overview.on_hold || 0),
+    }
+    const aggregateMonths = (serverStats?.monthly_trends || []).slice(-6).map(row => ({
+      key: row.month,
+      label: row.month_label || row.month,
+      count: Number(row.total || 0),
+    }))
+    const aggregateDestinations = (serverStats?.top_destinations || []).map(row => ({
+      name: row.name || 'Unnamed destination',
+      count: Number(row.booking_count || 0),
+    }))
+    const aggregateTotal = Number(overview.total_bookings || 0)
+    const aggregateConfirmed = aggregateStatuses.confirmed + aggregateStatuses.completed
+    const aggregateCancelled = aggregateStatuses.cancelled
+    const aggregatePending = aggregateStatuses.pending
+    return {
+      total: useAggregate ? aggregateTotal : total,
+      statuses: useAggregate ? aggregateStatuses : statuses,
+      confirmed: useAggregate ? aggregateConfirmed : confirmed,
+      cancelled: useAggregate ? aggregateCancelled : cancelled,
+      pending: useAggregate ? aggregatePending : pending,
+      conversion: useAggregate ? (aggregateTotal ? Number(serverStats.conversion_rate ?? 0) : null) : (total ? confirmed/total*100 : null),
+      cancellation: useAggregate ? (aggregateTotal ? aggregateCancelled/aggregateTotal*100 : null) : (total ? cancelled/total*100 : null),
+      destinations: useAggregate && aggregateDestinations.length ? aggregateDestinations.slice(0,6) : rankBy('destination_name'),
+      packages: rankBy('package_name'),
+      countries: rankBy('country_name'),
+      months: useAggregate && aggregateMonths.length ? aggregateMonths : months,
+      suppliers, supplierConfirmed, checks, checksDone, tripsWithPlans, needsAttention,
+      hasAmounts, amountTotal:sum, amountCoverage:amounts.filter(n=>n!==null).length,
+      source: useAggregate ? 'server aggregate across all booking records' : 'currently loaded booking records',
+    }
+  },[filtered,itineraries,serverStats,serverStatsOk,from,to,status,query])
 
   const exportReport=()=>{
     const rows=[['ALTUVERA SAFARIS — TOURISM PERFORMANCE REPORT'],['Generated at',new Date().toISOString()],['Date from',from||'All dates'],['Date to',to||'All dates'],[],['Booking number','Guest','Email','Status','Destination','Country','Package','Created at']]
@@ -191,7 +235,7 @@ export default function TourismAnalytics() {
         <label className="text-xs font-bold text-slate-600">Booking status<select value={status} onChange={e=>setStatus(e.target.value)} className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal"><option value="all">All statuses</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
         <label className="text-xs font-bold text-slate-600">Search bookings<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Guest, destination, package…" className="mt-1 block w-full min-w-0 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal"/></label>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>Filtered records: <strong className="text-slate-800">{fmt(filtered.length)}</strong> of {totals.bookings==null?'unknown total':fmt(totals.bookings)} available total. This view analyzes the records loaded from the API.</span><span>{loadedAt? `Updated ${loadedAt.toLocaleTimeString()}`:'Waiting for data'}</span></div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>Filtered records: <strong className="text-slate-800">{fmt(filtered.length)}</strong> of {totals.bookings==null?'unknown total':fmt(totals.bookings)} available total. {analytics.source === 'server aggregate across all booking records' ? 'Server-side aggregate across all booking records.' : 'Filtered calculations use records loaded from the API; use unfiltered view for server-side totals.'}</span><span>{loadedAt? `Updated ${loadedAt.toLocaleTimeString()}`:'Waiting for data'}</span></div>
     </section>
 
     {loading?<div className="grid min-h-48 place-items-center rounded-2xl border border-slate-200 bg-white"><RefreshCw className="animate-spin text-emerald-700"/></div>:<>
@@ -202,7 +246,7 @@ export default function TourismAnalytics() {
         <Metric label="Pending bookings" value={totals.bookingsOk?fmt(analytics.pending):'Unavailable'} detail="Requests awaiting a decision" icon={Users} tone="amber"/>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-sky-50 p-2 text-sky-700"><TrendingUp size={18}/></span><div><h2 className="font-extrabold text-slate-900">Six-month booking trend</h2><p className="mt-1 text-xs text-slate-500">Bookings created by month; refreshes every minute using currently loaded records</p></div></div>
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-sky-50 p-2 text-sky-700"><TrendingUp size={18}/></span><div><h2 className="font-extrabold text-slate-900">Six-month booking trend</h2><p className="mt-1 text-xs text-slate-500">Bookings created by month; server aggregates when filters are clear, refreshed every minute</p></div></div>
           <div className="mt-5 flex h-44 items-end gap-2 sm:gap-3">{analytics.months.map(m=><div key={m.key} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-extrabold text-slate-700">{m.count}</span><div className="flex h-32 w-full items-end overflow-hidden rounded-t-lg bg-slate-100"><div className="w-full rounded-t-lg bg-emerald-600" style={{height:`${Math.max(3,m.count/Math.max(1,...analytics.months.map(x=>x.count))*100)}%`}}/></div><span className="text-center text-[9px] font-semibold text-slate-500 sm:text-[10px]">{m.label}</span></div>)}</div>
         </section>
         <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-amber-50 p-2 text-amber-800"><Activity size={18}/></span><div><h2 className="font-extrabold text-slate-900">Booking status mix</h2><p className="mt-1 text-xs text-slate-500">Status counts for the filtered records</p></div></div>
@@ -214,7 +258,7 @@ export default function TourismAnalytics() {
         {!totals.itinerariesOk?<p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Itinerary data is currently unavailable; operations metrics cannot be calculated.</p>:<div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4"><Metric label="Trips with an operations plan" value={fmt(analytics.tripsWithPlans)} detail={`Across ${fmt(totals.itinerariesLoaded)} loaded itinerary records`} icon={ClipboardList}/><Metric label="Supplier confirmations" value={analytics.suppliers? `${Math.round(analytics.supplierConfirmed/analytics.suppliers*100)}%`:'N/A'} detail={`${fmt(analytics.supplierConfirmed)} of ${fmt(analytics.suppliers)} required suppliers confirmed`} icon={CheckCircle2} tone="blue"/><Metric label="Readiness checks completed" value={analytics.checks?`${Math.round(analytics.checksDone/analytics.checks*100)}%`:'N/A'} detail={`${fmt(analytics.checksDone)} of ${fmt(analytics.checks)} recorded checks`} icon={ShieldCheck}/><Metric label="Trips needing attention" value={fmt(analytics.needsAttention)} detail="Missing owner, pending supplier, incomplete checklist or recorded next action" icon={AlertTriangle} tone="amber"/></div>}
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start gap-3"><span className="rounded-xl bg-slate-100 p-2 text-slate-700"><ShieldCheck size={18}/></span><div><h2 className="font-extrabold text-slate-900">Governance, audit and data integrity</h2><p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">Use the existing account-activity review for recorded account events. This analytics page does not fabricate audit events, and reports clearly identify when API data is missing. Production backups and restore tests must be verified in the database provider; this panel cannot certify backups by itself.</p></div></div><div className="mt-4 flex flex-wrap gap-2"><button onClick={()=>navigate('/account-activity-review')} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-extrabold text-slate-700"><ShieldCheck size={14}/> Review account activity</button><button onClick={()=>navigate('/account-recovery')} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-extrabold text-slate-700"><ShieldCheck size={14}/> Account recovery controls</button><button onClick={()=>navigate('/trip-operations')} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-extrabold text-slate-700"><ClipboardList size={14}/> Operational follow-ups</button></div></section>
-      <p className="text-[11px] leading-relaxed text-slate-500">Coverage note: booking metrics reflect the records returned by the current API request (up to 100). If the API reports a larger total, export and rate calculations represent the loaded records, not the entire historical database. For full-company reporting, use a server-side aggregate endpoint before relying on this report for financial or board-level decisions.</p>
+      <p className="text-[11px] leading-relaxed text-slate-500">Coverage note: unfiltered booking totals, status mix, six-month trends and destination rankings use server-side aggregates across the database. Search/date/status filters and package/country rankings use the booking rows currently returned by the API, so those filtered breakdowns are limited to loaded records.</p>
     </>}
   </div>
 }
