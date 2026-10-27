@@ -1,38 +1,41 @@
-// admin/public/push-sw.js
-// ═══════════════════════════════════════════════════════════════════════════════
-// Service Worker: handles push and notificationclick for offline admin alerts
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// Altuvera Admin service worker: display Web Push alerts outside the active tab.
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {}
-  const title = data.title || 'Altuvera Admin'
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+
+  const payloadData = data.data && typeof data.data === 'object' ? data.data : {};
   const options = {
-    body: data.body || '',
+    body: data.body || data.message || 'You have a new admin alert.',
     icon: data.icon || '/favicon.ico',
     badge: data.badge || '/favicon.ico',
-    data: data.data || { url: '/notifications' },
-    requireInteraction: data.requireInteraction || false,
-    tag: data.tag || 'altuvera-admin-notif',
-    renotify: true,
-  }
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  )
-})
+    data: { ...payloadData, url: payloadData.url || data.url || '/notifications' },
+    requireInteraction: data.requireInteraction === true,
+    tag: data.tag || 'altuvera-admin-notification',
+    renotify: Boolean(data.renotify),
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || 'Altuvera Admin', options));
+});
 
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  const targetUrl = event.notification.data?.url || '/notifications'
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url.includes('/') && 'focus' in client) {
-          return client.focus()
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || '/notifications', self.location.origin);
+  if (target.origin !== self.location.origin) target.href = self.location.origin + '/notifications';
+
+  event.waitUntil((async () => {
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if ('focus' in client) {
+        if ('navigate' in client && new URL(client.url).pathname !== target.pathname) {
+          await client.navigate(target.href);
         }
+        return client.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl)
-      }
-    })
-  )
-})
+    }
+    return clients.openWindow ? clients.openWindow(target.href) : undefined;
+  })());
+});
