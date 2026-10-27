@@ -103,7 +103,7 @@ export default function Dashboard() {
         res?.data?.pagination?.totalItems ??
         res?.data?.total             ??
         res?.data?.count             ??
-        0
+        null
 
       /* ── Helper to extract data array ── */
       const getData = (res) =>
@@ -136,10 +136,10 @@ export default function Dashboard() {
         posts:           getTotal(postsRes),
         subscribers:     getTotal(subscribersRes),
         messages:        getTotal(contactRes),
-        unreadMessages:  contactRes?.data?.unread ?? 0,
-          publishedPosts:  bStats.publishedPosts ?? 0,
-        pendingBookings: bStats.pending        ?? 0,
-        confirmedBookings: bStats.confirmed    ?? 0,
+        unreadMessages:  contactRes ? (contactRes.data?.unread ?? 0) : null,
+          publishedPosts:  bookingStatsRes ? (bStats.publishedPosts ?? null) : null,
+        pendingBookings: bookingStatsRes ? (bStats.pending ?? null) : null,
+        confirmedBookings: bookingStatsRes ? (bStats.confirmed ?? null) : null,
       })
 
       const recentBookings = getData(bookingsRes)
@@ -217,7 +217,7 @@ export default function Dashboard() {
       value:      stats.bookings,
       icon:       CalendarCheck,
       color:      'orange',
-      subtitle:   `${stats.pendingBookings || 0} pending`,
+      subtitle:   stats.pendingBookings == null ? 'Pending count unavailable' : `${stats.pendingBookings} pending`,
       onClick:    () => navigate('/bookings'),
     },
     {
@@ -233,7 +233,7 @@ export default function Dashboard() {
       value:      stats.posts,
       icon:       FileText,
       color:      'green',
-      subtitle:   `${stats.publishedPosts || 0} published`,
+      subtitle:   stats.publishedPosts == null ? 'Publishing stats unavailable' : `${stats.publishedPosts} published`,
       onClick:    () => navigate('/posts'),
     },
     {
@@ -249,7 +249,7 @@ export default function Dashboard() {
       value:      stats.messages,
       icon:       MessageSquare,
       color:      'orange',
-      subtitle:   stats.unreadMessages > 0 ? `${stats.unreadMessages} unread` : 'All read',
+      subtitle:   stats.unreadMessages == null ? 'Unread count unavailable' : stats.unreadMessages > 0 ? `${stats.unreadMessages} unread` : 'All read',
       onClick:    () => navigate('/contact'),
     },
   ] : []
