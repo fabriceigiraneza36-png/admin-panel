@@ -57,6 +57,65 @@ const getToken = () =>
   sessionStorage.getItem('adminToken') ||
   ''
 
+const GENERIC_NOTIFICATION_NAMES = new Set([
+  'super admin', 'admin', 'administrator', 'altuvera support',
+  'guest', 'guest user', 'visitor', 'traveler', 'traveller',
+  'end user', 'user', 'unknown member', 'deleted user',
+])
+const firstRealNotificationName = (...values) => {
+  for (const value of values) {
+    const candidate = String(value || '').trim()
+    if (candidate && !GENERIC_NOTIFICATION_NAMES.has(candidate.toLowerCase().replace(/\\s+/g, ' '))) return candidate
+  }
+  return ''
+}
+const normalizeAdminMessageNotification = (row) => {
+  const metadata = row?.metadata && typeof row.metadata === 'object'
+    ? row.metadata
+    : row?.metadata_json && typeof row.metadata_json === 'object' ? row.metadata_json : {}
+  const isMessage = String(row?.type || '').toLowerCase().includes('message')
+    || String(row?.category || '').toLowerCase().includes('message')
+    || String(row?.id || '').startsWith('message-')
+  if (!isMessage) return row
+
+  const senderUsername = firstRealNotificationName(
+    row.senderUsername, row.sender_username, row.username,
+    metadata.senderUsername, metadata.sender_username, metadata.username,
+    metadata.user?.username, row.user?.username,
+  )
+  const senderName = firstRealNotificationName(
+    row.senderFullName, row.sender_full_name, row.senderName, row.sender_name,
+    metadata.senderFullName, metadata.sender_full_name, metadata.senderName, metadata.sender_name,
+    metadata.user?.fullName, metadata.user?.full_name, metadata.user?.name,
+    row.user?.fullName, row.user?.full_name, row.user?.name,
+    senderUsername,
+  ) || 'Traveler'
+  const senderAvatar = row.senderAvatar || row.sender_avatar || row.sender_avatar_url
+    || metadata.senderAvatar || metadata.sender_avatar || metadata.senderAvatarUrl || metadata.sender_avatar_url
+    || metadata.user?.avatarUrl || metadata.user?.avatar_url || metadata.user?.profilePictureUrl
+    || metadata.user?.profile_picture_url || row.user?.avatarUrl || row.user?.avatar_url || ''
+  let title = String(row?.title || ('New message from ' + senderName))
+    .replace(/\\b(?:end user|guest(?: user)?|travell?er)\\b/ig, senderName)
+  if (senderUsername && /^new message from /i.test(title)
+      && !title.toLowerCase().includes('@' + senderUsername.toLowerCase())) {
+    title = title.replace(/^(New message from\\s+[^·|]+?)(?=\\s*(?:·|$))/i,
+      heading => heading.trim() + ' (@' + senderUsername + ')')
+  }
+  return {
+    ...row,
+    senderName,
+    senderUsername,
+    senderAvatar,
+    title,
+    metadata: {
+      ...metadata,
+      senderName,
+      ...(senderUsername ? { senderUsername } : {}),
+      ...(senderAvatar ? { senderAvatar } : {}),
+    },
+  }
+}
+
 function useAdminNotifications() {
   const { isOnline } = useSocket()
   const [notifications, setNotifications] = useState([])
@@ -73,7 +132,7 @@ function useAdminNotifications() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       if (!mountedRef.current) return
-      const list = json.data || json.notifications || []
+      const list = (json.data || json.notifications || []).map(normalizeAdminMessageNotification)
       setNotifications(list)
       setUnreadCount(list.filter(n => !n.is_read && !n.read_at).length)
     } catch {
