@@ -71,9 +71,9 @@ export default function Dashboard() {
   const [activeDestinationIndex, setActiveDestinationIndex] = useState(0)
   const [lastRefresh, setLastRefresh] = useState(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    if (!quiet) setError(null)
 
     try {
       /* ── Parallel requests — each wrapped so one failure doesn't block others ── */
@@ -157,7 +157,7 @@ export default function Dashboard() {
     } catch (err) {
       const msg = getErrorMessage(err)
       setError(msg)
-      toastError(`Dashboard error: ${msg}`)
+      if (!quiet) toastError(`Dashboard error: ${msg}`)
     } finally {
       setLoading(false)
     }
@@ -177,12 +177,11 @@ export default function Dashboard() {
     return () => clearInterval(timer)
   }, [destinations.length])
 
-  /* ── Auto-refresh every 5 minutes ── */
+  /* ── Keep dashboard metrics fresh without flashing the whole page ── */
   useEffect(() => {
     const interval = setInterval(() => {
-      load()
-    }, 5 * 60 * 1000) // 5 minutes
-
+      void load(true)
+    }, 60_000)
     return () => clearInterval(interval)
   }, [load])
 
