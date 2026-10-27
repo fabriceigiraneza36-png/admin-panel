@@ -140,6 +140,14 @@ export default function ItineraryBuilder() {
 
   if (loading) return <div className="min-h-[70vh] grid place-items-center"><Loader2 className="animate-spin text-emerald-600" size={30}/></div>
   if (!booking) return <div className="p-8 text-center"><p className="font-bold">Booking not found.</p><button className="btn-primary mt-4" onClick={()=>navigate('/bookings')}>Back to bookings</button></div>
+  if (String(booking.status || '').toLowerCase() !== 'confirmed') return (
+    <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-sm sm:p-8">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-700"><AlertTriangle size={23}/></div>
+      <h2 className="mt-4 text-lg font-extrabold text-slate-900">Confirm the booking first</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600">Itinerary preparation is available only after this booking is confirmed. Your saved draft remains attached to the booking.</p>
+      <button className="btn-primary mt-5" onClick={()=>navigate('/bookings')}>Back to bookings</button>
+    </div>
+  )
 
   const verified = Boolean(booking.email_verified)
   const packageImages = Array.isArray(booking.package_details?.images) ? booking.package_details.images : []
@@ -352,7 +360,7 @@ export default function ItineraryBuilder() {
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-emerald-100"><div className="h-full rounded-full bg-emerald-600 transition-all" style={{width:`${(itinerary.planningChecklist || []).length ? ((itinerary.planningChecklist || []).filter(item=>item.done).length/(itinerary.planningChecklist || []).length)*100 : 0}%`}}/></div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={()=>{const dates=dateRange(booking.travel_date,booking.return_date);setItinerary(prev=>({...prev,days:dates.length?dates.map((date,i)=>({...dayTemplate(date,i),...(prev.days[i]||{}),date})):prev.days.length?prev.days:[dayTemplate('',0)]}));setOpenDay(0)}} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-extrabold text-white hover:bg-emerald-800"><CalendarDays size={14}/> Build days from booking dates</button>
+                  <button type="button" onClick={()=>{const start=booking.travel_date||booking.arrival_date||'';const end=booking.end_date||booking.return_date||booking.departure_date||'';const dates=dateRange(start,end);setItinerary(prev=>({...prev,days:dates.length?dates.map((date,i)=>({...dayTemplate(date,i),...(prev.days[i]||{}),date})):prev.days.length?prev.days:[dayTemplate('',0)]}));setOpenDay(0)}} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-extrabold text-white hover:bg-emerald-800"><CalendarDays size={14}/> Build days from booking dates</button>
                   <button type="button" onClick={addDay} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50"><Plus size={14}/> Add a day</button>
                 </div>
               </section>
