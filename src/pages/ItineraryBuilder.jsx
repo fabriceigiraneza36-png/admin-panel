@@ -9,6 +9,30 @@ import { itinerariesAPI } from '@api/itineraries'
 import { getErrorMessage } from '@api/client'
 import { useToast } from '@hooks/useToast'
 
+const DEFAULT_OPERATIONS = {
+  coordinator: '',
+  tripStatus: 'planning',
+  suppliers: [
+    { category: 'Transport & driver', name: '', contact: '', reference: '', status: 'pending', notes: '' },
+    { category: 'Accommodation', name: '', contact: '', reference: '', status: 'pending', notes: '' },
+    { category: 'Activities & permits', name: '', contact: '', reference: '', status: 'pending', notes: '' },
+    { category: 'Guide / local partner', name: '', contact: '', reference: '', status: 'pending', notes: '' },
+  ],
+  readiness: [
+    { key: 'documents', label: 'Guest documents and entry requirements checked', done: false, note: '' },
+    { key: 'permits', label: 'Park, gorilla, activity and other permits confirmed', done: false, note: '' },
+    { key: 'arrival', label: 'Arrival time, airport pickup and driver reconfirmed', done: false, note: '' },
+    { key: 'stay', label: 'Accommodation, rooming and meal requirements confirmed', done: false, note: '' },
+    { key: 'health', label: 'Dietary, accessibility and relevant health requests reviewed', done: false, note: '' },
+    { key: 'contacts', label: 'Guest has emergency and local contact details', done: false, note: '' },
+    { key: 'payment', label: 'Commercial terms and supplier payment arrangements reviewed', done: false, note: '' },
+    { key: 'briefing', label: 'Final itinerary and pre-departure briefing ready', done: false, note: '' },
+  ],
+  risks: '',
+  nextAction: '',
+  nextActionDue: '',
+}
+
 const DEFAULT_CHECKLIST = [
   { key:'arrival', label:'Arrival / airport transfer confirmed', done:false, note:'' },
   { key:'transport', label:'Transport and driver details confirmed', done:false, note:'' },
@@ -48,7 +72,7 @@ export default function ItineraryBuilder() {
   const navigate = useNavigate()
   const toast = useToast()
   const [booking, setBooking] = useState(null)
-  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', backgroundMode:'white', planningChecklist:DEFAULT_CHECKLIST, days:[], inclusions:[], essentials:[], contactNote:'' })
+  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', backgroundMode:'white', planningChecklist:DEFAULT_CHECKLIST, operations:DEFAULT_OPERATIONS, days:[], inclusions:[], essentials:[], contactNote:'' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
@@ -73,6 +97,7 @@ export default function ItineraryBuilder() {
           planningChecklist: existing.planningChecklist?.length
             ? existing.planningChecklist
             : DEFAULT_CHECKLIST.map(item => ({...item})),
+          operations: { ...DEFAULT_OPERATIONS, ...(existing.operations || {}), suppliers: existing.operations?.suppliers?.length ? existing.operations.suppliers : DEFAULT_OPERATIONS.suppliers.map(item => ({...item})), readiness: existing.operations?.readiness?.length ? existing.operations.readiness : DEFAULT_OPERATIONS.readiness.map(item => ({...item})) },
         })
       } else {
         // Package requests store the second date as end_date; destination bookings
@@ -189,6 +214,62 @@ export default function ItineraryBuilder() {
           <input value={itineraryImageUrl} onChange={e => setItineraryImageUrl(e.target.value)} type="url" placeholder="https://…/itinerary-image.jpg" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900"/>
           <span className="mt-1 block font-normal text-[11px] text-slate-500">Use a publicly accessible image that contains the complete itinerary. The detailed itinerary will still be available in the dashboard.</span>
         </label>}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-slate-900"><ClipboardCheck size={19} className="text-emerald-600"/> Trip operations & supplier coordination</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">Keep the assigned coordinator, supplier confirmations and pre-departure checks with this booking. Use Save draft to persist operational updates.</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">{(itinerary.operations?.readiness || []).filter(item => item.done).length}/{(itinerary.operations?.readiness || []).length} readiness checks</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="text-xs font-bold text-slate-700">Trip coordinator / owner
+            <input value={itinerary.operations?.coordinator || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,coordinator:e.target.value}}))} placeholder="Staff member responsible" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal"/>
+          </label>
+          <label className="text-xs font-bold text-slate-700">Operational stage
+            <select value={itinerary.operations?.tripStatus || 'planning'} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,tripStatus:e.target.value}}))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal">
+              <option value="planning">Planning</option><option value="awaiting_suppliers">Awaiting supplier confirmations</option><option value="ready">Ready for departure</option><option value="in_progress">Guest travelling</option><option value="completed">Trip completed</option><option value="on_hold">On hold / needs attention</option>
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-700">Next action due
+            <input type="date" value={itinerary.operations?.nextActionDue || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,nextActionDue:e.target.value}}))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal"/>
+          </label>
+          <label className="text-xs font-bold text-slate-700 sm:col-span-2 lg:col-span-3">Next action / what needs attention
+            <input value={itinerary.operations?.nextAction || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,nextAction:e.target.value}}))} placeholder="e.g. reconfirm gorilla permit and airport pickup" className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal"/>
+          </label>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-extrabold text-slate-800">Supplier register</h3>
+          {(itinerary.operations?.suppliers || []).map((supplier,index)=><div key={supplier.category || index} className="rounded-xl border border-slate-200 p-3 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-extrabold text-emerald-800">{supplier.category || 'Supplier'}</p>
+              <select aria-label={`${supplier.category} confirmation status`} value={supplier.status || 'pending'} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:(p.operations?.suppliers || []).map((s,i)=>i===index?{...s,status:e.target.value}:s)}}))} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs">
+                <option value="pending">Awaiting confirmation</option><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="paid">Confirmed & settled</option><option value="issue">Issue / follow-up</option><option value="not_required">Not required</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <input aria-label="Supplier name" value={supplier.name || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:(p.operations?.suppliers || []).map((s,i)=>i===index?{...s,name:e.target.value}:s)}}))} placeholder="Supplier / company" className="min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+              <input aria-label="Supplier contact" value={supplier.contact || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:(p.operations?.suppliers || []).map((s,i)=>i===index?{...s,contact:e.target.value}:s)}}))} placeholder="Contact / phone / email" className="min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+              <input aria-label="Supplier booking reference" value={supplier.reference || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:(p.operations?.suppliers || []).map((s,i)=>i===index?{...s,reference:e.target.value}:s)}}))} placeholder="Confirmation reference" className="min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+              <input aria-label="Supplier notes" value={supplier.notes || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:(p.operations?.suppliers || []).map((s,i)=>i===index?{...s,notes:e.target.value}:s)}}))} placeholder="Notes / due date" className="min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+            </div>
+          </div>)}
+          <button type="button" onClick={()=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,suppliers:[...(p.operations?.suppliers || []),{category:'Additional supplier',name:'',contact:'',reference:'',status:'pending',notes:''}]}}))} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50">+ Add supplier / service</button>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-sm font-extrabold text-slate-800">Pre-departure readiness</h3>
+          {(itinerary.operations?.readiness || []).map((item,index)=><div key={item.key || index} className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-start">
+            <label className="flex min-w-0 flex-1 items-start gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={Boolean(item.done)} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,readiness:(p.operations?.readiness || []).map((r,i)=>i===index?{...r,done:e.target.checked}:r)}}))} className="mt-0.5 accent-emerald-600"/><span>{item.label}</span></label>
+            <input value={item.note || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,readiness:(p.operations?.readiness || []).map((r,i)=>i===index?{...r,note:e.target.value}:r)}}))} placeholder="Evidence / notes / owner" className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs sm:w-64"/>
+          </div>)}
+        </div>
+        <label className="block text-xs font-bold text-slate-700">Risks, blockers and contingency plan
+          <textarea value={itinerary.operations?.risks || ''} onChange={e=>setItinerary(p=>({...p,operations:{...DEFAULT_OPERATIONS,...p.operations,risks:e.target.value}}))} rows={3} placeholder="Record permit delays, supplier alternatives, weather concerns or escalation steps." className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal"/>
+        </label>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
