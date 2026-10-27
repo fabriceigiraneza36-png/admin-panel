@@ -65,7 +65,7 @@ const GENERIC_NOTIFICATION_NAMES = new Set([
 const firstRealNotificationName = (...values) => {
   for (const value of values) {
     const candidate = String(value || '').trim()
-    if (candidate && !GENERIC_NOTIFICATION_NAMES.has(candidate.toLowerCase().replace(/\\s+/g, ' '))) return candidate
+    if (candidate && !GENERIC_NOTIFICATION_NAMES.has(candidate.toLowerCase().replace(/\s+/g, ' '))) return candidate
   }
   return ''
 }
@@ -95,10 +95,10 @@ const normalizeAdminMessageNotification = (row) => {
     || metadata.user?.avatarUrl || metadata.user?.avatar_url || metadata.user?.profilePictureUrl
     || metadata.user?.profile_picture_url || row.user?.avatarUrl || row.user?.avatar_url || ''
   let title = String(row?.title || ('New message from ' + senderName))
-    .replace(/\\b(?:end user|guest(?: user)?|travell?er)\\b/ig, senderName)
+    .replace(/\b(?:end user|guest(?: user)?|travell?er)\b/ig, senderName)
   if (senderUsername && /^new message from /i.test(title)
       && !title.toLowerCase().includes('@' + senderUsername.toLowerCase())) {
-    title = title.replace(/^(New message from\\s+[^·|]+?)(?=\\s*(?:·|$))/i,
+    title = title.replace(/^(New message from\s+[^·|]+?)(?=\s*(?:·|$))/i,
       heading => heading.trim() + ' (@' + senderUsername + ')')
   }
   return {
