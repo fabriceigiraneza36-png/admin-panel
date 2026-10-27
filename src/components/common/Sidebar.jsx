@@ -78,8 +78,7 @@ function useAdminNotifications() {
       setUnreadCount(list.filter(n => !n.is_read && !n.read_at).length)
     } catch {
       if (!mountedRef.current) return
-      setNotifications([])
-      setUnreadCount(0)
+      // Keep the last real notification snapshot during transient API failures; never inject sample alerts.
     } finally {
       if (mountedRef.current) setLoading(false)
     }
