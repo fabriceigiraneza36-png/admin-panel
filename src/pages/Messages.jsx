@@ -372,12 +372,16 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
       : 'Admin'
   }
 
-  const name = String(message?.senderName ?? message?.sender_name ?? '').trim()
+  const sender = message?.sender || message?.user || message?.author || message?.profile || {};
+  const name = String(message?.senderName ?? message?.sender_name ?? message?.senderFullName ?? message?.sender_full_name ?? sender?.fullName ?? sender?.full_name ?? sender?.name ?? sender?.username ?? '').trim()
   // Some legacy records incorrectly store the admin account's display name on
   // an end-user message. Prefer the conversation participant in that case.
   // Generic legacy sender labels should not override the real conversation participant.
   if (!name || /^(super\s*admin|admin|administrator|altuvera support|guest|guest user|visitor|traveler|end user)$/i.test(name)) {
-    return safeEndUserName(guestName)
+    const fallback = String(guestName || '').trim();
+    // A group title identifies the thread, not the person who wrote the message.
+    if (/^group(?:\s|$)/i.test(fallback)) return 'End user'
+    return safeEndUserName(fallback)
   }
   return name
 }
@@ -385,7 +389,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 /* ─── Message Bubble ───────────────────────────────────────────────────────── */
 
 const MsgBubble = React.memo(function MsgBubble({
-  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar,
+  message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar, adminAvatar,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
   onUnsend, onPin, onHighlight, onForward, onCopy, canModerate, showSenderIdentity = false,
 }) {
@@ -420,7 +424,7 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {(!mine || showSenderIdentity) && <div className={`flex-shrink-0 self-end mb-4 ${mine ? 'ml-2 order-last' : 'mr-2'}`}><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || message.sender_avatar_url || message.senderAvatarUrl || message.avatar_url || message.avatarUrl || message.profile_picture_url || message.profilePictureUrl || message.profile_picture || message.profilePicture || message.user_avatar || message.userAvatar || message.avatar || (mine ? undefined : guestAvatar)} size="sm" /></div>}
+      {(!mine || showSenderIdentity) && <div className={`flex-shrink-0 self-end mb-4 ${mine ? 'ml-2 order-last' : 'mr-2'}`}><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || message.sender_avatar_url || message.senderAvatarUrl || message.avatar_url || message.avatarUrl || message.profile_picture_url || message.profilePictureUrl || message.profile_picture || message.profilePicture || message.user_avatar || message.userAvatar || message.avatar || message.sender?.avatarUrl || message.sender?.avatar_url || message.sender?.profilePictureUrl || message.sender?.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url || message.user?.profilePictureUrl || message.user?.profile_picture_url || (mine ? adminAvatar : guestAvatar)} size="sm" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
         {(!mine || showSenderIdentity) && <span className={`text-[11px] font-extrabold mb-1 ${mine ? 'mr-1 text-right' : 'ml-1 text-left'} ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : mine ? 'text-emerald-800' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}{mine && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">Admin</span>}</span>}
@@ -2494,8 +2498,9 @@ export default function Messages() {
                             message={item.data}
                             mine={isAdminMessage(item.data)}
                             currentUserId={user?.id}
-                            guestName={activeConv?.guestName}
+                            guestName={(activeConv?.groupId || activeConv?.group_id || activeConv?.isGroup || activeConv?.is_group) ? 'End user' : activeConv?.guestName}
                             guestAvatar={activeConv?.guestAvatar}
+                            adminAvatar={user?.avatar_url || user?.avatarUrl || user?.profile_picture_url || user?.profilePictureUrl || user?.avatar || user?.profilePicture}
                             replyTo={item.data.replyToId ? replyMap.get(String(item.data.replyToId)) : null}
                             onReact={toggleReaction}
                             onReply={setReplyToId}
