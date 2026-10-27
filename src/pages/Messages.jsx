@@ -1877,6 +1877,47 @@ export default function Messages() {
   const msgGroups = useMemo(() => groupMessages(messages), [messages])
   const replyMsg = replyToId ? replyMap.get(String(replyToId)) : null
   const totalUnread = conversations.reduce((s, c) => s + (c.unreadAdmin || 0), 0)
+  const [expandedUserGroups, setExpandedUserGroups] = useState({});
+  const conversationHierarchy = useMemo(() => {
+    const userGroups = new Map();
+    const groupThreads = [];
+    const getUserKey = (conv) => {
+      const id = conv.guestId ?? conv.guest_id ?? conv.userId ?? conv.user_id ?? conv.customerId ?? conv.customer_id;
+      const email = conv.guestEmail ?? conv.guest_email ?? conv.userEmail ?? conv.user_email ?? conv.email;
+      const name = safeEndUserName(conv.guestName ?? conv.guest_name ?? conv.userName ?? conv.user_name);
+      const avatar = conv.guestAvatar ?? conv.guest_avatar ?? conv.userAvatar ?? conv.user_avatar ?? '';
+      if (conv.groupId || conv.group_id || conv.isGroup || conv.is_group) return null;
+      return id != null ? 'user:' + String(id) : email ? 'email:' + String(email).toLowerCase() : 'name:' + name.toLowerCase() + ':' + String(avatar);
+    };
+    const matchesSearch = (conv, userName = '') => {
+      const query = search.trim().toLowerCase();
+      const status = String(conv.status || 'open').toLowerCase();
+      if (filter !== 'all' && status !== filter) return false;
+      if (!query) return true;
+      return [userName, conv.groupName, conv.subject, conv.guestName, conv.lastMessage, conv.bookingNumber]
+        .some(value => String(value || '').toLowerCase().includes(query));
+    };
+    conversations.forEach(conv => {
+      const isGroup = Boolean(conv.groupId || conv.group_id || conv.isGroup || conv.is_group);
+      if (isGroup) {
+        if (matchesSearch(conv, conv.groupName || 'Group conversation')) groupThreads.push(conv);
+        return;
+      }
+      const key = getUserKey(conv);
+      const name = safeEndUserName(conv.guestName ?? conv.guest_name ?? conv.userName ?? conv.user_name);
+      const avatar = conv.guestAvatar ?? conv.guest_avatar ?? conv.userAvatar ?? conv.user_avatar ?? '';
+      if (!userGroups.has(key)) userGroups.set(key, { key, name, avatar, conversations: [] });
+      userGroups.get(key).conversations.push(conv);
+    });
+    const users = [...userGroups.values()].map(group => ({
+      ...group,
+      conversations: group.conversations.filter(conv => matchesSearch(conv, group.name))
+        .sort((a,b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime()),
+    })).filter(group => group.conversations.length)
+      .sort((a,b) => a.name.localeCompare(b.name));
+    groupThreads.sort((a,b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+    return { users, groupThreads };
+  }, [conversations, filter, search]);
 
   const activePresence = activeId ? presenceByConversation[String(activeId)] : null
   const activeSince = activePresence?.activeSince ? new Date(activePresence.activeSince).getTime() : 0
@@ -2254,15 +2295,41 @@ export default function Messages() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {conversations.map(c => (
-                    <ConvRow
-                      key={c.id}
-                      conv={c}
-                      active={String(c.id) === String(activeId)}
-                      onSelect={handleSelectConversation}
-                      isTyping={typingConvIds.has(String(c.id))}
-                    />
-                  ))}
+                  {conversationHierarchy.users.map(group => {
+                    const expanded = expandedUserGroups[group.key] !== false;
+                    const unread = group.conversations.reduce((sum, conv) => sum + (conv.unreadAdmin || 0), 0);
+                    return (
+                      <section key={group.key} className="border-b border-slate-100">
+                        <button type="button"
+                          onClick={() => setExpandedUserGroups(previous => ({ ...previous, [group.key]: !expanded }))}
+                          aria-expanded={expanded}
+                          className="w-full flex items-center gap-3 px-3.5 py-3 text-left bg-white hover:bg-emerald-50/60 transition-colors">
+                          <Avatar name={group.name} src={group.avatar} size="lg" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-extrabold text-slate-800">{group.name}</span>
+                            <span className="block text-[11px] text-slate-500">{group.conversations.length} conversation{group.conversations.length !== 1 ? 's' : ''}</span>
+                          </span>
+                          {unread > 0 && <span className="min-w-[20px] h-5 px-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold inline-flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}
+                          <ChevronDown size={16} className={expanded ? 'rotate-180 text-emerald-700 transition-transform' : 'text-slate-400 transition-transform'} />
+                        </button>
+                        {expanded && <div className="bg-slate-50/70 border-t border-slate-100 pl-3">
+                          {group.conversations.map(c => (
+                            <ConvRow key={c.id} conv={c} active={String(c.id) === String(activeId)}
+                              onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} />
+                          ))}
+                        </div>}
+                      </section>
+                    );
+                  })}
+                  {conversationHierarchy.groupThreads.length > 0 && (
+                    <section className="border-b border-slate-100">
+                      <div className="px-4 py-2.5 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-2"><UsersRound size={13}/> Group conversations</div>
+                      {conversationHierarchy.groupThreads.map(c => (
+                        <ConvRow key={c.id} conv={c} active={String(c.id) === String(activeId)}
+                          onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} />
+                      ))}
+                    </section>
+                  )}
                 </div>
               )}
             </div>
