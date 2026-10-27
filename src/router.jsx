@@ -42,6 +42,7 @@ import LikesPage     from '@pages/Likes'
 import Maintenance   from '@pages/Maintenance'
 import ItinerariesPage from '@pages/Itineraries'
 import TripOperations from '@pages/TripOperations'
+import TourismAnalytics from '@pages/TourismAnalytics'
 import ItineraryBuilder from '@pages/ItineraryBuilder'
 import AccountRecovery from '@pages/AccountRecovery'
 import AccountActivityReview from '@pages/AccountActivityReview'
@@ -190,6 +191,10 @@ const router = createBrowserRouter(
                 {
                     path:    'trip-operations',
                     element: <Page title="Trip Operations"><TripOperations /></Page>,
+                },
+                {
+                    path:    'tourism-analytics',
+                    element: <Page title="Tourism Analytics"><TourismAnalytics /></Page>,
                 },
                 {
                     path:    'itineraries',
