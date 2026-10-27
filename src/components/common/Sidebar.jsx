@@ -1263,6 +1263,8 @@ export default function Sidebar({
 export function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [drawerDragX, setDrawerDragX] = useState(null)
+  const drawerGestureRef = useRef(null)
   const location = useLocation()
   const isMessagesPage = location.pathname === '/messages' || location.pathname.startsWith('/messages/')
   const { notifications: adminNotifications, markRead: markNotificationRead } = useNotifications()
@@ -1285,7 +1287,56 @@ export function AdminLayout() {
     unreadMessageNotifications.forEach(n => { if (n.id != null) markNotificationRead(n.id) })
   }, [isMessagesPage, adminNotifications, markNotificationRead])
 
-  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => { setMobileOpen(false); setDrawerDragX(null); drawerGestureRef.current = null }, [location.pathname])
+
+  // Open instantly from the screen edge and keep the drawer under the user's finger.
+  const handleDrawerTouchStart = (event) => {
+    if (window.innerWidth >= 1024 || !event.touches?.length) return
+    const touch = event.touches[0]
+    const targetIsDrawer = event.target?.closest?.('[data-admin-mobile-drawer]')
+    if (!mobileOpen && touch.clientX <= 28) {
+      drawerGestureRef.current = { mode: 'open', startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX }
+    } else if (mobileOpen && targetIsDrawer) {
+      drawerGestureRef.current = { mode: 'close', startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX }
+    } else {
+      drawerGestureRef.current = null
+    }
+  }
+
+  const handleDrawerTouchMove = (event) => {
+    const gesture = drawerGestureRef.current
+    if (!gesture || !event.touches?.length) return
+    const touch = event.touches[0]
+    const dx = touch.clientX - gesture.startX
+    const dy = touch.clientY - gesture.startY
+    if (Math.abs(dy) > Math.abs(dx) * 1.15 && Math.abs(dy) > 8) {
+      drawerGestureRef.current = null
+      setDrawerDragX(null)
+      return
+    }
+    if (Math.abs(dx) < 3) return
+    if (gesture.mode === 'open' && dx > 0) {
+      if (Math.abs(dx) > 8) event.preventDefault()
+      setMobileOpen(true)
+      setDrawerDragX(Math.min(270, dx))
+    } else if (gesture.mode === 'close' && dx < 0) {
+      if (Math.abs(dx) > 8) event.preventDefault()
+      setDrawerDragX(Math.max(0, 270 + dx))
+    }
+    gesture.lastX = touch.clientX
+  }
+
+  const handleDrawerTouchEnd = () => {
+    const gesture = drawerGestureRef.current
+    if (!gesture) return
+    drawerGestureRef.current = null
+    if (gesture.mode === 'open') {
+      setMobileOpen((drawerDragX ?? 0) >= 55)
+    } else {
+      setMobileOpen((drawerDragX ?? 270) >= 190)
+    }
+    setDrawerDragX(null)
+  }
 
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 1024) setCollapsed(false) }
@@ -1294,60 +1345,42 @@ export function AdminLayout() {
   }, [])
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      overflow: 'hidden',
-      background: '#f8faf9',
-    }}>
+    <div
+      onTouchStart={handleDrawerTouchStart}
+      onTouchMove={handleDrawerTouchMove}
+      onTouchEnd={handleDrawerTouchEnd}
+      onTouchCancel={handleDrawerTouchEnd}
+      style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f8faf9', touchAction: 'pan-y' }}>
       {/* Desktop sidebar */}
       <div className="sb-lg-flex" style={{ flexShrink: 0 }}>
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       </div>
 
-      {/* Mobile overlay + drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              onClick={() => setMobileOpen(false)}
-              className="sb-lg-hidden"
-              style={{
-                position: 'fixed', inset: 0, zIndex: 40,
-                background: 'rgba(15,23,42,0.55)',
-                backdropFilter: 'blur(8px)',
-              }}
-            />
-            <motion.div
-              key="drawer"
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={(_, { offset, velocity }) => {
-                if (offset.x < -100 || velocity.x < -500) setMobileOpen(false)
-              }}
-              className="sb-lg-hidden"
-              style={{
-                position: 'fixed',
-                top: 0, left: 0, bottom: 0,
-                zIndex: 50,
-                boxShadow: '8px 0 32px rgba(5,150,105,0.15)',
-              }}
-            >
-              <Sidebar collapsed={false} isMobile onMobileClose={() => setMobileOpen(false)} />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Mobile overlay + finger-tracked drawer */}
+      {mobileOpen && (
+        <>
+          <div
+            key="backdrop"
+            onClick={() => { setMobileOpen(false); setDrawerDragX(null) }}
+            className="sb-lg-hidden"
+            style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(15,23,42,0.55)" }}
+          />
+          <div
+            key="drawer"
+            data-admin-mobile-drawer="true"
+            className="sb-lg-hidden"
+            style={{
+              position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50,
+              width: 270, maxWidth: "88vw",
+              boxShadow: "8px 0 32px rgba(5,150,105,0.15)",
+              transform: "translateX(" + ((drawerDragX == null ? 270 : drawerDragX) - 270) + "px)",
+              transition: "none", willChange: "transform", touchAction: "pan-y",
+            }}
+          >
+            <Sidebar collapsed={false} isMobile onMobileClose={() => { setMobileOpen(false); setDrawerDragX(null) }} />
+          </div>
+        </>
+      )}
 
       {/* Main content */}
       <div style={{
