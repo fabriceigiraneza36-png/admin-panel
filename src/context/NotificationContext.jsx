@@ -156,7 +156,26 @@ export function NotificationProvider({ children }) {
 
       failsRef.current = 0;   // reset on success
 
-      const rows = (data.data || []).filter(isIncomingUserMessageNotification);
+      const rows = (data.data || []).filter(isIncomingUserMessageNotification).map(row => {
+        const metadata = row?.metadata || row?.metadata_json || {};
+        const senderName = safeIncomingSenderName(
+          row?.senderName || row?.sender_name || metadata.senderName || metadata.sender_name ||
+          metadata.username || metadata.user?.username || metadata.user?.fullName || metadata.user?.name
+        );
+        const senderAvatar = row?.senderAvatar || row?.sender_avatar || metadata.senderAvatar ||
+          metadata.sender_avatar || metadata.senderAvatarUrl || metadata.sender_avatar_url ||
+          metadata.user?.avatarUrl || metadata.user?.avatar_url || metadata.user?.profile_picture_url || "";
+        const isMessage = String(row?.type || "").toLowerCase().includes("message") ||
+          String(row?.category || "").toLowerCase().includes("message") || String(row?.id || "").startsWith("message-");
+        return {
+          ...row,
+          ...(isMessage ? {
+            senderName,
+            senderAvatar,
+            title: String(row?.title || `New message from ${senderName}`).replace(/\\bguest(?: user)?\\b/ig, senderName),
+          } : {}),
+        };
+      });
       notificationsRef.current = pageNum === 1
         ? rows
         : [...notificationsRef.current, ...rows.filter(row => !notificationsRef.current.some(existing => isSameNotification(existing, row)))];
