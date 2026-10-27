@@ -175,7 +175,11 @@ export default function Itineraries() {
                 </div>
                 <div className="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                   <div className="flex items-center gap-2 text-[10px] text-slate-400"><CheckCircle2 size={13} className="text-emerald-600"/> Changes remain attached to this booking</div>
-                  <button type="button" onClick={() => navigate(`/itineraries/${booking.id}`)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-emerald-800">Open itinerary builder <ChevronRight size={15}/></button>
+                  {String(booking.status || '').toLowerCase() === 'confirmed' ? (
+                    <button type="button" onClick={() => navigate(`/itineraries/${booking.id}`)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-emerald-800">Open itinerary builder <ChevronRight size={15}/></button>
+                  ) : (
+                    <span className="text-right text-[10px] font-bold leading-relaxed text-amber-700">Confirm booking to open itinerary builder</span>
+                  )}
                 </div>
               </article>
             )
