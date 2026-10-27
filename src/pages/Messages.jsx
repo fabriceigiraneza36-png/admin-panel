@@ -264,9 +264,28 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
-const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }) {
+const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, currentUserId }) {
   const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
   const hasUnread = (conv.unreadAdmin || 0) > 0
+  const isGroupConversation = Boolean(
+    conv.groupId || conv.group_id || conv.isGroup || conv.is_group || conv.groupName || conv.group_name ||
+    String(conv.conversationType || conv.conversation_type || '').toLowerCase() === 'group'
+  )
+  const previewBody = String(conv.lastMessage || '').trim()
+  const previewSenderType = String(conv.lastMessageSenderType || conv.last_message_sender_type || '')
+    .trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')
+  const previewSenderId = conv.lastMessageSenderId ?? conv.last_message_sender_id
+  const previewSenderName = firstRealSenderName(
+    conv.lastMessageSenderName, conv.last_message_sender_name,
+    conv.lastMessageSenderUsername, conv.last_message_sender_username,
+  )
+  const adminSenderTypes = ['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor', 'support', 'staff', 'agent']
+  const isAdminPreview = adminSenderTypes.includes(previewSenderType)
+  const isCurrentAdminPreview = currentUserId == null || previewSenderId == null || String(currentUserId) === String(previewSenderId)
+  const latestMessagePreview = !previewBody ? 'No messages yet' : !isGroupConversation ? previewBody :
+    isAdminPreview
+      ? `${isCurrentAdminPreview ? 'You' : (previewSenderName || 'Admin')}: ${previewBody}`
+      : `${previewSenderName || 'Unknown member'}: ${previewBody}`
   const pointerStartRef = useRef(null)
   const skipSyntheticClickRef = useRef(false)
 
@@ -344,7 +363,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping }
           ) : (
             <p className={`text-xs truncate leading-snug flex-1
                            ${hasUnread ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>
-              {conv.lastMessage || 'No messages yet'}
+              {latestMessagePreview}
             </p>
           )}
           {hasUnread && (
@@ -1783,6 +1802,23 @@ export default function Messages() {
         })
       }
 
+      const payloadSender = payload.sender || payload.user || payload.author || payload.profile || payload.message?.sender || payload.message?.user || {}
+      const payloadSenderType = payload.senderType ?? payload.sender_type ?? payload.message?.senderType ?? payload.message?.sender_type ?? null
+      const payloadSenderId = payload.senderId ?? payload.sender_id ?? payload.message?.senderId ?? payload.message?.sender_id ?? null
+      const payloadSenderName = firstRealSenderName(
+        payload.senderFullName, payload.sender_full_name, payload.senderName, payload.sender_name,
+        payloadSender.fullName, payloadSender.full_name, payloadSender.name,
+        payload.message?.senderFullName, payload.message?.sender_full_name,
+        payload.message?.senderName, payload.message?.sender_name,
+        payload.senderUsername, payload.sender_username, payload.username, payloadSender.username,
+      ) || null
+      const payloadSenderUsername = firstRealSenderName(
+        payload.senderUsername, payload.sender_username, payload.username, payloadSender.username,
+        payload.message?.senderUsername, payload.message?.sender_username, payload.message?.username,
+      ) || null
+      const payloadSenderAvatar = payload.senderAvatar || payload.sender_avatar || payload.avatarUrl || payload.avatar_url ||
+        payloadSender.avatarUrl || payloadSender.avatar_url || payloadSender.avatar || payload.message?.senderAvatar || payload.message?.sender_avatar || null
+
       setConversations(prev =>
         prev.map(c => {
           if (String(c.id) !== cid) return c
@@ -1790,6 +1826,11 @@ export default function Messages() {
             ...c,
             lastMessage: payload.body,
             lastMessageAt: payload.createdAt,
+            lastMessageSenderType: payloadSenderType,
+            lastMessageSenderId: payloadSenderId,
+            lastMessageSenderName: payloadSenderName,
+            lastMessageSenderUsername: payloadSenderUsername,
+            lastMessageSenderAvatar: payloadSenderAvatar,
             unreadAdmin: payload.senderType !== 'admin'
               ? (cid !== String(activeIdRef.current) ? (c.unreadAdmin || 0) + 1 : 0)
               : c.unreadAdmin,
@@ -2367,7 +2408,7 @@ export default function Messages() {
                         {expanded && <div className="bg-slate-50/70 border-t border-slate-100 pl-3">
                           {group.conversations.map(c => (
                             <ConvRow key={c.id} conv={c} active={String(c.id) === String(activeId)}
-                              onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} />
+                              onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} currentUserId={user?.id} />
                           ))}
                         </div>}
                       </section>
@@ -2378,7 +2419,7 @@ export default function Messages() {
                       <div className="px-4 py-2.5 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-2"><UsersRound size={13}/> Group conversations</div>
                       {conversationHierarchy.groupThreads.map(c => (
                         <ConvRow key={c.id} conv={c} active={String(c.id) === String(activeId)}
-                          onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} />
+                          onSelect={handleSelectConversation} isTyping={typingConvIds.has(String(c.id))} currentUserId={user?.id} />
                       ))}
                     </section>
                   )}
