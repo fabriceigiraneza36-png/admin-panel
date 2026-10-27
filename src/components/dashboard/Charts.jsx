@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }) => {
           {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
         </p>
       ))}
-    </div>
+    </ChartFrame>
   )
 }
 
@@ -173,7 +173,7 @@ export function BookingChart() {
         </AreaChart></ResponsiveContainer></div>
       )}
       {available&&<p className="mt-2 text-[10px] leading-relaxed text-gray-400">{period === 'year' ? 'Uses server-side monthly aggregates across all booking records.' : 'Uses the latest 100 booking records returned by the current API, not a full historical aggregate.'}</p>}
-    </div>
+    </ChartFrame>
   )
 }
 
@@ -219,7 +219,7 @@ export function DestinationCategoryChart() {
   }, [])
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <ChartFrame>
       <div className="mb-6">
         <h3 className="text-sm font-bold text-gray-800">Destinations by Category</h3>
         <p className="text-xs text-gray-400 mt-0.5">
@@ -260,7 +260,7 @@ export function DestinationCategoryChart() {
           </PieChart>
         </ResponsiveContainer>
       )}
-    </div>
+    </ChartFrame>
   )
 }
 
@@ -304,7 +304,7 @@ export function ContinentChart() {
   }, [])
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+    <ChartFrame>
       <div className="mb-6">
         <h3 className="text-sm font-bold text-gray-800">Countries by Continent</h3>
         <p className="text-xs text-gray-400 mt-0.5">
@@ -343,6 +343,6 @@ export function ContinentChart() {
           </BarChart>
         </ResponsiveContainer>
       )}
-    </div>
+    </ChartFrame>
   )
 }
