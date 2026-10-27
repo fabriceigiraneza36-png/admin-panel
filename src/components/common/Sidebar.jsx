@@ -608,6 +608,7 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { path: '/bookings', label: 'Bookings', icon: 'CalendarCheck' },
+      { path: '/itineraries', label: 'Itineraries', icon: 'FileText' },
       { path: '/packages', label: 'Packages', icon: 'Package' },
       { path: '/users', label: 'Users', icon: 'Users' },
       { path: '/messages', label: 'Messages', icon: 'MessagesSquare', badge: 'msg' },

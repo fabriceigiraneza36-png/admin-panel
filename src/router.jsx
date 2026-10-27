@@ -40,6 +40,7 @@ import Broadcast     from '@pages/Broadcast'
 import MessagesPage  from '@pages/Messages'
 import LikesPage     from '@pages/Likes'
 import Maintenance   from '@pages/Maintenance'
+import ItinerariesPage from '@pages/Itineraries'
 import ItineraryBuilder from '@pages/ItineraryBuilder'
 import AccountRecovery from '@pages/AccountRecovery'
 import AccountActivityReview from '@pages/AccountActivityReview'
@@ -184,6 +185,10 @@ const router = createBrowserRouter(
                 {
                     path:    'bookings',
                     element: <Page title="Bookings"><Bookings /></Page>,
+                },
+                {
+                    path:    'itineraries',
+                    element: <Page title="Itineraries"><ItinerariesPage /></Page>,
                 },
                 {
                     path:    'itineraries/:bookingId',

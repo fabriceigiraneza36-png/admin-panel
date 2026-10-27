@@ -36,7 +36,7 @@ const dateRange = (start, end) => {
   const out = []
   let i = 0
   while (a <= b && i < 31) {
-    out.push(new Date(a).toISOString().slice(0,10))
+    out.push(`${a.getFullYear()}-${String(a.getMonth() + 1).padStart(2, '0')}-${String(a.getDate()).padStart(2, '0')}`)
     a.setDate(a.getDate() + 1)
     i++
   }
@@ -48,7 +48,7 @@ export default function ItineraryBuilder() {
   const navigate = useNavigate()
   const toast = useToast()
   const [booking, setBooking] = useState(null)
-  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', planningChecklist:DEFAULT_CHECKLIST, days:[], inclusions:[], essentials:[], contactNote:'' })
+  const [itinerary, setItinerary] = useState({ title:'Personalized Altuvera Itinerary', introduction:'', mode:'assisted', backgroundMode:'white', planningChecklist:DEFAULT_CHECKLIST, days:[], inclusions:[], essentials:[], contactNote:'' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sending, setSending] = useState(false)
@@ -63,12 +63,13 @@ export default function ItineraryBuilder() {
       if (!live) return
       setBooking(data?.booking || null)
       const existing = data?.itinerary && typeof data.itinerary === 'object' ? data.itinerary : null
-      if (existing?.days?.length) {
+      if (existing && typeof existing === 'object' && Object.keys(existing).length) {
         setItinerary({
           ...existing,
           // Older saved itineraries may predate the mode field. Always choose a
           // real editor mode so neither conditional editor can disappear.
           mode: existing.mode === 'assisted' ? 'assisted' : 'manual',
+          backgroundMode: existing.backgroundMode === 'destination' ? 'destination' : 'white',
           planningChecklist: existing.planningChecklist?.length
             ? existing.planningChecklist
             : DEFAULT_CHECKLIST.map(item => ({...item})),
@@ -77,6 +78,7 @@ export default function ItineraryBuilder() {
         const dates = dateRange(data?.booking?.travel_date, data?.booking?.return_date)
         setItinerary(prev => ({
           ...prev,
+          backgroundMode: 'white',
           title: `${data?.booking?.destination_name || 'Your'} Adventure Itinerary`,
           introduction: `A personalized plan prepared by Altuvera Safaris for ${data?.booking?.full_name || 'our traveller'}.`,
           planningChecklist: DEFAULT_CHECKLIST.map(item => ({...item})),
@@ -135,6 +137,8 @@ export default function ItineraryBuilder() {
   if (!booking) return <div className="p-8 text-center"><p className="font-bold">Booking not found.</p><button className="btn-primary mt-4" onClick={()=>navigate('/bookings')}>Back to bookings</button></div>
 
   const verified = Boolean(booking.email_verified)
+  const packageImages = Array.isArray(booking.package_details?.images) ? booking.package_details.images : []
+  const destinationImage = booking.destination_image_url || booking.package_details?.cover_image_url || booking.package_details?.image_url || booking.package_details?.thumbnail_url || packageImages.map(image => typeof image === 'string' ? image : image?.url || image?.image_url || image?.imageUrl || '').find(Boolean) || ''
 
   return (
     <div className="max-w-6xl mx-auto space-y-5 pb-12">
@@ -218,8 +222,9 @@ export default function ItineraryBuilder() {
             </div>
           </div>
           <details className="mt-4 rounded-xl border border-slate-200 bg-white">
-            <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Complete destination & country records — no fields hidden</summary>
+            <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Complete package, destination & country records — no fields hidden</summary>
             <div className="grid grid-cols-1 gap-3 p-3 border-t border-slate-100">
+              <div><p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Package</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-4 text-slate-600 bg-slate-50 rounded-lg p-2">{JSON.stringify(booking.package_details || {}, null, 2)}</pre></div>
               <div><p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Destination</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-4 text-slate-600 bg-slate-50 rounded-lg p-2">{JSON.stringify(booking.destination_details || {}, null, 2)}</pre></div>
               <div><p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Country</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-4 text-slate-600 bg-slate-50 rounded-lg p-2">{JSON.stringify(booking.country_details || {}, null, 2)}</pre></div>
             </div>
@@ -278,6 +283,19 @@ export default function ItineraryBuilder() {
   
           )}
 
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+            <div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700"><FileText size={18}/></div><div><h2 className="text-sm font-extrabold text-slate-900">Itinerary appearance</h2><p className="mt-1 text-xs leading-relaxed text-slate-500">Choose a clean white document or a subtle destination-image background. The image is washed out on every PDF page so the plan stays easy to read.</p></div></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onClick={()=>setItinerary(p=>({...p,backgroundMode:'white'}))} aria-pressed={itinerary.backgroundMode !== 'destination'} className={`rounded-xl border p-3 text-left transition ${itinerary.backgroundMode !== 'destination' ? 'border-emerald-400 bg-emerald-50/60 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200'}`}>
+                <div className="grid h-20 place-items-center rounded-lg border border-slate-200 bg-white"><div className="w-3/4 rounded-md border border-emerald-100 bg-white p-2"><div className="h-1.5 w-1/2 rounded bg-emerald-700"/><div className="mt-2 h-1 w-full rounded bg-slate-200"/><div className="mt-1 h-1 w-4/5 rounded bg-slate-200"/></div></div>
+                <span className="mt-3 block text-xs font-extrabold text-slate-800">Standard white background</span><span className="mt-1 block text-[11px] leading-relaxed text-slate-500">Minimal, clean and print-friendly.</span>
+              </button>
+              <button type="button" disabled={!destinationImage} onClick={()=>setItinerary(p=>({...p,backgroundMode:'destination'}))} aria-pressed={itinerary.backgroundMode === 'destination'} className={`rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${itinerary.backgroundMode === 'destination' ? 'border-emerald-400 bg-emerald-50/60 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200'}`}>
+                <div className="relative h-20 overflow-hidden rounded-lg border border-emerald-100 bg-emerald-50">{destinationImage ? <><img src={destinationImage} alt="" className="h-full w-full object-cover opacity-30"/><div className="absolute inset-0 bg-white/55"/><div className="absolute inset-x-3 top-3 rounded-md border border-white/80 bg-white/90 p-2 shadow-sm"><div className="h-1.5 w-1/2 rounded bg-emerald-700"/><div className="mt-2 h-1 w-full rounded bg-slate-200"/><div className="mt-1 h-1 w-4/5 rounded bg-slate-200"/></div></> : <div className="grid h-full place-items-center text-[11px] font-semibold text-slate-500">No linked image found</div>}</div>
+                <span className="mt-3 block text-xs font-extrabold text-slate-800">Destination image background</span><span className="mt-1 block text-[11px] leading-relaxed text-slate-500">A soft scenic image across every page, with readable text panels.</span>
+              </button>
+            </div>
+          </section>
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
             <div><label className="text-xs font-bold uppercase text-slate-500">Itinerary title</label><input value={itinerary.title} onChange={e=>setItinerary(p=>({...p,title:e.target.value}))} className="input mt-1"/></div>
             <div><label className="text-xs font-bold uppercase text-slate-500">Introduction</label><textarea value={itinerary.introduction} onChange={e=>setItinerary(p=>({...p,introduction:e.target.value}))} className="input mt-1 min-h-[90px]"/></div>
@@ -293,7 +311,7 @@ export default function ItineraryBuilder() {
               </button>
               {openDay===i && <div className="p-5 border-t border-slate-100 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-xs font-bold text-slate-600">Date<input type="date" value={day.date||''} onChange={e=>updateDay(i,{date:e.target.value})} className="input mt-1"/></label>
+                  <label className="text-xs font-bold text-slate-600"><span className="inline-flex items-center gap-1.5"><CalendarDays size={12} className="text-emerald-700"/> Date</span><input type="date" value={day.date||''} onChange={e=>updateDay(i,{date:e.target.value})} style={{colorScheme:'light'}} className="input mt-1 w-full !rounded-xl !border-emerald-200 !bg-emerald-50/40 focus:!border-emerald-500 focus:!ring-4 focus:!ring-emerald-100"/></label>
                   <label className="text-xs font-bold text-slate-600">Day title<input value={day.title||''} onChange={e=>updateDay(i,{title:e.target.value})} className="input mt-1"/></label>
                   <label className="text-xs font-bold text-slate-600">Location<input value={day.location||''} onChange={e=>updateDay(i,{location:e.target.value})} className="input mt-1"/></label>
                   <label className="text-xs font-bold text-slate-600">Transport<input value={day.transport||''} onChange={e=>updateDay(i,{transport:e.target.value})} className="input mt-1"/></label>
@@ -340,7 +358,7 @@ export default function ItineraryBuilder() {
                     <button type="button" onClick={()=>removeDay(i)} aria-label={`Remove day ${i+1}`} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><Trash2 size={15}/></button>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label className="text-[10px] font-bold uppercase text-slate-500">Date<input type="date" value={day.date||''} onChange={e=>updateDay(i,{date:e.target.value})} className="input mt-1"/></label>
+                    <label className="text-[10px] font-bold uppercase text-slate-500"><span className="inline-flex items-center gap-1.5"><CalendarDays size={12} className="text-emerald-700"/> Date</span><input type="date" value={day.date||''} onChange={e=>updateDay(i,{date:e.target.value})} style={{colorScheme:'light'}} className="input mt-1 w-full !rounded-xl !border-emerald-200 !bg-emerald-50/40 focus:!border-emerald-500 focus:!ring-4 focus:!ring-emerald-100"/></label>
                     <label className="text-[10px] font-bold uppercase text-slate-500">Day title<input value={day.title||''} onChange={e=>updateDay(i,{title:e.target.value})} placeholder="e.g. Gorilla trekking" className="input mt-1"/></label>
                     <label className="text-[10px] font-bold uppercase text-slate-500 sm:col-span-2">Location / experience<input value={day.location||''} onChange={e=>updateDay(i,{location:e.target.value})} placeholder="Destination, park, activity area…" className="input mt-1"/></label>
                     <label className="text-[10px] font-bold uppercase text-slate-500 sm:col-span-2">Activities (one per line)<textarea value={(day.activities||[]).join('\n')} onChange={e=>updateDay(i,{activities:e.target.value.split('\n')})} rows={3} placeholder="Morning activity\nLunch / local experience\nAfternoon activity" className="input mt-1"/></label>
