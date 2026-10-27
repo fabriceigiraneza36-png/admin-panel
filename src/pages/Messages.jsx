@@ -1080,6 +1080,12 @@ export default function Messages() {
   const textareaRef = useRef(null)
   const conversationSearchRef = useRef(null)
   const [incomingNotifications, setIncomingNotifications] = useState([])
+  const [deleteCancelAlert, setDeleteCancelAlert] = useState(null)
+  useEffect(() => {
+    if (!deleteCancelAlert) return undefined
+    const timer = window.setTimeout(() => setDeleteCancelAlert(null), 12000)
+    return () => window.clearTimeout(timer)
+  }, [deleteCancelAlert])
   const [notificationNow, setNotificationNow] = useState(Date.now())
   const incomingNotificationIdsRef = useRef(new Set())
   const conversationsRef = useRef([])
@@ -1309,7 +1315,7 @@ export default function Messages() {
     setNewMsgsWhileScrolled(0)
 
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}?limit=10`)
+      const res = await authFetch(API_BASE + '/messages/conversations/' + encodeURIComponent(conversationId) + '?limit=10' + (filter === 'recycle' ? '&includeDeleted=true' : ''))
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message || `Could not open conversation (HTTP ${res.status})`)
       if (String(activeIdRef.current) !== conversationId) return
@@ -1332,7 +1338,7 @@ export default function Messages() {
     } finally {
       if (String(activeIdRef.current) === conversationId) setLoadingMsgs(false)
     }
-  }, [])
+  }, [filter])
 
   const openIncomingNotification = useCallback((notification) => {
     const conversationId = notification?.conversationId
@@ -1732,19 +1738,73 @@ export default function Messages() {
   }, [activeId, activeConv, filter, toast, loadConversations])
 
   const handleDeleteConversation = useCallback(async () => {
-    if (!activeId || !window.confirm("Delete this conversation and hide its history from both inboxes?")) return
+    if (!activeId || filter === 'recycle') return
+    const isOwnConversation = String(activeConv?.createdByAdminId ?? '') === String(user?.id ?? '')
+    const isOwnGroup = Boolean(activeConv?.groupId || activeConv?.group_id) &&
+      String(activeConv?.groupCreatedBy ?? activeConv?.group_created_by ?? '') === String(user?.id ?? '')
+    if (!isOwnConversation && !isOwnGroup) {
+      toast.error("Only the admin who created this conversation can move it to the Recycle Bin.")
+      return
+    }
+    if (!window.confirm("Start the live 20-second recycle warning for all conversation members? If a traveler asks to keep a personal conversation before the timer ends, the system will cancel this action.")) return
     try {
-      const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}`, { method: "DELETE" })
+      const res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId), { method: "DELETE" })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.message || "Failed to move conversation to Recycle Bin")
-      setConversations(prev => prev.filter(c => String(c.id) !== String(activeId)))
-      setActiveId(null)
-      setActiveConv(null)
-      setMessages([])
-      toast.success("Conversation moved to Recycle Bin")
-      loadConversations()
+      if (!res.ok) throw new Error(data.message || "Could not start the recycle countdown")
+      setActiveConv(prev => prev && String(prev.id) === String(activeId) ? { ...prev, recycleDeadline: data.deadlineAt || prev.recycleDeadline } : prev)
+      setConversations(prev => prev.map(item => String(item.id) === String(activeId) ? { ...item, recycleDeadline: data.deadlineAt || item.recycleDeadline } : item))
+      toast.success(data.message || "The 20-second recycle countdown has started.")
     } catch (e) { toast.error(e.message) }
-  }, [activeId, toast, loadConversations])
+  }, [activeId, activeConv, filter, user?.id, toast])
+
+  const handleRestoreConversation = useCallback(async () => {
+    if (!activeId || filter !== 'recycle') return
+    try {
+      const res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId) + "/restore", {
+        method: "POST", body: JSON.stringify({}),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (res.status === 409 && data.conflict) {
+          toast.error("This traveler already has an active personal conversation. The restored thread has not been sent to them.")
+          return
+        }
+        throw new Error(data.message || "Could not restore conversation")
+      }
+      toast.success(data.message || "Conversation restored.")
+      setActiveId(null); setActiveConv(null); setMessages([])
+      await loadConversations()
+      scheduleConversationRefresh()
+    } catch (error) { toast.error(error.message || "Could not restore conversation") }
+  }, [activeId, filter, toast, loadConversations, scheduleConversationRefresh])
+
+  const handlePermanentDeleteConversation = useCallback(async () => {
+    if (!activeId || filter !== 'recycle') return
+    if (!window.confirm("Permanently delete this recycled conversation and its message history? This cannot be undone.")) return
+    try {
+      const res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId) + "/permanent", { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || "Could not permanently delete conversation")
+      setConversations(prev => prev.filter(item => String(item.id) !== String(activeId)))
+      setActiveId(null); setActiveConv(null); setMessages([])
+      toast.success(data.message || "Conversation permanently deleted.")
+      await loadConversations()
+    } catch (error) { toast.error(error.message || "Could not permanently delete conversation") }
+  }, [activeId, filter, toast, loadConversations])
+
+  const handleEmptyRecycleBin = useCallback(async () => {
+    if (filter !== 'recycle' || !window.confirm("Permanently delete every conversation in the Recycle Bin? This cannot be undone.")) return
+    setClearing(true)
+    try {
+      const res = await authFetch(API_BASE + "/messages/conversations/recycle-bin", { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || "Could not empty Recycle Bin")
+      setConversations([]); setMessages([]); setActiveId(null); setActiveConv(null)
+      toast.success(data.message || "Recycle Bin emptied.")
+      await loadConversations()
+    } catch (error) { toast.error(error.message || "Could not empty Recycle Bin") }
+    finally { setClearing(false) }
+  }, [filter, toast, loadConversations])
 
   const handleClearAll = useCallback(async () => {
     setClearing(true)
@@ -1880,6 +1940,39 @@ export default function Messages() {
       setConversations(prev => prev.map(c => String(c.id) === String(conv.id) ? { ...c, ...conv } : c))
     }
 
+    const onRecycleRequested = (payload = {}) => {
+      if (!payload.conversationId) return
+      setActiveConv(prev => prev && String(prev.id) === String(payload.conversationId)
+        ? { ...prev, recycleDeadline: payload.deadlineAt || null } : prev)
+      setConversations(prev => prev.map(item => String(item.id) === String(payload.conversationId)
+        ? { ...item, recycleDeadline: payload.deadlineAt || null } : item))
+      scheduleConversationRefresh()
+    }
+
+    const onDeleteCancelRequest = (payload = {}) => {
+      setDeleteCancelAlert(payload)
+      // Intentionally transient: no notification-history record is written.
+    }
+
+    const onRecycleCancelled = (payload = {}) => {
+      const cid = String(payload.conversationId || '')
+      if (!cid) return
+      setActiveConv(prev => prev && String(prev.id) === cid ? { ...prev, recycleDeadline: null } : prev)
+      setConversations(prev => prev.map(item => String(item.id) === cid ? { ...item, recycleDeadline: null } : item))
+      scheduleConversationRefresh()
+    }
+
+    const onConversationRecycled = (payload = {}) => {
+      const cid = String(payload.conversationId || '')
+      if (!cid) return
+      setConversations(prev => prev.filter(item => String(item.id) !== cid))
+      if (String(activeIdRef.current) === cid) {
+        activeIdRef.current = null
+        setActiveId(null); setActiveConv(null); setMessages([])
+      }
+      scheduleConversationRefresh()
+    }
+
     const onRead = (payload) => {
       if (!payload?.conversationId) return
       const ids = new Set((payload.messageIds || []).map(String))
@@ -1921,6 +2014,10 @@ export default function Messages() {
     on('msg:message',              onMessage)
     on('msg:new-from-user',        onNewFromUser)
     on('msg:conversation-updated', onConvUpdated)
+    on('msg:recycle-request-started', onRecycleRequested)
+    on('msg:delete-cancel-request', onDeleteCancelRequest)
+    on('msg:recycle-cancelled', onRecycleCancelled)
+    on('msg:conversation-recycled', onConversationRecycled)
     on('msg:reaction',             onReaction)
     on('msg:message-edited',       onMessageMutation)
     on('msg:message-deleted',      onMessageMutation)
@@ -1934,6 +2031,10 @@ export default function Messages() {
       off('msg:message',              onMessage)
       off('msg:new-from-user',        onNewFromUser)
       off('msg:conversation-updated', onConvUpdated)
+      off('msg:recycle-request-started', onRecycleRequested)
+      off('msg:delete-cancel-request', onDeleteCancelRequest)
+      off('msg:recycle-cancelled', onRecycleCancelled)
+      off('msg:conversation-recycled', onConversationRecycled)
       off('msg:reaction',             onReaction)
       off('msg:message-edited',       onMessageMutation)
       off('msg:message-deleted',      onMessageMutation)
@@ -2304,12 +2405,21 @@ export default function Messages() {
               <Plus size={14} strokeWidth={2.2} />
               <span className="hidden sm:inline">New Chat</span>
             </button>
-            <button onClick={() => setClearConfirm({ open: true })} aria-label="Clear all messaging records"
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700
-                         border border-red-200 text-xs font-bold rounded-lg hover:bg-red-100 transition">
-              <Trash2 size={13} />
-              <span className="hidden sm:inline">Clear</span>
-            </button>
+            {filter === 'recycle' ? (
+              <button onClick={handleEmptyRecycleBin} aria-label="Permanently empty Recycle Bin" disabled={clearing}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700
+                           border border-red-200 text-xs font-bold rounded-lg hover:bg-red-100 disabled:opacity-50 transition">
+                <Trash2 size={13} />
+                <span className="hidden sm:inline">{clearing ? 'Emptying…' : 'Empty Bin'}</span>
+              </button>
+            ) : (
+              <button onClick={() => setClearConfirm({ open: true })} aria-label="Clear all messaging records"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-700
+                           border border-red-200 text-xs font-bold rounded-lg hover:bg-red-100 transition">
+                <Trash2 size={13} />
+                <span className="hidden sm:inline">Clear</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -2333,7 +2443,7 @@ export default function Messages() {
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl w-full min-w-0" role="tablist" aria-label="Filter conversations">
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl w-full min-w-0" role="tablist" aria-label="Filter conversations">
                 {[{ value: 'archived', label: 'Archived' }, { value: 'all', label: 'All conversations' }, { value: 'recycle', label: 'Recycle Bin' }].map(({ value, label }) => (
                   <button
                     key={value}
@@ -2516,15 +2626,33 @@ export default function Messages() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {isBookingSupportConversation && <button type="button" onClick={openItineraryComposer} title="Prepare and send an itinerary in this booking-support conversation" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-extrabold text-emerald-800 hover:bg-emerald-100 sm:px-3"><FileText size={15}/><span className="hidden sm:inline">Prepare itinerary</span></button>}
-                    <StatusBadge status={activeConv.status} />
-                    <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
-                      className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
-                      {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-                    </button>
-                    <button onClick={handleDeleteConversation} title="Delete conversation" aria-label="Delete conversation"
-                      className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
-                      <Trash2 size={16} />
-                    </button>
+                    {filter === 'recycle' ? (
+                      <>
+                        <button onClick={handleRestoreConversation} title="Restore conversation" aria-label="Restore conversation"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition">
+                          <ArchiveRestore size={15}/><span className="hidden sm:inline">Restore</span>
+                        </button>
+                        <button onClick={handlePermanentDeleteConversation} title="Permanently delete conversation" aria-label="Permanently delete conversation"
+                          className="w-9 h-9 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition">
+                          <Trash2 size={16}/>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <StatusBadge status={activeConv.status} />
+                        <button onClick={handleToggleArchive} title={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'} aria-label={activeConv.status === 'archived' ? 'Restore conversation' : 'Archive conversation'}
+                          className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
+                          {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                        </button>
+                        {(String(activeConv.createdByAdminId ?? '') === String(user?.id ?? '') ||
+                          (Boolean(activeConv.groupId || activeConv.group_id) && String(activeConv.groupCreatedBy ?? activeConv.group_created_by ?? '') === String(user?.id ?? ''))) && (
+                          <button onClick={handleDeleteConversation} title="Move to Recycle Bin" aria-label="Move to Recycle Bin"
+                            className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
+                            <Trash2 size={16}/>
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -2754,6 +2882,31 @@ export default function Messages() {
         </main>
       </div>
 
+      {deleteCancelAlert && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+             role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setDeleteCancelAlert(null) }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="recycle-cancel-alert-title"
+            className="w-full max-w-md overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-2xl">
+            <div className="flex items-start gap-3 border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800"><MessageSquare size={20}/></div>
+              <div className="min-w-0 flex-1">
+                <h2 id="recycle-cancel-alert-title" className="text-base font-extrabold text-slate-900">Conversation kept at traveler request</h2>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">The pending recycle action has been cancelled automatically.</p>
+              </div>
+              <button type="button" onClick={() => setDeleteCancelAlert(null)} aria-label="Close live alert" className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700"><X size={16}/></button>
+            </div>
+            <div className="px-5 py-5">
+              <p className="text-sm font-extrabold text-slate-900">{deleteCancelAlert.userName || 'A traveler'} asked to keep their personal conversation.</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">{deleteCancelAlert.conversationTitle || 'Personal chat with Altuvera'} remains available to the traveler. No permanent notification-history entry was created for this request.</p>
+              <button type="button" onClick={() => { const cid = deleteCancelAlert.conversationId; setDeleteCancelAlert(null); if (cid) { setSidebarOpen(false); setShowMobileChat(true); void openConversation(String(cid)); } }}
+                className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-extrabold text-white hover:bg-emerald-800 transition">
+                Open conversation
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
       <ConfirmDialog
         isOpen={clearConfirm.open}
         onClose={() => setClearConfirm({ open: false })}
