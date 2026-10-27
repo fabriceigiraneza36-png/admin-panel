@@ -61,7 +61,7 @@ export default function TripOperations() {
     const done = readiness.filter(r => r.done).length
     const nextAction = String(operations.nextAction || '').trim()
     const stage = operations.tripStatus || 'planning'
-    const attention = stage === 'on_hold' || supplierIssues > 0 || (readiness.length > 0 && done < readiness.length) || Boolean(nextAction)
+    const attention = stage === 'on_hold' || !String(operations.coordinator || '').trim() || suppliers.length === 0 || supplierIssues > 0 || readiness.length === 0 || done < readiness.length || Boolean(nextAction)
     return { ...item, operations, suppliers, readiness, supplierIssues, done, stage, attention, nextAction, requiredSuppliers }
   }), [items])
 
