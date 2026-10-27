@@ -1244,9 +1244,12 @@ export default function Messages() {
 
     try {
       const p = new URLSearchParams({ limit: '100', active: 'all' })
-      if (filter !== 'all') p.set('status', filter)
       if (search.trim()) p.set('search', search.trim())
-      const res = await authFetch(`${API_BASE}/messages/conversations?${p}`)
+      const endpoint = filter === 'recycle'
+        ? `${API_BASE}/messages/conversations/recycle-bin`
+        : `${API_BASE}/messages/conversations?${p}`
+      if (filter !== 'all' && filter !== 'recycle') p.set('status', filter)
+      const res = await authFetch(filter === 'recycle' ? endpoint : `${API_BASE}/messages/conversations?${p}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       if (requestId === conversationRequestRef.current) {
@@ -1733,12 +1736,12 @@ export default function Messages() {
     try {
       const res = await authFetch(`${API_BASE}/messages/conversations/${activeId}`, { method: "DELETE" })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.message || "Failed to delete conversation")
+      if (!res.ok) throw new Error(data.message || "Failed to move conversation to Recycle Bin")
       setConversations(prev => prev.filter(c => String(c.id) !== String(activeId)))
       setActiveId(null)
       setActiveConv(null)
       setMessages([])
-      toast.success("Conversation deleted")
+      toast.success("Conversation moved to Recycle Bin")
       loadConversations()
     } catch (e) { toast.error(e.message) }
   }, [activeId, toast, loadConversations])
@@ -2331,7 +2334,7 @@ export default function Messages() {
               </div>
 
               <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl w-full min-w-0" role="tablist" aria-label="Filter conversations">
-                {[{ value: 'archived', label: 'Archived' }, { value: 'all', label: 'All conversations' }].map(({ value, label }) => (
+                {[{ value: 'archived', label: 'Archived' }, { value: 'all', label: 'All conversations' }, { value: 'recycle', label: 'Recycle Bin' }].map(({ value, label }) => (
                   <button
                     key={value}
                     type="button"
