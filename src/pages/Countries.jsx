@@ -92,6 +92,76 @@ const PLACEHOLDER_SVG = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#f3f4f6"/><text x="200" y="150" text-anchor="middle" fill="#9ca3af" font-size="14" font-family="sans-serif">No Image</text></svg>'
 )
 
+
+/* Render saved values as readable labels, chips, links and nested cards — never raw JSON. */
+function readableFieldLabel(key = '') {
+  return String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim().replace(/^./, ch => ch.toUpperCase())
+}
+
+function ReadableViewValue({ value, label = '' }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-slate-400">Not provided</span>
+  }
+  if (typeof value === 'boolean') {
+    return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${value ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{value ? 'Yes' : 'No'}</span>
+  }
+  if (typeof value === 'number') {
+    return <span className="tabular-nums">{Number.isFinite(value) ? value.toLocaleString() : '—'}</span>
+  }
+  if (Array.isArray(value)) {
+    const items = value.filter(item => item !== null && item !== undefined && item !== '')
+    if (!items.length) return <span className="text-slate-400">Not provided</span>
+    const isSimpleList = items.every(item => ['string', 'number', 'boolean'].includes(typeof item))
+    if (isSimpleList) {
+      return <div className="flex flex-wrap gap-1.5">{items.map((item, index) => (
+        <span key={index} className="inline-flex max-w-full items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 break-words">
+          {typeof item === 'boolean' ? (item ? 'Yes' : 'No') : String(item)}
+        </span>
+      ))}</div>
+    }
+    return <div className="space-y-2">
+      {items.map((item, index) => (
+        <article key={item?.id ?? index} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(label.replace(/s$/i, '') || 'Item')} {index + 1}</p>
+          {item && typeof item === 'object'
+            ? <ReadableViewValue value={item} label={label.replace(/s$/i, '') || 'Item'} />
+            : <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{String(item)}</p>}
+        </article>
+      ))}
+    </div>
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value).filter(([key, child]) =>
+      !/^(id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
+      child !== null && child !== undefined && child !== ''
+    )
+    if (!entries.length) return <span className="text-slate-400">No details provided</span>
+    return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {entries.map(([key, child]) => (
+        <div key={key} className="min-w-0 rounded-lg border border-slate-100 bg-white p-2.5">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
+          <div className="min-w-0 break-words text-sm text-slate-700"><ReadableViewValue value={child} label={key} /></div>
+        </div>
+      ))}
+    </div>
+  }
+  const textValue = String(value)
+  const looksLikeImage = /image|photo|flag|cover|hero|banner|thumbnail|avatar|poster/i.test(label)
+  const looksLikeUrl = /^(https?:\/\/|\/uploads\/|\/media\/)/i.test(textValue)
+  if (looksLikeImage && looksLikeUrl) {
+    return <div className="space-y-2">
+      <a href={textValue} target="_blank" rel="noreferrer" className="block w-fit max-w-full">
+        <img src={textValue} alt={readableFieldLabel(label)} loading="lazy" className="h-24 max-w-full rounded-lg border border-slate-200 object-cover sm:h-28" onError={e => { e.currentTarget.style.display = 'none' }} />
+      </a>
+      <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-xs font-semibold text-emerald-700 hover:underline">Open image <ExternalLink size={12} /></a>
+    </div>
+  }
+  if (looksLikeUrl) {
+    return <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-sm font-semibold text-emerald-700 hover:underline">{textValue}<ExternalLink size={12} className="shrink-0" /></a>
+  }
+  return <span className="whitespace-pre-wrap break-words">{textValue}</span>
+}
+
 /* ─── Confetti ───────────────────────────────────────────────────────────────── */
 
 function Confetti({ active }) {
@@ -1598,7 +1668,7 @@ export default function Countries() {
                 <ModalSection title="Highlights">
                   <div className="flex flex-wrap gap-2">
                     {viewModal.data.highlights.map((h, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{h}</span>
+                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">{typeof h === 'string' ? h : h?.name || h?.title || h?.label || 'Highlight'}</span>
                     ))}
                   </div>
                 </ModalSection>
@@ -1608,7 +1678,7 @@ export default function Countries() {
                 <ModalSection title="Experiences">
                   <div className="flex flex-wrap gap-2">
                     {viewModal.data.experiences.map((e, i) => (
-                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">{e}</span>
+                      <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">{typeof e === 'string' ? e : e?.name || e?.title || e?.label || 'Experience'}</span>
                     ))}
                   </div>
                 </ModalSection>
@@ -1635,20 +1705,31 @@ export default function Countries() {
                   <ModalField label="Gallery"      value={`${(viewModal.data.gallery || []).length} photo(s)`} />
                 </ModalGrid>
               </ModalSection>
-              <ModalSection title="Complete country record — all saved fields">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
-                  {Object.entries(viewModal.data || {}).map(([key, value], index) => {
-                    const Icon = /image|photo|gallery|hero|banner|flag/i.test(key) ? ImageIcon : /country|region|location|address|capital|latitude|longitude|airport/i.test(key) ? MapPin : /population|area|size/i.test(key) ? Globe2 : /currency|cost|price|fee/i.test(key) ? DollarSign : /date|duration|time|hour|timezone/i.test(key) ? Clock : /language|people|ethnic|religion/i.test(key) ? Languages : /attraction|destination|activity|wildlife|tip/i.test(key) ? Globe2 : /status|active|featured|popular|eco|family/i.test(key) ? Shield : /description|overview|content|faq|meta/i.test(key) ? BookOpen : FileText
-                    const displayValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
-                    return (
-                      <motion.article key={key} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.01,.2)}} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-                        <div className="flex items-center gap-2 mb-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={15}/></span><span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
-                        <div className="text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">{displayValue}</div>
-                      </motion.article>
-                    )
-                  })}
-                </div>
-              </ModalSection>
+              {(() => {
+                const data = viewModal.data || {}
+                const shown = new Set([
+                  'name','capital','continent','region','sub_region','population','area','currency','currency_symbol','timezone','calling_code','latitude','longitude',
+                  'best_time_to_visit','climate','languages','official_languages','visa_info','health_info','description','highlights','experiences','travel_tips',
+                  'is_featured','is_active','destination_count','view_count','gallery','image_url','cover_image_url','hero_image','flag_url','flag'
+                ])
+                const extraEntries = Object.entries(data).filter(([key, value]) =>
+                  !shown.has(key) && !/^(id|country_id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
+                  value !== null && value !== undefined && value !== '' &&
+                  !(Array.isArray(value) && value.length === 0)
+                )
+                if (!extraEntries.length) return null
+                return <ModalSection title="Additional country information">
+                  <p className="mb-3 text-xs leading-relaxed text-slate-500">Useful details about this country, organized for quick reading.</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {extraEntries.map(([key, value]) => (
+                      <article key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-emerald-200">
+                        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
+                        <div className="min-w-0 text-sm leading-relaxed text-slate-700"><ReadableViewValue value={value} label={key} /></div>
+                      </article>
+                    ))}
+                  </div>
+                </ModalSection>
+              })()}
 
             </div>
           )
