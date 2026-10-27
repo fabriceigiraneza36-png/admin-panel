@@ -65,22 +65,6 @@ function useAdminNotifications() {
   const pollRef = useRef(null)
   const mountedRef = useRef(true)
 
-  const injectMock = useCallback(() => {
-    const now = Date.now()
-    const mock = [
-      { id: 'm1', type: 'booking_new', is_read: false, title: 'New booking received',
-        message: 'John Doe booked Serengeti Safari for 3 people', created_at: new Date(now - 2 * 60000).toISOString() },
-      { id: 'm2', type: 'payment_received', is_read: false, title: 'Payment confirmed',
-        message: '$1,200 received for Kilimanjaro Climb', created_at: new Date(now - 15 * 60000).toISOString() },
-      { id: 'm3', type: 'user_registered', is_read: false, title: 'New user registered',
-        message: 'Sarah K. created an account', created_at: new Date(now - 35 * 60000).toISOString() },
-      { id: 'm4', type: 'contact_message', is_read: true, title: 'Contact form message',
-        message: 'Inquiry about Zanzibar beach packages', created_at: new Date(now - 2 * 3600000).toISOString() },
-    ]
-    setNotifications(mock)
-    setUnreadCount(mock.filter(n => !n.is_read).length)
-  }, [])
-
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/notifications/admin?limit=50`, {
@@ -100,7 +84,7 @@ function useAdminNotifications() {
       if (mountedRef.current) setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [injectMock])
+  }, [])
 
   const markAsRead = useCallback(async (id) => {
     setNotifications(p => p.map(n => n.id === id ? { ...n, is_read: true } : n))
