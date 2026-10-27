@@ -204,7 +204,10 @@ const BELL_CSS = `
   animation:anb-in 0.25s cubic-bezier(0.22,1,0.36,1);
   transform-origin:top right;
 }
-@media (max-width: 560px) {\n  .anb-drop { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 68px); right:12px; left:12px; width:auto; max-width:none; max-height:calc(100dvh - 88px); border-radius:16px; }\n  .anb-list { max-height:min(46dvh, 340px); }\n  .anb-head { gap:8px; padding:12px; flex-wrap:wrap; }\n  .anb-head-l { min-width:0; }\n  .anb-head-r { margin-left:auto; flex-wrap:wrap; }\n  .anb-tabs { padding:8px; }\n  .anb-item { gap:9px; padding:11px 12px; }\n  .anb-ico { width:34px; height:34px; border-radius:10px; }\n  .anb-acts { opacity:1; }\n  .anb-ibtn { opacity:1; }\n  .anb-foot { padding:10px 12px; gap:8px; flex-wrap:wrap; }\n}\n@media (max-width: 360px) {\n  .anb-drop { right:8px; left:8px; top:calc(env(safe-area-inset-top, 0px) + 60px); max-height:calc(100dvh - 76px); }\n  .anb-head-title { font-size:13px; }\n  .anb-mark-all { padding:5px 7px; }\n  .anb-item { gap:7px; padding:10px; }\n  .anb-ttl { white-space:normal; overflow-wrap:anywhere; }\n}\n\n@keyframes anb-in {
+@media (max-width: 560px) {\n  .anb-drop { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 68px); right:12px; left:12px; width:auto; max-width:none; max-height:calc(100dvh - 88px); border-radius:16px; }\n  .anb-list { max-height:min(46dvh, 340px); }\n  .anb-head { gap:8px; padding:12px; flex-wrap:wrap; }\n  .anb-head-l { min-width:0; }\n  .anb-head-r { margin-left:auto; flex-wrap:wrap; }\n  .anb-tabs { padding:8px; }\n  .anb-item { gap:9px; padding:11px 12px; }\n  .anb-user-avatar { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #e8f7f0; color: #087f5b; font-size: 12px; font-weight: 800; border: 1px solid #d1fae5; }
+.anb-user-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 480px) { .anb-user-avatar { width: 36px; height: 36px; flex-basis: 36px; } }
+.anb-ico { width:34px; height:34px; border-radius:10px; }\n  .anb-acts { opacity:1; }\n  .anb-ibtn { opacity:1; }\n  .anb-foot { padding:10px 12px; gap:8px; flex-wrap:wrap; }\n}\n@media (max-width: 360px) {\n  .anb-drop { right:8px; left:8px; top:calc(env(safe-area-inset-top, 0px) + 60px); max-height:calc(100dvh - 76px); }\n  .anb-head-title { font-size:13px; }\n  .anb-mark-all { padding:5px 7px; }\n  .anb-item { gap:7px; padding:10px; }\n  .anb-ttl { white-space:normal; overflow-wrap:anywhere; }\n}\n\n@keyframes anb-in {
   from{ opacity:0; transform:scale(0.92) translateY(-8px); }
   to  { opacity:1; transform:scale(1)    translateY(0);    }
 }
@@ -452,9 +455,7 @@ function AdminNotificationBell() {
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
           <Bell size={18} strokeWidth={2.2} />
-          {unreadCount > 0 && (
-            <span className="anb-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-          )}
+
         </button>
 
         {open && (
@@ -513,9 +514,17 @@ function AdminNotificationBell() {
                       className={`anb-item${!n.is_read ? ' anb-item--u' : ''}`}
                       onClick={() => handleClick(n)}
                     >
-                      <div className="anb-ico" style={{ background: meta.bg }}>{meta.icon}</div>
+                      {(String(n.type || '').toLowerCase().includes('message') || String(n.category || '').toLowerCase().includes('message')) ? (
+                        <div className="anb-user-avatar" aria-label={n.senderName || n.metadata?.senderName || 'User'}>
+                          {(n.senderAvatar || n.sender_avatar || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl || n.metadata?.sender_avatar_url) ? (
+                            <img src={n.senderAvatar || n.sender_avatar || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl || n.metadata?.sender_avatar_url} alt="" />
+                          ) : (
+                            <span>{String(n.senderName || n.metadata?.senderName || 'U').trim().split(/\s+/).map(part => part[0]).join('').slice(0,2).toUpperCase()}</span>
+                          )}
+                        </div>
+                      ) : <div className="anb-ico" style={{ background: meta.bg }}>{meta.icon}</div>}
                       <div className="anb-body">
-                        <p className="anb-ttl">{n.title}</p>
+                        <p className="anb-ttl">{String(n.title || '').replace(/\bguest(?: user)?\b/ig, n.senderName || n.metadata?.senderName || 'User')}</p>
                         <p className="anb-msg">{n.message}</p>
                         <div className="anb-meta">
                           <span className="anb-time">{timeAgo(n.created_at)}</span>
@@ -695,7 +704,7 @@ const SIDEBAR_CSS = `
 ═══════════════════════════════════════════════════════════════════════════ */
 function SidebarLink({ item, collapsed, notifUnread }) {
   const Icon = resolveIcon(item.icon)
-  const badge = item.badge === 'notif' ? notifUnread : 0
+  const badge = 0 // Keep notification counts inside the inbox, not on navbar icons
 
   return (
     <NavLink to={item.path} style={{ textDecoration: 'none', display: 'block' }}>
@@ -1256,6 +1265,25 @@ export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const isMessagesPage = location.pathname === '/messages' || location.pathname.startsWith('/messages/')
+  const { notifications: adminNotifications, markRead: markNotificationRead } = useNotifications()
+  const markedMessageNotificationsRef = useRef('')
+  useEffect(() => {
+    if (!isMessagesPage) {
+      markedMessageNotificationsRef.current = ''
+      return
+    }
+    const unreadMessageNotifications = (adminNotifications || []).filter(n =>
+      !n.is_read && (
+        String(n.type || '').toLowerCase().includes('message') ||
+        String(n.category || '').toLowerCase().includes('message') ||
+        String(n.id || '').startsWith('message-')
+      )
+    )
+    const key = unreadMessageNotifications.map(n => String(n.id)).sort().join(',')
+    if (!key || key === markedMessageNotificationsRef.current) return
+    markedMessageNotificationsRef.current = key
+    unreadMessageNotifications.forEach(n => { if (n.id != null) markNotificationRead(n.id) })
+  }, [isMessagesPage, adminNotifications, markNotificationRead])
 
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
