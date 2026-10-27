@@ -216,7 +216,7 @@ export default function TourismAnalytics() {
   const exportReport=()=>{
     const rows=[['ALTUVERA SAFARIS — TOURISM PERFORMANCE REPORT'],['Generated at',new Date().toISOString()],['Date from',from||'All dates'],['Date to',to||'All dates'],[],['Booking number','Guest','Email','Status','Destination','Country','Package','Created at']]
     filtered.forEach(b=>rows.push([b.booking_number||b.id,b.full_name,b.email,b.status||b.booking_status,b.destination_name||b.service_name,b.country_name,b.package_name,b.created_at||b.createdAt]))
-    rows.push([],['Summary metric','Value'],['Bookings in filtered data',analytics.total],['Confirmed or completed',analytics.confirmed],['Pending',analytics.pending],['Cancelled',analytics.cancelled],['Conversion rate',analytics.conversion===null?'N/A':`${analytics.conversion.toFixed(1)}%`],['Cancellation rate',analytics.cancellation===null?'N/A':`${analytics.cancellation.toFixed(1)}%`])
+    rows.push([],['Summary metric','Value'],['Bookings represented in exported rows',filtered.length],['Total bookings in report',analytics.total],['Confirmed or completed',analytics.confirmed],['Pending',analytics.pending],['Cancelled',analytics.cancelled],['Conversion rate',analytics.conversion===null?'N/A':`${analytics.conversion.toFixed(1)}%`],['Cancellation rate',analytics.cancellation===null?'N/A':`${analytics.cancellation.toFixed(1)}%`])
     downloadCsv(`altuvera-tourism-report-${new Date().toISOString().slice(0,10)}.csv`,rows)
   }
 
@@ -240,7 +240,7 @@ export default function TourismAnalytics() {
 
     {loading?<div className="grid min-h-48 place-items-center rounded-2xl border border-slate-200 bg-white"><RefreshCw className="animate-spin text-emerald-700"/></div>:<>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Bookings in view" value={totals.bookingsOk?fmt(analytics.total):'Unavailable'} detail="Loaded records matching your filters" icon={CalendarDays}/>
+        <Metric label="Bookings in view" value={totals.bookingsOk?fmt(analytics.total):'Unavailable'} detail={analytics.source === 'server aggregate across all booking records' ? 'Complete database total' : 'Loaded records matching your filters'} icon={CalendarDays}/>
         <Metric label="Conversion to confirmed/completed" value={analytics.conversion===null?'N/A':`${analytics.conversion.toFixed(1)}%`} detail={`${fmt(analytics.confirmed)} confirmed or completed bookings`} icon={TrendingUp} tone="blue"/>
         <Metric label="Cancellation rate" value={analytics.cancellation===null?'N/A':`${analytics.cancellation.toFixed(1)}%`} detail={`${fmt(analytics.cancelled)} cancelled bookings in view`} icon={AlertTriangle} tone="rose"/>
         <Metric label="Pending bookings" value={totals.bookingsOk?fmt(analytics.pending):'Unavailable'} detail="Requests awaiting a decision" icon={Users} tone="amber"/>
