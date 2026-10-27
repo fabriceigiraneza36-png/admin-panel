@@ -266,6 +266,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, currentUserId }) {
   const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
+  const relatedResource = conv.metadata?.relatedResource || conv.metadata?.related_resource || null
   const hasUnread = (conv.unreadAdmin || 0) > 0
   const previewBody = String(conv.lastMessage || '').trim()
   const previewSenderType = String(conv.lastMessageSenderType || conv.last_message_sender_type || '')
@@ -345,6 +346,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, 
           </span>
         </div>
 
+        {relatedResource?.title && <p className="mb-1 flex items-center gap-1 truncate text-[10px] font-semibold text-emerald-700"><FileText size={10} className="shrink-0"/><span className="truncate">{relatedResource.type || "Related item"}: {relatedResource.title}</span></p>}
         <div className="flex items-center justify-between gap-2">
           {isTyping ? (
             <div className="flex items-center gap-1 min-w-0">
