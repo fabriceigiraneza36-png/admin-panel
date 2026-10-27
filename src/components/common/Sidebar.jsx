@@ -967,24 +967,16 @@ export default function Sidebar({
                 style={{ display: 'flex', alignItems: 'center', gap: '11px', flex: 1, minWidth: 0 }}
               >
                 <motion.div
-                  whileHover={{ rotate: [0, -8, 8, 0] }}
-                  transition={{ duration: 0.5 }}
+                  whileHover={{ scale: 1.04 }}
+                  transition={{ duration: 0.2 }}
                   style={{
-                    width: '42px', height: '42px',
-                    borderRadius: '13px',
-                    background: 'linear-gradient(135deg,#059669,#10b981,#34d399)',
+                    width: '46px', height: '46px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 6px 16px rgba(5,150,105,0.35), inset 0 1px 0 rgba(255,255,255,0.2)',
                     flexShrink: 0,
-                    position: 'relative',
                   }}
                 >
-                  <MapPinned size={20} color="#fff" strokeWidth={2.4} />
-                  <span style={{
-                    position: 'absolute', top: '-2px', right: '-2px',
-                    width: '10px', height: '10px', borderRadius: '50%',
-                    background: '#fbbf24', border: '2px solid #fff',
-                  }} />
+                  <img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera Safaris logo" width="46" height="46"
+                    style={{ display: 'block', width: '46px', height: '46px', objectFit: 'contain' }} />
                 </motion.div>
 
                 <div style={{ overflow: 'hidden', minWidth: 0, flex: 1 }}>
