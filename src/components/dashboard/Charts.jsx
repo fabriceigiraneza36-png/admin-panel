@@ -43,6 +43,31 @@ export function BookingChart() {
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     try {
+      if (period === 'week' || period === 'month') {
+        const { data: liveResponse } = await apiClient.get('/bookings/stats', { params: { period: '6months' } })
+        const liveStats = liveResponse?.data || liveResponse
+        const aggregateRows = period === 'week' ? liveStats?.daily_trends : liveStats?.weekly_trends
+        if (Array.isArray(aggregateRows)) {
+          const now = new Date()
+          const buckets = []
+          const map = new Map(aggregateRows.map(row => [row.period, Number(row.total || 0)]))
+          if (period === 'week') {
+            for (let offset = 6; offset >= 0; offset--) {
+              const day = new Date(now); day.setHours(0,0,0,0); day.setDate(day.getDate()-offset)
+              const key = day.toISOString().slice(0,10)
+              buckets.push({ key, name: day.toLocaleDateString(undefined,{weekday:'short'}), bookings: map.get(key) || 0 })
+            }
+          } else {
+            const monday = new Date(now); monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-((monday.getDay()+6)%7))
+            for (let offset = 4; offset >= 0; offset--) {
+              const day = new Date(monday); day.setDate(day.getDate()-offset*7)
+              const key = day.toISOString().slice(0,10)
+              buckets.push({ key, name: day.toLocaleDateString(undefined,{month:'short',day:'numeric'}), bookings: map.get(key) || 0 })
+            }
+          }
+          setData(buckets); setAvailable(true); setUpdatedAt(new Date()); return
+        }
+      }
       if (period === 'year') {
         const { data: aggregateResponse } = await apiClient.get('/bookings/stats', { params: { period: '12months' } })
         const aggregate = aggregateResponse?.data || aggregateResponse
