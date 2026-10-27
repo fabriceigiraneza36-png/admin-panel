@@ -75,7 +75,12 @@ export default function ItineraryBuilder() {
             : DEFAULT_CHECKLIST.map(item => ({...item})),
         })
       } else {
-        const dates = dateRange(data?.booking?.travel_date, data?.booking?.return_date)
+        // Package requests store the second date as end_date; destination bookings
+        // commonly use return_date. Keep both schemas readable without changing
+        // the booking payload or its existing field names.
+        const bookingStartDate = data?.booking?.travel_date || data?.booking?.arrival_date || ''
+        const bookingEndDate = data?.booking?.end_date || data?.booking?.return_date || data?.booking?.departure_date || ''
+        const dates = dateRange(bookingStartDate, bookingEndDate)
         setItinerary(prev => ({
           ...prev,
           backgroundMode: 'white',
@@ -187,7 +192,7 @@ export default function ItineraryBuilder() {
           <div className="space-y-3 text-xs">
             <div className="flex gap-2"><FileText size={14}/><span><b>Booking:</b> {booking.booking_number}</span></div>
             <div className="flex gap-2"><Users size={14}/><span><b>Traveller:</b> {booking.full_name} · {booking.number_of_travelers} people</span></div>
-            <div className="flex gap-2"><CalendarDays size={14}/><span><b>Dates:</b> {booking.travel_date || 'Flexible'} → {booking.return_date || '—'}</span></div>
+            <div className="flex gap-2"><CalendarDays size={14}/><span><b>Arrival → Departure:</b> {booking.travel_date || booking.arrival_date || 'Flexible'} → {booking.end_date || booking.return_date || booking.departure_date || '—'}</span></div>
             <div className="flex gap-2"><Mail size={14}/><span><b>Email:</b> {booking.email}</span></div>
             <div className="flex gap-2"><MessageSquare size={14}/><span><b>Preferred:</b> {booking.preferred_contact_method || 'Not selected'}</span></div>
             <div className="pt-2 space-y-2">
