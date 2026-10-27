@@ -420,8 +420,11 @@ export function NotificationProvider({ children }) {
     };
 
     const onMessage = (payload = {}) => {
-      if (String(payload.senderType || payload.sender_type || "").toLowerCase() !== "user") return;
       const message = payload.message || {};
+      const incomingSenderType = String(
+        payload.senderType || payload.sender_type || message.senderType || message.sender_type || ""
+      ).toLowerCase();
+      if (incomingSenderType !== "user") return;
       if (String(message.senderType || message.sender_type || "").toLowerCase() !== "user") return;
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
