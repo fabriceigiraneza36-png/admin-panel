@@ -4,11 +4,37 @@ import {
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import apiClient from '@api/client'
+import { destinationsAPI } from '@api/destinations'
+import { countriesAPI } from '@api/countries'
+import { motion } from 'framer-motion'
 
 const GREEN_SHADES = [
   '#059669', '#10b981', '#34d399', '#6ee7b7',
   '#064e3b', '#065f46', '#047857', '#d1fae5',
 ]
+
+// API responses may be direct arrays or nested response envelopes.
+const extractRows = (payload, keys = []) => {
+  let value = payload
+  for (let depth = 0; depth < 5 && value != null; depth += 1) {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'object') return null
+    const key = keys.find((candidate) => Array.isArray(value[candidate]))
+    if (key) return value[key]
+    value = value.data
+  }
+  return null
+}
+
+const ChartFrame = ({ children, className = '' }) => (
+  <motion.section
+    initial={{ opacity: 0, y: 18 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, amount: 0.12 }}
+    transition={{ duration: 0.5, ease: 'easeOut' }}
+    className={'min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_14px_40px_rgba(5,150,105,0.06)] sm:p-5 ' + className}
+  >{children}</motion.section>
+)
 
 /* ── Custom tooltip ── */
 const CustomTooltip = ({ active, payload, label }) => {
@@ -161,12 +187,9 @@ export function DestinationCategoryChart() {
     const load = async () => {
       setLoading(true)
       try {
-        const { data: res } = await apiClient.get('/destinations', {
-          params: { limit: 200, page: 1 },
-        })
-
-        const destinations = res?.data?.destinations || res?.data?.data || res?.destinations || res?.data?.items || res?.items
-        if (!Array.isArray(destinations)) throw new Error('Destination records missing')
+        const response = await destinationsAPI.getAllAdmin({ limit: 500, page: 1, include: 'gallery' })
+        const destinations = extractRows(response?.data, ['destinations', 'items', 'results'])
+        if (!destinations) throw new Error('Admin destination records missing')
 
         /* Count by category */
         const counts = {}
@@ -251,12 +274,9 @@ export function ContinentChart() {
     const load = async () => {
       setLoading(true)
       try {
-        const { data: res } = await apiClient.get('/countries', {
-          params: { limit: 300, page: 1 },
-        })
-
-        const countries = res?.data?.countries || res?.data?.data || res?.countries || res?.data?.items || res?.items
-        if (!Array.isArray(countries)) throw new Error('Country records missing')
+        const response = await countriesAPI.getAll({ limit: 500, page: 1 })
+        const countries = extractRows(response?.data, ['countries', 'items', 'results'])
+        if (!countries) throw new Error('Country records missing')
 
         /* Count by continent */
         const counts = {}
