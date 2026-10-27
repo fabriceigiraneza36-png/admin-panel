@@ -1739,7 +1739,7 @@ export default function Messages() {
 
   const handleDeleteConversation = useCallback(async () => {
     if (!activeId || filter === 'recycle') return
-    const isOwnConversation = String(activeConv?.createdByAdminId ?? '') === String(user?.id ?? '')
+    const isOwnConversation = String(activeConv?.createdByAdminId ?? activeConv?.created_by_admin_id ?? '') === String(user?.id ?? '')
     const isOwnGroup = Boolean(activeConv?.groupId || activeConv?.group_id) &&
       String(activeConv?.groupCreatedBy ?? activeConv?.group_created_by ?? '') === String(user?.id ?? '')
     if (!isOwnConversation && !isOwnGroup) {
@@ -2657,7 +2657,7 @@ export default function Messages() {
                           className="w-9 h-9 rounded-xl border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition">
                           {activeConv.status === 'archived' ? <ArchiveRestore size={16} /> : <Archive size={16} />}
                         </button>
-                        {(String(activeConv.createdByAdminId ?? '') === String(user?.id ?? '') ||
+                        {(String(activeConv.createdByAdminId ?? activeConv.created_by_admin_id ?? '') === String(user?.id ?? '') ||
                           (Boolean(activeConv.groupId || activeConv.group_id) && String(activeConv.groupCreatedBy ?? activeConv.group_created_by ?? '') === String(user?.id ?? ''))) && (
                           <button onClick={handleDeleteConversation} title="Move to Recycle Bin" aria-label="Move to Recycle Bin"
                             className="w-9 h-9 rounded-xl border border-rose-100 bg-white text-rose-500 hover:bg-rose-50 hover:text-rose-700 flex items-center justify-center transition">
