@@ -43,6 +43,20 @@ export function BookingChart() {
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     try {
+      if (period === 'year') {
+        const { data: aggregateResponse } = await apiClient.get('/bookings/stats', { params: { period: '12months' } })
+        const aggregate = aggregateResponse?.data || aggregateResponse
+        if (!Array.isArray(aggregate?.monthly_trends)) throw new Error('Monthly aggregate unavailable')
+        const monthRows = aggregate.monthly_trends.slice(-12).map(row => ({
+          key: row.month,
+          name: row.month_label || row.month,
+          bookings: Number(row.total || 0),
+        }))
+        setData(monthRows)
+        setAvailable(true)
+        setUpdatedAt(new Date())
+        return
+      }
       const { data: res } = await apiClient.get('/bookings', { params: { limit: 100, page: 1, sortBy: 'created_at', order: 'desc' } })
       const list = res?.data?.bookings || res?.data?.data || res?.bookings || res?.data?.items || res?.items
       if (!Array.isArray(list)) throw new Error('Booking records missing')
@@ -107,7 +121,7 @@ export function BookingChart() {
           <Area type="monotone" dataKey="bookings" stroke="#059669" strokeWidth={2.5} fill="url(#bookingTrendGreenGrad)" name="Bookings" dot={{fill:'#059669',r:3,strokeWidth:0}} activeDot={{r:5,fill:'#059669'}}/>
         </AreaChart></ResponsiveContainer></div>
       )}
-      {available&&<p className="mt-2 text-[10px] leading-relaxed text-gray-400">Uses the latest 100 booking records returned by the current API, not a full historical aggregate.</p>}
+      {available&&<p className="mt-2 text-[10px] leading-relaxed text-gray-400">{period === 'year' ? 'Uses server-side monthly aggregates across all booking records.' : 'Uses the latest 100 booking records returned by the current API, not a full historical aggregate.'}</p>}
     </div>
   )
 }
