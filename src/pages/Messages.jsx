@@ -282,10 +282,10 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, 
   const adminSenderTypes = ['admin', 'super_admin', 'superadmin', 'administrator', 'moderator', 'editor', 'support', 'staff', 'agent']
   const isAdminPreview = adminSenderTypes.includes(previewSenderType)
   const isCurrentAdminPreview = currentUserId == null || previewSenderId == null || String(currentUserId) === String(previewSenderId)
-  const latestMessagePreview = !previewBody ? 'No messages yet' : !isGroupConversation ? previewBody :
+  const latestMessagePreview = !previewBody ? 'No messages yet' :
     isAdminPreview
       ? `${isCurrentAdminPreview ? 'You' : (previewSenderName || 'Admin')}: ${previewBody}`
-      : `${previewSenderName || 'Unknown member'}: ${previewBody}`
+      : `${previewSenderName || 'User'}: ${previewBody}`
   const pointerStartRef = useRef(null)
   const skipSyntheticClickRef = useRef(false)
 
