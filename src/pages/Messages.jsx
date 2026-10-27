@@ -2164,7 +2164,7 @@ export default function Messages() {
         <header className={`flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3
                             bg-white border-b border-slate-200 z-20
                             ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex items-center gap-3 min-w-0"><button onClick={() => setSidebarOpen(v => !v)} className="w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 flex items-center justify-center hover:text-emerald-600" aria-label="Toggle conversations" title="Toggle conversations">{sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}</button>
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600
                             flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
               <MessageSquare size={17} strokeWidth={2.2} />
