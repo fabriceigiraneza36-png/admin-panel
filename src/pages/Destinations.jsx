@@ -143,6 +143,76 @@ function DestinationExperienceEditor({ activities = [], onActivitiesChange, expe
     </section>
   </div>
 }
+
+/* Render saved values as readable labels, chips, links and nested cards — never raw JSON. */
+function readableFieldLabel(key = '') {
+  return String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim().replace(/^./, ch => ch.toUpperCase())
+}
+
+function ReadableViewValue({ value, label = '' }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-slate-400">Not provided</span>
+  }
+  if (typeof value === 'boolean') {
+    return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${value ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{value ? 'Yes' : 'No'}</span>
+  }
+  if (typeof value === 'number') {
+    return <span className="tabular-nums">{Number.isFinite(value) ? value.toLocaleString() : '—'}</span>
+  }
+  if (Array.isArray(value)) {
+    const items = value.filter(item => item !== null && item !== undefined && item !== '')
+    if (!items.length) return <span className="text-slate-400">Not provided</span>
+    const isSimpleList = items.every(item => ['string', 'number', 'boolean'].includes(typeof item))
+    if (isSimpleList) {
+      return <div className="flex flex-wrap gap-1.5">{items.map((item, index) => (
+        <span key={index} className="inline-flex max-w-full items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 break-words">
+          {typeof item === 'boolean' ? (item ? 'Yes' : 'No') : String(item)}
+        </span>
+      ))}</div>
+    }
+    return <div className="space-y-2">
+      {items.map((item, index) => (
+        <article key={item?.id ?? index} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(label.replace(/s$/i, '') || 'Item')} {index + 1}</p>
+          {item && typeof item === 'object'
+            ? <ReadableViewValue value={item} label={label.replace(/s$/i, '') || 'Item'} />
+            : <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{String(item)}</p>}
+        </article>
+      ))}
+    </div>
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value).filter(([key, child]) =>
+      !/^(id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
+      child !== null && child !== undefined && child !== ''
+    )
+    if (!entries.length) return <span className="text-slate-400">No details provided</span>
+    return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {entries.map(([key, child]) => (
+        <div key={key} className="min-w-0 rounded-lg border border-slate-100 bg-white p-2.5">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
+          <div className="min-w-0 break-words text-sm text-slate-700"><ReadableViewValue value={child} label={key} /></div>
+        </div>
+      ))}
+    </div>
+  }
+  const textValue = String(value)
+  const looksLikeImage = /image|photo|flag|cover|hero|banner|thumbnail|avatar|poster/i.test(label)
+  const looksLikeUrl = /^(https?:\/\/|\/uploads\/|\/media\/)/i.test(textValue)
+  if (looksLikeImage && looksLikeUrl) {
+    return <div className="space-y-2">
+      <a href={textValue} target="_blank" rel="noreferrer" className="block w-fit max-w-full">
+        <img src={textValue} alt={readableFieldLabel(label)} loading="lazy" className="h-24 max-w-full rounded-lg border border-slate-200 object-cover sm:h-28" onError={e => { e.currentTarget.style.display = 'none' }} />
+      </a>
+      <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-xs font-semibold text-emerald-700 hover:underline">Open image <ExternalLink size={12} /></a>
+    </div>
+  }
+  if (looksLikeUrl) {
+    return <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-sm font-semibold text-emerald-700 hover:underline">{textValue}<ExternalLink size={12} className="shrink-0" /></a>
+  }
+  return <span className="whitespace-pre-wrap break-words">{textValue}</span>
+}
+
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
 function Confetti({ active }) {
   const canvasRef = useRef(null)
@@ -2115,7 +2185,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
 
               {Array.isArray(d.tags)&&d.tags.length>0&&(
                 <ModalSection title="Tags">
-                  <div className="flex flex-wrap gap-2">{d.tags.map((tag,index)=><span key={tag.id || index} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{typeof tag==='string'?tag:tag.name || tag.label || JSON.stringify(tag)}</span>)}</div>
+                  <div className="flex flex-wrap gap-2">{d.tags.map((tag,index)=><span key={tag.id || index} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{typeof tag==='string'?tag:tag.name || tag.label || tag.title || 'Tag'}</span>)}</div>
                 </ModalSection>
               )}
 
@@ -2184,26 +2254,35 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                 </ModalSection>
               )}
 
-              <ModalSection title="All saved destination details">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {Object.entries(d).filter(([key, value]) =>
-                    !['gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','attractions','highlights','activities','wildlife','local_tips','localTips','faqs','itinerary','tags'].includes(key) &&
-                    value !== null && value !== undefined && value !== '' &&
-                    !(typeof value === 'boolean' && !value)
-                  ).map(([key, value]) => {
-                    const label = key.replace(/([A-Z])/g, ' $1').replace(/[_-]+/g, ' ').replace(/^./, ch => ch.toUpperCase()).trim()
-                    const rendered = Array.isArray(value)
-                      ? value.map(item => typeof item === 'object' ? JSON.stringify(item) : String(item)).join(' · ')
-                      : typeof value === 'object'
-                        ? JSON.stringify(value, null, 2)
-                        : String(value)
-                    return <div key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">{label}</p>
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed">{rendered}</p>
-                    </div>
-                  })}
-                </div>
-              </ModalSection>
+              {(() => {
+                const shown = new Set([
+                  'id','destination_id','country_id','created_at','updated_at','deleted_at','createdAt','updatedAt',
+                  'gallery','images','image_urls','imageUrls','hero_slides','heroSlides','hero_images','heroImages','banner_slides','bannerSlides',
+                  'image_url','imageUrl','hero_image','heroImage','cover_image_url','coverImageUrl','attractions','highlights','activities','wildlife',
+                  'local_tips','localTips','faqs','itinerary','tags','description','shortDescription','short_description','overview',
+                  'category','classification','difficulty','region','country','countryName','country_name','rating','reviewCount','review_count',
+                  'isActive','is_active','isFeatured','is_featured','isPopular','is_popular','isEcoFriendly','is_eco_friendly',
+                  'isFamilyFriendly','is_family_friendly','isSoldOut','is_sold_out','viewCount','view_count','bookingCount','booking_count',
+                  'gettingThere','getting_there','whatToExpect','what_to_expect','safetyInfo','safety_info'
+                ])
+                const extraEntries = Object.entries(d || {}).filter(([key, value]) =>
+                  !shown.has(key) && !/^(id|destination_id|country_id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
+                  value !== null && value !== undefined && value !== '' &&
+                  !(Array.isArray(value) && value.length === 0)
+                )
+                if (!extraEntries.length) return null
+                return <ModalSection title="Additional destination details">
+                  <p className="mb-3 text-xs leading-relaxed text-slate-500">Practical information and other saved details, grouped into easy-to-scan cards.</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {extraEntries.map(([key, value]) => (
+                      <article key={key} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-emerald-200">
+                        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
+                        <div className="min-w-0 text-sm leading-relaxed text-slate-700"><ReadableViewValue value={value} label={key} /></div>
+                      </article>
+                    ))}
+                  </div>
+                </ModalSection>
+              })()}
 
               <ModalSection title="Stats & Flags">
                 <ModalGrid>
@@ -2217,20 +2296,7 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
                   <ModalField label="Total Photos"    value={viewImgs.length}/>
                 </ModalGrid>
               </ModalSection>
-              <ModalSection title="Complete destination record — all saved fields">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[520px] overflow-y-auto pr-1">
-                  {Object.entries(d || {}).map(([key, value], index) => {
-                    const Icon = /image|photo|gallery|hero|banner|video/i.test(key) ? Image : /country|region|location|address|latitude|longitude|airport|city/i.test(key) ? MapPin : /price|fee|cost|currency/i.test(key) ? DollarSign : /date|duration|time|hour/i.test(key) ? Clock : /activity|attraction|highlight|wildlife|itinerary|tip/i.test(key) ? Compass : /status|active|featured|popular|eco|family|sold/i.test(key) ? Shield : /category|tag|slug|type|class/i.test(key) ? Tag : /rating|review|star/i.test(key) ? Star : /description|overview|content|faq|meta/i.test(key) ? BookOpen : FileText
-                    const displayValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
-                    return (
-                      <motion.article key={key} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.01,.2)}} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-                        <div className="flex items-center gap-2 mb-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={15}/></span><span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
-                        <div className="text-xs leading-5 text-slate-700 whitespace-pre-wrap break-words">{displayValue}</div>
-                      </motion.article>
-                    )
-                  })}
-                </div>
-              </ModalSection>
+
 
             </div>
           )
