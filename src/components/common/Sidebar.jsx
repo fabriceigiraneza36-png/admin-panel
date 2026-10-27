@@ -19,7 +19,7 @@ import {
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
-  Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone,
+  Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone, ClipboardCheck,
   Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
@@ -94,7 +94,8 @@ function useAdminNotifications() {
       setUnreadCount(list.filter(n => !n.is_read && !n.read_at).length)
     } catch {
       if (!mountedRef.current) return
-      if (notifications.length === 0) injectMock()
+      setNotifications([])
+      setUnreadCount(0)
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -580,7 +581,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart, Database, ShieldCheck,
+  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck,
 }
 
 const NAV_GROUPS = [
@@ -608,6 +609,7 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { path: '/bookings', label: 'Bookings', icon: 'CalendarCheck' },
+      { path: '/trip-operations', label: 'Trip Operations', icon: 'ClipboardCheck' },
       { path: '/itineraries', label: 'Itineraries', icon: 'FileText' },
       { path: '/packages', label: 'Packages', icon: 'Package' },
       { path: '/users', label: 'Users', icon: 'Users' },
