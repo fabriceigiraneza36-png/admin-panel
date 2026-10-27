@@ -1760,17 +1760,19 @@ export default function Messages() {
   const handleRestoreConversation = useCallback(async () => {
     if (!activeId || filter !== 'recycle') return
     try {
-      const res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId) + "/restore", {
-        method: "POST", body: JSON.stringify({}),
+      let res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId) + "/restore", {
+        method: "POST", body: JSON.stringify({ confirmSendToUser: false }),
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        if (res.status === 409 && data.conflict) {
-          toast.error("This traveler already has an active personal conversation. The restored thread has not been sent to them.")
-          return
-        }
-        throw new Error(data.message || "Could not restore conversation")
+      let data = await res.json().catch(() => ({}))
+      if (res.status === 409 && data.conflict && data.requiresAdminConfirmation) {
+        const confirmed = window.confirm("This traveler already has an active personal conversation. Send the restored thread to the traveler now? They will be asked to choose whether to keep the restored chat (moving the existing personal chat to Recycle Bin) or reject the restored chat. Nothing will be replaced without their choice.")
+        if (!confirmed) return
+        res = await authFetch(API_BASE + "/messages/conversations/" + encodeURIComponent(activeId) + "/restore", {
+          method: "POST", body: JSON.stringify({ confirmSendToUser: true }),
+        })
+        data = await res.json().catch(() => ({}))
       }
+      if (!res.ok) throw new Error(data.message || "Could not restore conversation")
       toast.success(data.message || "Conversation restored.")
       setActiveId(null); setActiveConv(null); setMessages([])
       await loadConversations()
@@ -1954,6 +1956,15 @@ export default function Messages() {
       // Intentionally transient: no notification-history record is written.
     }
 
+    const onRestoreChoiceResolved = (payload = {}) => {
+      if (payload.choice === 'keep_restored') {
+        toast.success("Traveler chose the restored conversation. Their previous personal chat moved to Recycle Bin.")
+      } else if (payload.choice === 'reject_restored') {
+        toast.success("Traveler rejected the restored conversation. Their current chat remains unchanged.")
+      }
+      scheduleConversationRefresh()
+    }
+
     const onRecycleCancelled = (payload = {}) => {
       const cid = String(payload.conversationId || '')
       if (!cid) return
@@ -2016,6 +2027,7 @@ export default function Messages() {
     on('msg:conversation-updated', onConvUpdated)
     on('msg:recycle-request-started', onRecycleRequested)
     on('msg:delete-cancel-request', onDeleteCancelRequest)
+    on('msg:restore-choice-resolved', onRestoreChoiceResolved)
     on('msg:recycle-cancelled', onRecycleCancelled)
     on('msg:conversation-recycled', onConversationRecycled)
     on('msg:reaction',             onReaction)
@@ -2033,6 +2045,7 @@ export default function Messages() {
       off('msg:conversation-updated', onConvUpdated)
       off('msg:recycle-request-started', onRecycleRequested)
       off('msg:delete-cancel-request', onDeleteCancelRequest)
+      off('msg:restore-choice-resolved', onRestoreChoiceResolved)
       off('msg:recycle-cancelled', onRecycleCancelled)
       off('msg:conversation-recycled', onConversationRecycled)
       off('msg:reaction',             onReaction)
@@ -2044,7 +2057,7 @@ export default function Messages() {
       off('msg:presence',             onPresence)
       off('msg:typing',               onTyping)
     }
-  }, [on, off, emit, scheduleConversationRefresh, pushIncomingMessageNotification])
+  }, [on, off, emit, scheduleConversationRefresh, pushIncomingMessageNotification, toast])
 
   useEffect(() => {
     if (!emit || !activeId) return
