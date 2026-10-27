@@ -387,7 +387,7 @@ const getMessageSenderLabel = (message, { currentUserId, guestName } = {}) => {
 const MsgBubble = React.memo(function MsgBubble({
   message, mine, replyTo, onReact, onReply, now, currentUserId, guestName, guestAvatar,
   editingId, editText, setEditText, onStartEdit, onSaveEdit, onCancelEdit,
-  onUnsend, onPin, onHighlight, onForward, onCopy, canModerate,
+  onUnsend, onPin, onHighlight, onForward, onCopy, canModerate, showSenderIdentity = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   // Keep a single message-actions modal open across every message bubble.
@@ -420,10 +420,10 @@ const MsgBubble = React.memo(function MsgBubble({
 
   return (
     <div id={`admin-message-${message.id}`} data-message-id={String(message.id)} className={`group/bubble flex ${mine ? 'justify-end' : 'justify-start'} mb-2 w-full scroll-mt-6`}>
-      {!mine && <div className="flex-shrink-0 self-end mr-2 mb-4"><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || guestAvatar} size="xs" /></div>}
+      {(!mine || showSenderIdentity) && <div className={`flex-shrink-0 self-end mb-4 ${mine ? 'ml-2 order-last' : 'mr-2'}`}><Avatar name={getMessageSenderLabel(message, { currentUserId, guestName })} src={message.senderAvatar || message.sender_avatar || (mine ? undefined : guestAvatar)} size="sm" /></div>}
 
       <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} max-w-[90%] sm:max-w-[75%] min-w-0`}>
-        {!mine && <span className={`text-[10px] font-bold mb-1 ml-1 uppercase tracking-wider ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}</span>}
+        {(!mine || showSenderIdentity) && <span className={`text-[11px] font-extrabold mb-1 ${mine ? 'mr-1 text-right' : 'ml-1 text-left'} ${message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'text-slate-500' : mine ? 'text-emerald-800' : 'text-emerald-700'}`}>{message.metadata?.senderUnavailable || message.metadata?.senderDeleted ? 'Member no longer available' : getMessageSenderLabel(message, { currentUserId, guestName })}{mine && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">Admin</span>}</span>}
 
         {replyTo && (
           <div className={`text-xs mb-1 max-w-full ${mine ? 'self-end' : 'self-start'}`}>
@@ -2512,6 +2512,7 @@ export default function Messages() {
                             onForward={(message) => setForwardMessage({ ...message, conversationId: activeId })}
                             onCopy={copyMessageText}
                             canModerate={true}
+                             showSenderIdentity={Boolean(activeConv?.groupId || activeConv?.group_id || activeConv?.isGroup || activeConv?.is_group)}
                           />
                         )
                       )}
