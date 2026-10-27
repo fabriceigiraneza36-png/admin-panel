@@ -73,8 +73,8 @@ const isIncomingUserMessageNotification = (notification) => {
 const safeIncomingSenderName = (name) => {
   const value = String(name || '').trim()
   const normalized = value.toLowerCase()
-  return !normalized || ['super admin', 'admin', 'administrator', 'altuvera support'].includes(normalized)
-    ? 'End user'
+  return !normalized || ['super admin', 'admin', 'administrator', 'altuvera support', 'guest', 'guest user', 'visitor', 'traveler', 'traveller', 'end user'].includes(normalized)
+    ? 'User'
     : value
 }
 
@@ -370,18 +370,42 @@ export function NotificationProvider({ children }) {
       const conversationId = payload.conversationId || message.conversationId;
       if (!conversationId || !mountedRef.current) return;
       const messageId = message.id || payload.messageId || null;
-      const senderName = safeIncomingSenderName(payload.senderName || message.senderName);
+      const senderName = safeIncomingSenderName(
+        payload.senderName || payload.username || payload.user?.username ||
+        payload.user?.fullName || payload.user?.full_name || payload.user?.name ||
+        message.senderName || message.sender_name || message.username ||
+        message.user?.username || message.user?.fullName || message.user?.full_name
+      );
+      const senderAvatar =
+        payload.senderAvatar || payload.sender_avatar || payload.senderAvatarUrl ||
+        payload.sender_avatar_url || payload.user?.avatarUrl || payload.user?.avatar_url ||
+        payload.user?.profilePictureUrl || payload.user?.profile_picture_url ||
+        message.senderAvatar || message.sender_avatar || message.sender_avatar_url ||
+        message.avatarUrl || message.avatar_url || message.profilePictureUrl ||
+        message.profile_picture_url || message.user?.avatarUrl || message.user?.avatar_url || "";
+      const conversationLabel = String(
+        payload.conversationName || payload.conversation_name || payload.groupName ||
+        payload.group_name || message.conversationName || message.conversation_name ||
+        message.groupName || message.group_name ||
+        ((payload.groupId || payload.group_id || message.groupId || message.group_id) ? "Group conversation" : `Conversation #${conversationId}`)
+      ).trim();
       const notification = {
         id: `message-${messageId || conversationId}`,
         type: "message_new",
         category: "message",
-        title: `New message from ${senderName}`,
+        title: `New message from ${senderName} · ${conversationLabel}`,
         message: message.body || "A new conversation message arrived.",
         action_url: `/messages?conversationId=${encodeURIComponent(conversationId)}`,
+        senderName,
+        senderAvatar,
+        conversationLabel,
         metadata: {
-          conversationId,
-          ...(messageId ? { messageId: String(messageId) } : {}),
+          conversationId: String(conversationId),
+          conversationLabel,
           senderName,
+          senderAvatar,
+          ...(messageId ? { messageId: String(messageId) } : {}),
+          senderType: "user",
         },
         is_read: false,
         created_at: new Date().toISOString(),
