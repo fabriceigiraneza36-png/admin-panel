@@ -15,7 +15,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
+  LayoutDashboard, Globe2, MapPin, CalendarCheck, Users, BarChart3,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
@@ -564,7 +564,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck,
+  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck, BarChart3,
 }
 
 const NAV_GROUPS = [
@@ -593,6 +593,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/bookings', label: 'Bookings', icon: 'CalendarCheck' },
       { path: '/trip-operations', label: 'Trip Operations', icon: 'ClipboardCheck' },
+      { path: '/tourism-analytics', label: 'Tourism Analytics', icon: 'BarChart3' },
       { path: '/itineraries', label: 'Itineraries', icon: 'FileText' },
       { path: '/packages', label: 'Packages', icon: 'Package' },
       { path: '/users', label: 'Users', icon: 'Users' },
