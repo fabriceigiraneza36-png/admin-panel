@@ -506,10 +506,13 @@ function PushNotificationBar () {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })
-      const data = await res.json()
-      setTestResult(data.message || data.error)
-    } catch {
-      setTestResult('Request failed')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.success === false || data.error) {
+        throw new Error(data.message || data.error || `Test push failed (HTTP ${res.status}).`)
+      }
+      setTestResult(data.message || 'Test push request accepted by the server. Check your device notification settings and subscription status if nothing appears.')
+    } catch (error) {
+      setTestResult(error?.message || 'Test notification request failed. Check the admin API and push configuration.')
     } finally {
       setTestSending(false)
     }
