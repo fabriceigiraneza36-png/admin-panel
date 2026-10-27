@@ -267,10 +267,6 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, currentUserId }) {
   const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
   const hasUnread = (conv.unreadAdmin || 0) > 0
-  const isGroupConversation = Boolean(
-    conv.groupId || conv.group_id || conv.isGroup || conv.is_group || conv.groupName || conv.group_name ||
-    String(conv.conversationType || conv.conversation_type || '').toLowerCase() === 'group'
-  )
   const previewBody = String(conv.lastMessage || '').trim()
   const previewSenderType = String(conv.lastMessageSenderType || conv.last_message_sender_type || '')
     .trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_')
