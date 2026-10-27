@@ -2330,14 +2330,20 @@ export default function Messages() {
                              outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all" />
               </div>
 
-              <div className="grid grid-cols-5 gap-1 p-1 bg-slate-100 rounded-lg" role="tablist" aria-label="Filter conversations by status">
-                {['open', 'pending', 'closed', 'archived', 'all'].map(f => (
-                  <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}
-                    className={`py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all
-                                ${filter === f
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl w-full min-w-0" role="tablist" aria-label="Filter conversations">
+                {[{ value: 'archived', label: 'Archived' }, { value: 'all', label: 'All conversations' }].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFilter(value)}
+                    aria-pressed={filter === value}
+                    className={`w-full min-w-0 px-2 py-2 rounded-lg text-[10px] sm:text-[11px] font-bold tracking-wide transition-all
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500
+                                ${filter === value
                                   ? 'bg-white text-emerald-700 shadow-sm'
-                                  : 'text-slate-500 hover:text-slate-800'}`}>
-                    {f}
+                                  : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    <span className="block truncate">{label}</span>
                   </button>
                 ))}
               </div>
