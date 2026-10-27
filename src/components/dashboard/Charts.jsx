@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend,
@@ -35,136 +35,79 @@ const ChartSkeleton = () => (
 
 /* ── Booking trends chart ── */
 export function BookingChart() {
-  const [data,    setData]    = useState([])
+  const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
-  const [period,  setPeriod]  = useState('week')
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const { data: res } = await apiClient.get('/bookings', {
-          params: {
-            limit:   100,
-            sortBy:  'created_at',
-            order:   'desc',
-          },
-        })
-
-        const bookingList = res?.data || res?.bookings || []
-
-        /* Group by day / week / month */
-        const grouped = {}
-        const now     = new Date()
-
-        bookingList.forEach((b) => {
-          const d = new Date(b.created_at)
-          let key = ''
-
-          if (period === 'week') {
-            /* Last 7 days */
-            const diff = Math.floor((now - d) / 86400000)
-            if (diff > 7) return
-            key = d.toLocaleDateString('en-US', { weekday: 'short' })
-          } else if (period === 'month') {
-            /* Last 30 days — group by week number */
-            const diff = Math.floor((now - d) / 86400000)
-            if (diff > 30) return
-            key = `Week ${Math.ceil((30 - diff) / 7)}`
-          } else {
-            /* Year — group by month */
-            const diff = (now.getFullYear() - d.getFullYear()) * 12 +
-                         (now.getMonth() - d.getMonth())
-            if (diff > 12) return
-            key = d.toLocaleDateString('en-US', { month: 'short' })
-          }
-
-          grouped[key] = (grouped[key] || 0) + 1
-        })
-
-        const chartData = Object.entries(grouped).map(([name, bookings]) => ({
-          name, bookings,
-        }))
-
-        /* Fallback: show empty periods with 0 */
-        if (chartData.length === 0) {
-          const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-          setData(days.map((name) => ({ name, bookings: 0 })))
-        } else {
-          setData(chartData)
+  const [available, setAvailable] = useState(false)
+  const [period, setPeriod] = useState('week')
+  const [updatedAt, setUpdatedAt] = useState(null)
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    try {
+      const { data: res } = await apiClient.get('/bookings', { params: { limit: 100, page: 1, sortBy: 'created_at', order: 'desc' } })
+      const list = res?.data?.bookings || res?.data?.data || res?.bookings || res?.data?.items || res?.items
+      if (!Array.isArray(list)) throw new Error('Booking records missing')
+      const now = new Date()
+      const grouped = new Map()
+      const labels = []
+      if (period === 'week') {
+        for (let offset = 6; offset >= 0; offset--) {
+          const day = new Date(now); day.setHours(0,0,0,0); day.setDate(day.getDate()-offset)
+          const key = day.toISOString().slice(0,10)
+          grouped.set(key,0); labels.push({key,label:day.toLocaleDateString(undefined,{weekday:'short'})})
         }
-      } catch {
-        setData([])
-      } finally {
-        setLoading(false)
+      } else if (period === 'month') {
+        for (let offset = 4; offset >= 0; offset--) {
+          const day = new Date(now); day.setDate(day.getDate()-offset*7)
+          day.setDate(day.getDate()-((day.getDay()+6)%7)); day.setHours(0,0,0,0)
+          const key=day.toISOString().slice(0,10)
+          if(!grouped.has(key)){grouped.set(key,0);labels.push({key,label:day.toLocaleDateString(undefined,{month:'short',day:'numeric'})})}
+        }
+      } else {
+        for(let offset=11;offset>=0;offset--){
+          const day=new Date(now.getFullYear(),now.getMonth()-offset,1)
+          const key=`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}`
+          grouped.set(key,0);labels.push({key,label:day.toLocaleDateString(undefined,{month:'short'})})
+        }
       }
-    }
-    load()
-  }, [period])
-
+      list.forEach(item=>{
+        const raw=item.created_at||item.createdAt
+        if(!raw)return
+        const date=new Date(raw);if(Number.isNaN(date.getTime()))return
+        let key
+        if(period==='week')key=date.toISOString().slice(0,10)
+        else if(period==='month'){date.setDate(date.getDate()-((date.getDay()+6)%7));date.setHours(0,0,0,0);key=date.toISOString().slice(0,10)}
+        else key=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`
+        if(grouped.has(key))grouped.set(key,grouped.get(key)+1)
+      })
+      setData(labels.map(({key,label})=>({key,name:label,bookings:grouped.get(key)||0})))
+      setAvailable(true);setUpdatedAt(new Date())
+    } catch { setAvailable(false);setData([]) }
+    finally { setLoading(false) }
+  },[period])
+  useEffect(()=>{void load();const timer=setInterval(()=>void load(true),60_000);return()=>clearInterval(timer)},[load])
+  const total=data.reduce((sum,row)=>sum+row.bookings,0)
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-sm font-bold text-gray-800">Booking Trends</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {data.reduce((s, d) => s + d.bookings, 0)} bookings in this period
-          </p>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white p-3 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0"><h3 className="text-sm font-bold text-gray-800">Booking Trends</h3>
+          <p className="mt-0.5 text-xs text-gray-400">{available?`${total.toLocaleString()} bookings in loaded records`:'Live booking data unavailable'}</p>
+          <p className="mt-1 text-[10px] text-gray-400">{updatedAt?`Updated ${updatedAt.toLocaleTimeString()}`:'Waiting for data'} · refreshes every minute</p>
         </div>
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-          {['week', 'month', 'year'].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1 text-xs font-bold rounded-lg capitalize
-                          transition-all duration-150
-                          ${period === p
-                            ? 'bg-white text-emerald-700 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                          }`}
-            >
-              {p}
-            </button>
-          ))}
+        <div className="flex w-full flex-wrap gap-1 rounded-xl bg-gray-100 p-1 sm:w-auto">
+          {['week','month','year'].map(p=><button key={p} onClick={()=>setPeriod(p)} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold capitalize transition-all sm:flex-none ${period===p?'bg-white text-emerald-700 shadow-sm':'text-gray-500 hover:text-gray-700'}`}>{p}</button>)}
         </div>
       </div>
-
-      {loading ? <ChartSkeleton /> : (
-        <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#059669" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#059669" stopOpacity={0}    />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
-              axisLine={false}
-              tickLine={false}
-              allowDecimals={false}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="bookings"
-              stroke="#059669"
-              strokeWidth={2.5}
-              fill="url(#greenGrad)"
-              name="Bookings"
-              dot={{ fill: '#059669', r: 3, strokeWidth: 0 }}
-              activeDot={{ r: 5, fill: '#059669' }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      {loading?<ChartSkeleton/>:!available?<div className="flex min-h-60 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center"><p className="text-sm font-semibold text-slate-600">No verified data available</p><p className="mt-1 max-w-sm text-xs text-slate-500">Booking trends could not be loaded. The chart is not replaced with fabricated zero values.</p></div>:(
+        <div className="h-56 w-full min-w-0 sm:h-64"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{top:8,right:8,left:-18,bottom:0}}>
+          <defs><linearGradient id="bookingTrendGreenGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#059669" stopOpacity={0.2}/><stop offset="95%" stopColor="#059669" stopOpacity={0.015}/></linearGradient></defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false}/>
+          <XAxis dataKey="name" tick={{fontSize:10,fill:'#9ca3af'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={10}/>
+          <YAxis tick={{fontSize:10,fill:'#9ca3af'}} axisLine={false} tickLine={false} allowDecimals={false} width={38}/>
+          <Tooltip content={<CustomTooltip/>}/>
+          <Area type="monotone" dataKey="bookings" stroke="#059669" strokeWidth={2.5} fill="url(#bookingTrendGreenGrad)" name="Bookings" dot={{fill:'#059669',r:3,strokeWidth:0}} activeDot={{r:5,fill:'#059669'}}/>
+        </AreaChart></ResponsiveContainer></div>
       )}
+      {available&&<p className="mt-2 text-[10px] leading-relaxed text-gray-400">Uses the latest 100 booking records returned by the current API, not a full historical aggregate.</p>}
     </div>
   )
 }
