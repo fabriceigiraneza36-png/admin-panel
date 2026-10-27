@@ -84,6 +84,7 @@ export const NAV_ITEMS = [
   { path: '/destinations',   label: 'Destinations',   icon: 'MapPin'          },
   { path: '/bookings',       label: 'Bookings',       icon: 'CalendarCheck'   },
   { path: '/trip-operations', label: 'Trip Operations', icon: 'ClipboardCheck' },
+  { path: '/tourism-analytics', label: 'Tourism Analytics', icon: 'BarChart3' },
   { path: '/packages',       label: 'Packages',       icon: 'Package'         },
   { path: '/users',          label: 'Users',          icon: 'Users'           },
   { path: '/posts',          label: 'Blog Posts',     icon: 'FileText'        },
