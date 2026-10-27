@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, label }) => {
           {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
         </p>
       ))}
-    </ChartFrame>
+    </div>
   )
 }
 
@@ -152,7 +152,7 @@ export function BookingChart() {
   useEffect(()=>{void load();const timer=setInterval(()=>void load(true),60_000);return()=>clearInterval(timer)},[load])
   const total=data.reduce((sum,row)=>sum+row.bookings,0)
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-gray-100 bg-white p-3 shadow-sm sm:p-5">
+    <ChartFrame className="p-3 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0"><h3 className="text-sm font-bold text-gray-800">Booking Trends</h3>
           <p className="mt-0.5 text-xs text-gray-400">{available?`${total.toLocaleString()} bookings in loaded records`:'Live booking data unavailable'}</p>
