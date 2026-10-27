@@ -95,7 +95,7 @@ const PLACEHOLDER_SVG = 'data:image/svg+xml,' + encodeURIComponent(
 
 /* Render saved values as readable labels, chips, links and nested cards — never raw JSON. */
 function readableFieldLabel(key = '') {
-  return String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ').trim().replace(/^./, ch => ch.toUpperCase())
+  return String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^./, ch => ch.toUpperCase())
 }
 
 function ReadableViewValue({ value, label = '' }) {
