@@ -114,8 +114,9 @@ export function BookingChart() {
 
 /* ── Destination categories pie chart ── */
 export function DestinationCategoryChart() {
-  const [data,    setData]    = useState([])
+  const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [available, setAvailable] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -125,7 +126,8 @@ export function DestinationCategoryChart() {
           params: { limit: 200, page: 1 },
         })
 
-        const destinations = res?.data || res?.destinations || []
+        const destinations = res?.data?.destinations || res?.data?.data || res?.destinations || res?.data?.items || res?.items
+        if (!Array.isArray(destinations)) throw new Error('Destination records missing')
 
         /* Count by category */
         const counts = {}
@@ -140,14 +142,18 @@ export function DestinationCategoryChart() {
           .slice(0, 8)
           .map(([name, value]) => ({ name, value }))
 
-        setData(chartData.length > 0 ? chartData : [])
+        setData(chartData)
+        setAvailable(true)
       } catch {
         setData([])
+        setAvailable(false)
       } finally {
         setLoading(false)
       }
     }
-    load()
+    void load()
+    const timer = setInterval(() => { void load() }, 60_000)
+    return () => clearInterval(timer)
   }, [])
 
   return (
@@ -155,7 +161,7 @@ export function DestinationCategoryChart() {
       <div className="mb-6">
         <h3 className="text-sm font-bold text-gray-800">Destinations by Category</h3>
         <p className="text-xs text-gray-400 mt-0.5">
-          {data.reduce((s, d) => s + d.value, 0)} total destinations
+          {available ? `${data.reduce((s, d) => s + d.value, 0)} total destinations` : 'Destination data unavailable'}
         </p>
       </div>
 
@@ -198,8 +204,9 @@ export function DestinationCategoryChart() {
 
 /* ── Countries by continent bar chart ── */
 export function ContinentChart() {
-  const [data,    setData]    = useState([])
+  const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [available, setAvailable] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -209,7 +216,8 @@ export function ContinentChart() {
           params: { limit: 300, page: 1 },
         })
 
-        const countries = res?.data || res?.countries || []
+        const countries = res?.data?.countries || res?.data?.data || res?.countries || res?.data?.items || res?.items
+        if (!Array.isArray(countries)) throw new Error('Country records missing')
 
         /* Count by continent */
         const counts = {}
@@ -222,14 +230,18 @@ export function ContinentChart() {
           .sort((a, b) => b[1] - a[1])
           .map(([name, count]) => ({ name, count }))
 
-        setData(chartData.length > 0 ? chartData : [])
+        setData(chartData)
+        setAvailable(true)
       } catch {
         setData([])
+        setAvailable(false)
       } finally {
         setLoading(false)
       }
     }
-    load()
+    void load()
+    const timer = setInterval(() => { void load() }, 60_000)
+    return () => clearInterval(timer)
   }, [])
 
   return (
@@ -237,7 +249,7 @@ export function ContinentChart() {
       <div className="mb-6">
         <h3 className="text-sm font-bold text-gray-800">Countries by Continent</h3>
         <p className="text-xs text-gray-400 mt-0.5">
-          {data.reduce((s, d) => s + d.count, 0)} countries in database
+          {available ? `${data.reduce((s, d) => s + d.count, 0)} countries in database` : 'Country data unavailable'}
         </p>
       </div>
 
