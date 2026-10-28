@@ -1,10 +1,9 @@
 // src/api/comments.js
 // ═══════════════════════════════════════════════════════════════════════════
-// Destination Comments API (admin)
+// Unified destination and country comments moderation API (admin)
 // Backend routes:
-//   GET    /api/destination-comments/admin/all           → adminGetAllComments
-//   DELETE /api/destination-comments/admin/:commentId    → adminDeleteComment
-//   PATCH  /api/destination-comments/admin/:commentId/approve → adminApproveComment
+//   GET    /api/destination-comments/admin/all           → merged comment feed
+//   Country mutations use /api/country-comments/admin/* based on resourceType
 // ═══════════════════════════════════════════════════════════════════════════
 
 import apiClient, { getErrorMessage } from "./client";
@@ -12,15 +11,18 @@ import apiClient, { getErrorMessage } from "./client";
 const BASE = "/destination-comments";
 
 export const commentsAPI = {
-  // Full list across every destination (paginated, searchable)
+  // Full list across destinations and countries (paginated, searchable)
   adminGetAll: (params) => apiClient.get(`${BASE}/admin/all`, { params }),
 
-  // Delete any comment by id
-  remove: (id) => apiClient.delete(`${BASE}/admin/${id}`),
+  // Country and destination tables have separate IDs/endpoints, so route by resourceType.
+  remove: (id, comment) => comment?.resourceType === "country"
+    ? apiClient.delete(`/country-comments/admin/${id}`)
+    : apiClient.delete(`${BASE}/admin/${id}`),
 
-  // Approve / unapprove a comment
-  approve: (id, isApproved) =>
-    apiClient.patch(`${BASE}/admin/${id}/approve`, { isApproved }),
+  // Approve / unapprove a comment.
+  approve: (id, isApproved, comment) => comment?.resourceType === "country"
+    ? apiClient.patch(`/country-comments/admin/${id}/approve`, { isApproved })
+    : apiClient.patch(`${BASE}/admin/${id}/approve`, { isApproved }),
 };
 
 export { getErrorMessage };
