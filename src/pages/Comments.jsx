@@ -27,6 +27,8 @@ import { useDebounce } from "@hooks/useDebounce";
 
 const PAGE_SIZE = 20;
 
+const commentKey = (comment) => String(comment?.resourceType === "country" ? "country" : "destination") + ":" + String(comment?.id);
+
 const FILTERS = [
   { key: "all",      label: "All",      color: "slate"   },
   { key: "approved", label: "Approved", color: "emerald" },
@@ -107,7 +109,7 @@ function CommentAvatar({ user, fallbackName }) {
 }
 
 function CommentCard({ comment, busy, onToggleApprove, onDelete }) {
-  const { id, content, isApproved, createdAt, user, authorName, destination } = comment;
+  const { id, content, isApproved, createdAt, user, authorName, destination, country, resourceType } = comment;
   return (
     <div
       className={`bg-white rounded-2xl border p-3 sm:p-4 flex gap-3 sm:gap-4 transition
@@ -140,11 +142,12 @@ function CommentCard({ comment, busy, onToggleApprove, onDelete }) {
           )}
         </div>
 
-        {/* Destination */}
-        {destination && (
+        {/* Associated destination or country */}
+        {(country || destination) && (
           <div className="text-xs text-primary-600 font-medium inline-flex items-center gap-1 mb-1.5">
             <MapPin size={11} />
-            {destination.name}
+            <span className="font-bold">{resourceType === "country" ? "Country:" : "Destination:"}</span>
+            {(country || destination).name}
           </div>
         )}
 
@@ -171,7 +174,7 @@ function CommentCard({ comment, busy, onToggleApprove, onDelete }) {
           {isApproved ? <EyeOff size={16} /> : <CheckCircle size={16} />}
         </button>
         <button
-          onClick={() => onDelete(id)}
+          onClick={() => onDelete(comment)}
           disabled={busy}
           aria-label="Delete comment"
           title="Delete"
@@ -205,7 +208,7 @@ export default function Comments() {
   const [searchInput, setSearchInput] = useState("");
   const search = useDebounce(searchInput, 400);
 
-  const [confirm, setConfirm] = useState({ open: false, id: null });
+  const [confirm, setConfirm] = useState({ open: false, comment: null });
   const [clearing, setClearing] = useState(false);
   const [clearConfirm, setClearConfirm] = useState({ open: false });
 
@@ -240,20 +243,20 @@ export default function Comments() {
 
   const handleApprove = useCallback(async (c) => {
     const nextApproved = !c.isApproved;
-    setBusyId(c.id);
+    const key = commentKey(c);
+    setBusyId(key);
 
-    // Optimistic update
+    // Use a source-aware key because country and destination tables may reuse the same ID.
     setComments((prev) =>
-      prev.map((x) => (x.id === c.id ? { ...x, isApproved: nextApproved } : x))
+      prev.map((x) => (commentKey(x) === key ? { ...x, isApproved: nextApproved } : x))
     );
 
     try {
-      await commentsAPI.approve(c.id, nextApproved);
+      await commentsAPI.approve(c.id, nextApproved, c);
       success(nextApproved ? "Comment approved" : "Comment hidden");
     } catch (err) {
-      // Rollback
       setComments((prev) =>
-        prev.map((x) => (x.id === c.id ? { ...x, isApproved: c.isApproved } : x))
+        prev.map((x) => (commentKey(x) === key ? { ...x, isApproved: c.isApproved } : x))
       );
       error(getErrorMessage(err));
     } finally {
@@ -264,21 +267,22 @@ export default function Comments() {
   /* ── Delete ────────────────────────────────────────────────────────────── */
 
   const handleDelete = useCallback(async () => {
-    const id = confirm.id;
-    if (!id) return;
-    setBusyId(id);
+    const comment = confirm.comment;
+    if (!comment?.id) return;
+    const key = commentKey(comment);
+    setBusyId(key);
     try {
-      await commentsAPI.remove(id);
-      setComments((prev) => prev.filter((x) => x.id !== id));
+      await commentsAPI.remove(comment.id, comment);
+      setComments((prev) => prev.filter((x) => commentKey(x) !== key));
       setTotal((t) => Math.max(0, t - 1));
       success("Comment deleted");
     } catch (err) {
       error(getErrorMessage(err));
     } finally {
       setBusyId(null);
-      setConfirm({ open: false, id: null });
+      setConfirm({ open: false, comment: null });
     }
-  }, [confirm.id, success, error]);
+  }, [confirm.comment, success, error]);
 
   /* ── Clear all ──────────────────────────────────────────────────────────── */
 
@@ -319,10 +323,10 @@ export default function Comments() {
           </div>
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-slate-800">
-              Destination Comments
+              Destination & Country Comments
             </h1>
             <p className="text-xs sm:text-sm text-slate-500">
-              {total.toLocaleString()} total comment{total === 1 ? "" : "s"} across all destinations
+              {total.toLocaleString()} total comment{total === 1 ? "" : "s"} across destinations and countries
             </p>
           </div>
         </div>
@@ -399,18 +403,18 @@ export default function Comments() {
           <p className="text-sm mt-1">
             {search || filter !== "all"
               ? "Try adjusting your filters."
-              : "Comments posted on destinations will appear here."}
+              : "Comments posted on destinations and countries will appear here."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
             <CommentCard
-              key={c.id}
+              key={commentKey(c)}
               comment={c}
-              busy={busyId === c.id}
+              busy={busyId === commentKey(c)}
               onToggleApprove={handleApprove}
-              onDelete={(id) => setConfirm({ open: true, id })}
+              onDelete={(comment) => setConfirm({ open: true, comment })}
             />
           ))}
         </div>
@@ -445,12 +449,12 @@ export default function Comments() {
 
       <ConfirmDialog
         isOpen={confirm.open}
-        onClose={() => setConfirm({ open: false, id: null })}
+        onClose={() => setConfirm({ open: false, comment: null })}
         onConfirm={handleDelete}
         type="delete"
         title="Delete comment?"
         description="This permanently removes the comment. This action cannot be undone."
-        loading={busyId === confirm.id}
+        loading={Boolean(confirm.comment) && busyId === commentKey(confirm.comment)}
       />
 
       <ConfirmDialog
