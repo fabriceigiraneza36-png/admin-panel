@@ -181,7 +181,22 @@ export default function Header({ onMenuClick, isMobileOpen, notificationBell }) 
    const online = isOnline
 
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
   const adminMenuRef = useRef(null)
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0)
+      const delta = currentY - lastScrollY.current
+      if (currentY < 72) setHeaderVisible(true)
+      else if (delta < -4) setHeaderVisible(true)
+      else if (delta > 6 && currentY > 120) setHeaderVisible(false)
+      lastScrollY.current = currentY
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const pageTitle = getPageTitle(location.pathname)
 
@@ -226,16 +241,18 @@ export default function Header({ onMenuClick, isMobileOpen, notificationBell }) 
   return (
     <>
       <header
-        className="admin-top-navbar flex-shrink-0 bg-white border-b border-gray-100
-                   flex items-center gap-4 px-4 md:px-6 z-30 relative"
+        className={`admin-top-navbar flex-shrink-0 border-b border-gray-100
+                   flex items-center gap-4 px-4 md:px-6 z-40 sticky top-0
+                   bg-white/95 backdrop-blur-xl transition-[transform,box-shadow,background-color]
+                   duration-300 ease-out ${headerVisible ? 'translate-y-0 shadow-sm' : '-translate-y-full shadow-none'}`}
         style={{
           height: '64px',
           minHeight: '64px',
           width: '100%',
           display: 'flex',
           flexShrink: 0,
-          position: 'relative',
           visibility: 'visible',
+          willChange: 'transform',
         }}
       >
 

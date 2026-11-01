@@ -30,8 +30,9 @@ const ChartFrame = ({ children, className = '' }) => (
   <motion.section
     initial={{ opacity: 0, y: 18 }}
     whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, amount: 0.12 }}
-    transition={{ duration: 0.5, ease: 'easeOut' }}
+    viewport={{ once: false, amount: 0.18 }}
+    transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+    whileHover={{ y: -2 }}
     className={'min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_14px_40px_rgba(5,150,105,0.06)] sm:p-5 ' + className}
   >{children}</motion.section>
 )
