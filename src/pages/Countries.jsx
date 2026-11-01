@@ -463,9 +463,9 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-            <Camera size={14} className="text-emerald-500" /> Photo Gallery
+            <Camera size={14} className="text-emerald-500" /> Cover / Banner Slideshow & Photo Gallery
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photos · add any number of hero/gallery images</p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photos · the first {HERO_COUNTRY_IMAGE_COUNT} ordered images are country banner slides; reorder them to choose the slideshow sequence</p>
         </div>
         <button type="button" onClick={() => setShowLibrary(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
