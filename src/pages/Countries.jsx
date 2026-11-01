@@ -1106,7 +1106,7 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).map(image => ({
+        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
           url: image.url || image.imageUrl,
           caption: image.caption || '',
         })).filter(image => image.url),
