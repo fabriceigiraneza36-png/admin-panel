@@ -407,7 +407,7 @@ function ImageManagerPanel({ label, value, onChange, folder, allImages, onLightb
 
 /* ─── Gallery Manager ────────────────────────────────────────────────────────── */
 
-const HERO_COUNTRY_IMAGE_COUNT = 4
+const HERO_COUNTRY_IMAGE_COUNT = 8
 const MIN_COUNTRY_IMAGES = 1
 const MAX_COUNTRY_IMAGES = Number.POSITIVE_INFINITY
 
@@ -463,9 +463,9 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-            <Camera size={14} className="text-emerald-500" /> Photo Gallery
+            <Camera size={14} className="text-emerald-500" /> Cover / Banner Slideshow & Photo Gallery
           </p>
-          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photos · add any number of hero/gallery images</p>
+          <p className="text-xs text-gray-500 mt-0.5">{gallery.length} photos · the first {HERO_COUNTRY_IMAGE_COUNT} ordered images are country banner slides; reorder them to choose the slideshow sequence</p>
         </div>
         <button type="button" onClick={() => setShowLibrary(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-all">
@@ -515,7 +515,7 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
               <img src={img.url} alt={img.caption || `Photo ${i+1}`} className="w-full h-full object-cover"
                 onError={e => { e.target.src = PLACEHOLDER_SVG }} />
               <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${i < HERO_COUNTRY_IMAGE_COUNT ? 'bg-emerald-600 text-white' : 'bg-violet-600 text-white'}`}>
-                {i < HERO_COUNTRY_IMAGE_COUNT ? `Hero ${i + 1}` : 'Attraction / Gallery'}
+                {i < HERO_COUNTRY_IMAGE_COUNT ? `Banner ${i + 1}` : 'Gallery'}
               </div>             {img.caption && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5">
                   <p className="text-[10px] text-white truncate">{img.caption}</p>
@@ -1106,7 +1106,7 @@ export default function Countries() {
     try {
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).map(image => ({
+        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
           url: image.url || image.imageUrl,
           caption: image.caption || '',
         })).filter(image => image.url),
@@ -1402,7 +1402,7 @@ export default function Countries() {
 
       case 'media': return (
         <motion.div key="media" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={tr} className="space-y-5">
-          <SectionHeader icon={Camera} title="Media & Visibility" description="Manage all photos and publication settings" tone="green" />
+          <SectionHeader icon={Camera} title="Media & Visibility" description={`Add multiple country cover/banner slides. The first ${HERO_COUNTRY_IMAGE_COUNT} ordered photos power the country hero slideshow; keep adding gallery photos below.`} tone="green" />
 
           {/* All images strip */}
           {allFormImages.length > 0 && (

@@ -189,14 +189,25 @@ export default function Header({ onMenuClick, isMobileOpen, notificationBell }) 
     const onScroll = () => {
       const currentY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0)
       const delta = currentY - lastScrollY.current
-      if (currentY < 72) setHeaderVisible(true)
-      else if (delta < -4) setHeaderVisible(true)
-      else if (delta > 6 && currentY > 120) setHeaderVisible(false)
+
+      // Keep the controls available when a menu is open or at the top.
+      if (currentY < 72 || adminMenuOpen || isMobileOpen) {
+        setHeaderVisible(true)
+      } else if (delta > 7 && currentY > 120) {
+        // Scrolling down the page: get the header out of the way.
+        setHeaderVisible(false)
+      } else if (delta < -7) {
+        // Scrolling back up: reveal the header again.
+        setHeaderVisible(true)
+      }
+
       lastScrollY.current = currentY
     }
+
+    lastScrollY.current = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [adminMenuOpen, isMobileOpen])
 
   const pageTitle = getPageTitle(location.pathname)
 
