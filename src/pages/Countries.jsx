@@ -439,16 +439,24 @@ function GalleryManager({ gallery = [], onChange, onLightbox }) {
   }
 
   const addFromUrl = () => {
-    if (!urlInput.trim()) return
-    if (!isValidUrl(urlInput.trim())) { setUrlValid(false); return }
+    const url = urlInput.trim()
+    if (!url) return
+    if (!isValidUrl(url)) { setUrlValid(false); return }
     setUrlValid(true)
-    onChange([...gallery, { url: urlInput.trim(), caption: captionInput.trim(), source: 'url' }])
+    const exists = gallery.some(image => String(typeof image === 'string' ? image : image?.url || image?.imageUrl || image?.image_url || '').trim() === url)
+    if (exists) {
+      setUrlValid(false)
+      return
+    }
+    onChange([...gallery, { url, caption: captionInput.trim(), source: 'url' }])
     setUrlInput(''); setCaptionInput('')
   }
 
   const addFromUpload = () => {
-    if (!uploadedUrl) return
-    onChange([...gallery, { url: uploadedUrl, caption: captionInput.trim(), source: 'upload' }])
+    const url = String(uploadedUrl || '').trim()
+    if (!url) return
+    const exists = gallery.some(image => String(typeof image === 'string' ? image : image?.url || image?.imageUrl || image?.image_url || '').trim() === url)
+    if (!exists) onChange([...gallery, { url, caption: captionInput.trim(), source: 'upload' }])
     setUploadedUrl(''); setCaptionInput('')
   }
 
@@ -972,11 +980,21 @@ export default function Countries() {
 
   const allFormImages = useMemo(() => {
     const imgs = []
-    if (form.image_url)       imgs.push({ url: form.image_url, caption: 'Country Photo' })
-    if (form.cover_image_url) imgs.push({ url: form.cover_image_url, caption: 'Cover / Banner' })
-    if (form.hero_image)      imgs.push({ url: form.hero_image, caption: 'Hero Image' })
-    if (form.flag_url)        imgs.push({ url: form.flag_url, caption: 'Flag' })
-    ;(form.gallery || []).forEach(g => imgs.push(g))
+    const seen = new Set()
+    const add = (value, caption) => {
+      const raw = typeof value === 'string'
+        ? value
+        : value?.url || value?.imageUrl || value?.image_url || value?.imageURL || value?.src || ''
+      const url = String(raw || '').trim()
+      if (!url || seen.has(url)) return
+      seen.add(url)
+      imgs.push({ ...(typeof value === 'object' && value ? value : {}), url, caption: value?.caption || caption || 'Gallery image' })
+    }
+    add(form.image_url, 'Country Photo')
+    add(form.cover_image_url, 'Cover / Banner')
+    add(form.hero_image, 'Hero Image')
+    add(form.flag_url, 'Flag')
+    ;(form.gallery || []).forEach(image => add(image, image?.caption || 'Gallery image'))
     return imgs
   }, [form.image_url, form.cover_image_url, form.hero_image, form.flag_url, form.gallery])
 
@@ -1012,11 +1030,16 @@ export default function Countries() {
     }
     if (!Array.isArray(heroImages)) heroImages = []
     const sourceImages = Array.isArray(c.images) && c.images.length ? c.images : heroImages
+    const seenImageUrls = new Set()
     const gallery = sourceImages.map(image => ({
-      url: typeof image === 'string' ? image : image.url || image.image_url || image.imageUrl || '',
+      url: typeof image === 'string' ? image.trim() : String(image?.url || image?.image_url || image?.imageUrl || image?.src || '').trim(),
       caption: typeof image === 'string' ? '' : image.caption || image.alt || '',
       source: 'upload',
-    })).filter(image => image.url)
+    })).filter(image => {
+      if (!image.url || seenImageUrls.has(image.url)) return false
+      seenImageUrls.add(image.url)
+      return true
+    })
 
     return {
       gallery,
@@ -1100,17 +1123,35 @@ export default function Countries() {
   }
 
   const handleSave = async () => {
+    // Validate each required step and navigate to the first invalid one so
+    // the user always sees why saving cannot continue.
     if (!validateStep('identity')) { setStep('identity'); return }
+    if (!validateStep('geography')) { setStep('geography'); return }
     if (!validateStep('media')) { setStep('media'); return }
     setSaving(true)
     try {
+      const normalizedGallery = []
+      const savedImageUrls = new Set()
+      ;(Array.isArray(form.gallery) ? form.gallery : []).forEach(image => {
+        const url = String(typeof image === 'string'
+          ? image
+          : image?.url || image?.imageUrl || image?.image_url || image?.imageURL || image?.src || '').trim()
+        if (!url || savedImageUrls.has(url)) return
+        savedImageUrls.add(url)
+        normalizedGallery.push({
+          ...(typeof image === 'object' && image ? image : {}),
+          url,
+          caption: typeof image === 'object' && image ? (image.caption || image.alt || '') : '',
+        })
+      })
       const payload = {
         ...form,
-        hero_images: (form.gallery || []).slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
-          url: image.url || image.imageUrl,
+        gallery: normalizedGallery,
+        hero_images: normalizedGallery.slice(0, HERO_COUNTRY_IMAGE_COUNT).map(image => ({
+          url: image.url,
           caption: image.caption || '',
-        })).filter(image => image.url),
-        images: (form.gallery || []).map(image => image.url || image.imageUrl).filter(Boolean),
+        })),
+        images: normalizedGallery.map(image => image.url),
         attractions: form.attractions || [],
         population: parsePopulation(form.population),
         area:       form.area       ? Number(form.area)       : null,
