@@ -321,3 +321,282 @@ select option { color:#1a1a1a; background:#fff; }
     }
   }
 }
+
+
+/* ── Responsive Contact inbox ─────────────────────────────────────────── */
+@layer components {
+  .contact-page {
+    width:100%;
+    min-width:0;
+  }
+
+  .contact-page-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    min-width:0;
+    background:
+      radial-gradient(ellipse at 96% 8%,rgba(16,185,129,.09),transparent 38%),
+      linear-gradient(120deg,#fff 0%,#fbfefc 54%,#fff 100%);
+    background-size:180% 180%;
+    animation:adminSurfaceDrift 18s ease-in-out infinite;
+  }
+
+  .contact-header-actions {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    gap:10px;
+    flex-shrink:0;
+  }
+
+  .contact-action-button {
+    min-height:42px;
+    padding-inline:14px;
+    white-space:nowrap;
+  }
+
+  .contact-filter-card,
+  .contact-results-shell {
+    min-width:0;
+    width:100%;
+  }
+
+  .contact-filter-layout {
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+    width:100%;
+    min-width:0;
+    gap:10px;
+  }
+
+  .contact-filter-layout > div:first-child {
+    width:100%;
+    min-width:0;
+  }
+
+  .contact-filter-layout > div:last-child {
+    justify-self:end;
+  }
+
+  .contact-search {
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+
+  .contact-search input {
+    min-height:44px;
+    max-width:100%;
+  }
+
+  .contact-message-card {
+    min-width:0;
+    transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+  }
+
+  .contact-message-card:active {
+    transform:scale(.995);
+  }
+
+  .contact-card-action {
+    display:inline-flex;
+    min-width:0;
+    min-height:42px;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:9px 10px;
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    background:#fff;
+    color:#475569;
+    font-size:12px;
+    font-weight:750;
+    transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease;
+  }
+
+  .contact-card-action:hover {
+    transform:translateY(-1px);
+    border-color:#a7f3d0;
+    background:#f0fdf4;
+    color:#047857;
+  }
+
+  .contact-card-action-primary {
+    border-color:#bbf7d0;
+    background:#ecfdf5;
+    color:#047857;
+  }
+
+  .contact-card-action-danger {
+    border-color:#fee2e2;
+    background:#fffafa;
+    color:#be123c;
+  }
+
+  .contact-card-action-danger:hover {
+    border-color:#fecdd3;
+    background:#fff1f2;
+    color:#be123c;
+  }
+
+  .contact-empty-state {
+    display:flex;
+    min-height:210px;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:28px 18px;
+    text-align:center;
+  }
+
+  .contact-pagination {
+    min-width:0;
+    overflow:hidden;
+  }
+
+  .contact-pagination > div {
+    flex-wrap:wrap;
+    min-width:0;
+  }
+
+  /* Animate the heading and softly shift admin page surfaces without
+     affecting form controls or making the interface visually noisy. */
+  .admin-page > .page-header {
+    background-image:
+      radial-gradient(ellipse at 96% 8%,rgba(16,185,129,.07),transparent 40%),
+      linear-gradient(120deg,#fff 0%,#fcfefd 52%,#fff 100%);
+    background-size:180% 180%;
+    animation:adminSurfaceDrift 20s ease-in-out infinite;
+  }
+
+  .admin-page .page-title {
+    animation:adminTextReveal .62s cubic-bezier(.22,1,.36,1) both;
+  }
+
+  .dashboard-command-hero {
+    background-size:180% 180%;
+    animation:dashboardHeroDrift 22s ease-in-out infinite;
+  }
+
+  .dashboard-admin-word {
+    background-size:200% 200%;
+    animation:dashboardTextGlow 7s ease-in-out infinite;
+  }
+}
+
+@keyframes adminSurfaceDrift {
+  0%,100% { background-position:0% 50%; }
+  50% { background-position:100% 50%; }
+}
+
+@keyframes adminTextReveal {
+  from { opacity:0; transform:translateY(9px); filter:blur(4px); }
+  to { opacity:1; transform:translateY(0); filter:blur(0); }
+}
+
+@keyframes dashboardHeroDrift {
+  0%,100% { background-position:0% 0%; }
+  50% { background-position:100% 100%; }
+}
+
+@keyframes dashboardTextGlow {
+  0%,100% { background-position:0% 50%; }
+  50% { background-position:100% 50%; }
+}
+
+@media (max-width:640px) {
+  .contact-page-header {
+    align-items:stretch;
+    flex-direction:column;
+    gap:14px;
+    border-radius:18px;
+    padding:14px;
+  }
+
+  .contact-header-actions {
+    display:grid;
+    width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .contact-action-button {
+    width:100%;
+    min-width:0;
+    padding-inline:10px;
+  }
+
+  .contact-filter-layout {
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+  }
+
+  .contact-filter-layout > div:first-child {
+    min-width:0;
+  }
+
+  .contact-filter-layout button[aria-haspopup="dialog"] {
+    min-height:44px;
+    padding-inline:11px;
+  }
+
+  .contact-message-card {
+    padding:14px;
+  }
+
+  .contact-pagination > div {
+    align-items:stretch;
+    gap:9px;
+    padding-inline:2px;
+  }
+
+  .contact-pagination > div > div:first-child {
+    flex-wrap:wrap;
+    justify-content:space-between;
+    width:100%;
+    gap:7px;
+    font-size:11px;
+  }
+
+  .contact-pagination > div > div:last-child {
+    justify-content:center;
+    width:100%;
+  }
+}
+
+@media (max-width:380px) {
+  .contact-filter-layout {
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .contact-filter-layout > div:last-child {
+    justify-self:stretch;
+    width:100%;
+  }
+
+  .contact-filter-layout button[aria-haspopup="dialog"] {
+    width:100%;
+    justify-content:center;
+  }
+
+  .contact-card-action {
+    gap:6px;
+    padding-inline:7px;
+    font-size:11px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .contact-page-header,
+  .admin-page > .page-header,
+  .admin-page .page-title,
+  .dashboard-command-hero,
+  .dashboard-admin-word {
+    animation:none !important;
+  }
+}
