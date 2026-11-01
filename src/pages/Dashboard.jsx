@@ -293,7 +293,7 @@ export default function Dashboard() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="group/hero relative isolate overflow-hidden rounded-[26px] border border-emerald-200/20 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.22),transparent_42%),linear-gradient(135deg,#022c22_0%,#065f46_52%,#047857_100%)] p-5 text-white shadow-[0_24px_70px_rgba(6,78,59,0.24)] ring-1 ring-white/10 sm:rounded-[32px] sm:p-7 lg:p-9"
+        className="dashboard-command-hero group/hero relative isolate overflow-hidden rounded-[26px] border border-emerald-200/20 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.22),transparent_42%),linear-gradient(135deg,#022c22_0%,#065f46_52%,#047857_100%)] p-5 text-white shadow-[0_24px_70px_rgba(6,78,59,0.24)] ring-1 ring-white/10 sm:rounded-[32px] sm:p-7 lg:p-9"
       >
         <motion.div aria-hidden="true" animate={{ x: [0, 18, 0], y: [0, 14, 0], scale: [1, 1.1, 1] }} transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
         <motion.div aria-hidden="true" animate={{ x: [0, -14, 0], y: [0, -12, 0], scale: [1, 1.14, 1] }} transition={{ duration: 19, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-teal-300/15 blur-3xl" />
