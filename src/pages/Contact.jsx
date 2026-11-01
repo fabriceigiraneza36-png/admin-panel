@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { MessageSquare, Eye, Trash2, RefreshCw, Star as StarIcon, Mail, Reply, Archive, AlertTriangle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { MessageSquare, Eye, Trash2, RefreshCw, Mail, Reply, Archive, Clock3, Inbox, SlidersHorizontal } from 'lucide-react'
 import { contactAPI }        from '@api/contact'
 import { maintenanceAPI }    from '@api/maintenance'
 import Table, { TableActions, TableAction } from '@components/common/Table'
@@ -92,20 +93,118 @@ export default function Contact() {
   ]
 
   return (
-    <div className="space-y-5 page-enter">
-      <div className="page-header"><div><h1 className="page-title flex items-center gap-2"><MessageSquare size={28} className="text-primary-600" /> Contact Messages</h1><p className="page-subtitle">{pag.total} messages</p></div>
-        <button onClick={load} disabled={loading} className="btn-secondary btn-sm"><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /></button>
-        <button onClick={() => setClearConfirm({ open: true })} disabled={loading || pag.total === 0} className="btn-danger btn-sm">Clear All</button>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="admin-page premium-page contact-page space-y-5 page-enter"
+    >
+      <div className="page-header contact-page-header">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <MessageSquare size={21} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">Inbox workspace</p>
+              <h1 className="page-title text-xl sm:text-2xl">Contact Messages</h1>
+            </div>
+          </div>
+          <p className="page-subtitle mt-2">{pag.total} messages · Review, organize and respond to traveller enquiries.</p>
+        </div>
+        <div className="contact-header-actions">
+          <button type="button" onClick={load} disabled={loading} className="btn-secondary btn-sm contact-action-button">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> <span>Refresh</span>
+          </button>
+          <button type="button" onClick={() => setClearConfirm({ open: true })} disabled={loading || pag.total === 0} className="btn-danger btn-sm contact-action-button">
+            <Trash2 size={14} /> <span>Clear all</span>
+          </button>
+        </div>
       </div>
 
-      <div className="card p-4"><FilterBar>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search messages…" className="max-w-sm" />
-        <FilterSelect label="Status" value={statusFilt} onChange={(v) => { setStatusFilt(v); pag.reset() }} options={[{ value: '', label: 'All' }, ...CONTACT_STATUSES]} />
-        <FilterSelect label="Priority" value={priorityFilt} onChange={(v) => { setPriorityFilt(v); pag.reset() }} options={[{ value: '', label: 'All' }, ...PRIORITY_OPTIONS]} />
-      </FilterBar></div>
+      <section className="card contact-filter-card p-3 sm:p-4" aria-label="Search and filter contact messages">
+        <div className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.13em] text-slate-500">
+          <SlidersHorizontal size={14} className="text-emerald-700" /> Find a message
+        </div>
+        <FilterBar className="contact-filter-layout">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search name, email or message…" className="contact-search w-full" />
+          <FilterSelect label="Status" value={statusFilt} onChange={(v) => { setStatusFilt(v); pag.reset() }} options={[{ value: '', label: 'All' }, ...CONTACT_STATUSES]} />
+          <FilterSelect label="Priority" value={priorityFilt} onChange={(v) => { setPriorityFilt(v); pag.reset() }} options={[{ value: '', label: 'All' }, ...PRIORITY_OPTIONS]} />
+        </FilterBar>
+      </section>
 
-      <div className="card"><Table columns={columns} data={items} loading={loading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} onRowClick={(r) => viewModal.open(r)} />
-        <Pagination {...pag} onNext={pag.next} onPrev={pag.prev} onGoTo={pag.goTo} onPageSizeChange={pag.setPageSize} /></div>
+      <section className="card contact-results-shell">
+        <div className="hidden md:block">
+          <Table columns={columns} data={items} loading={loading} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} onRowClick={(r) => viewModal.open(r)} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 p-3 md:hidden" aria-label="Contact message cards">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-48 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+            ))
+          ) : items.length ? (
+            items.map((message, index) => (
+              <motion.article
+                key={message.id || message._id || (message.email + '-' + index)}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.15 }}
+                transition={{ duration: 0.4, delay: Math.min(index * 0.035, 0.14) }}
+                className="contact-message-card min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar name={message.full_name} size="md" rounded="xl" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="min-w-0 break-words text-sm font-extrabold leading-5 text-slate-900">{message.full_name || 'Unknown sender'}</h3>
+                      {!message.is_read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-50" aria-label="Unread" />}
+                    </div>
+                    <p className="mt-0.5 break-all text-xs leading-5 text-slate-500">{message.email}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 min-w-0">
+                  <h4 className="break-words text-sm font-bold text-slate-800">{message.subject || '(no subject)'}</h4>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge status={message.status} label={message.status} />
+                    <PriorityBadge priority={message.priority} />
+                  </div>
+                  <p className="mt-3 whitespace-pre-line break-words text-xs leading-5 text-slate-600 line-clamp-3">{message.message || 'No message content.'}</p>
+                  <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+                    <Clock3 size={13} /> {formatTimeAgo(message.created_at)}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                  <button type="button" onClick={() => viewModal.open(message)} className="contact-card-action">
+                    <Eye size={14} /> View
+                  </button>
+                  <button type="button" onClick={() => { setReplyText(''); replyModal.open(message) }} className="contact-card-action contact-card-action-primary">
+                    <Reply size={14} /> Reply
+                  </button>
+                  <button type="button" onClick={() => markAs(message, 'archived')} className="contact-card-action">
+                    <Archive size={14} /> Archive
+                  </button>
+                  <button type="button" onClick={() => deleteModal.open(message)} className="contact-card-action contact-card-action-danger">
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              </motion.article>
+            ))
+          ) : (
+            <div className="contact-empty-state">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><Inbox size={22} /></span>
+              <p className="mt-3 text-sm font-extrabold text-slate-800">No contact messages found</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Try adjusting your search or filters.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="contact-pagination border-t border-slate-100 px-2 py-1 sm:px-4">
+          <Pagination {...pag} onNext={pag.next} onPrev={pag.prev} onGoTo={pag.goTo} onPageSizeChange={pag.setPageSize} />
+        </div>
+      </section>
 
       <Modal isOpen={viewModal.isOpen} onClose={viewModal.close} title="Message Details" size="md" icon={<MessageSquare size={20} />}
         footer={<div className="flex justify-end gap-2"><button onClick={viewModal.close} className="btn-secondary">Close</button><button onClick={() => { viewModal.close(); setReplyText(''); replyModal.open(viewModal.data) }} className="btn-primary"><Reply size={14} /> Reply</button></div>}>
@@ -132,6 +231,6 @@ export default function Contact() {
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} type="delete" title="Delete message?" description="This cannot be undone." />
 
       <ConfirmDialog isOpen={clearConfirm.open} onClose={() => setClearConfirm({ open: false })} onConfirm={handleClearAll} type="delete" title="Clear all contact messages?" description="This will permanently delete every contact submission. This cannot be undone." confirmLabel="Clear All" loading={clearing} />
-    </div>
+    </motion.div>
   )
 }
