@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, Activity, Globe2, MapPin,
   CalendarCheck, Users, FileText, Mail,
-  MessageSquare, TrendingUp, AlertCircle,
+  MessageSquare, TrendingUp, AlertCircle, ShieldCheck,
 } from 'lucide-react'
 import { useAuth }             from '@hooks/useAuth'
 import { useToast }            from '@hooks/useToast'
@@ -293,25 +293,25 @@ export default function Dashboard() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[30px] border border-emerald-100 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-800 p-5 text-white shadow-[0_24px_70px_rgba(6,78,59,0.18)] sm:p-7"
+        className="group/hero relative isolate overflow-hidden rounded-[26px] border border-emerald-200/20 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.22),transparent_42%),linear-gradient(135deg,#022c22_0%,#065f46_52%,#047857_100%)] p-5 text-white shadow-[0_24px_70px_rgba(6,78,59,0.24)] ring-1 ring-white/10 sm:rounded-[32px] sm:p-7 lg:p-9"
       >
-        <div className="absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-teal-300/10 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-100 backdrop-blur">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl transition-transform duration-700 group-hover/hero:scale-110" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-teal-300/15 blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:32px_32px]" />
+        <div className="relative flex min-w-0 flex-col gap-6 sm:gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 max-w-3xl">
+            <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/[0.09] px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-[0.13em] text-emerald-50 shadow-inner shadow-white/5 backdrop-blur-xl sm:tracking-[0.18em]">
               <Globe2 size={13} /> Altuvera Tourism Command Center
             </div>
-            <h1 className="text-2xl font-black tracking-tight sm:text-4xl">
+            <h1 className="break-words text-[clamp(1.65rem,5.4vw,2.8rem)] font-black leading-[1.08] tracking-[-0.04em]">
               {greeting()},{' '}
-              <span className="text-emerald-300">
-                {admin?.fullName?.split(' ')[0] || admin?.full_name?.split(' ')[0] || admin?.username || 'Admin'}
-              </span>{' '}👋
+              <span className="bg-gradient-to-r from-emerald-200 via-teal-200 to-white bg-clip-text text-transparent">Admin</span>{' '}
+              <ShieldCheck aria-hidden="true" className="inline-block align-[-0.08em] text-emerald-300" size={25} strokeWidth={2.2} />
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/75">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/80 sm:text-base sm:leading-7">
               Manage destinations, bookings, travellers and content from one beautifully organized workspace.
             </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-emerald-100/70">
+            <div className="mt-5 flex flex-wrap items-center gap-2.5 text-xs text-emerald-50/80 sm:mt-6">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
                 <Activity size={12} className="text-emerald-300" />
                 {lastRefresh ? 'Updated ' + lastRefresh.toLocaleTimeString() : 'Syncing live data…'}
@@ -324,7 +324,7 @@ export default function Dashboard() {
           <button
             onClick={load}
             disabled={loading}
-            className="group inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/15 disabled:opacity-50 sm:w-auto"
+            className="group inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-white/25 bg-white/[0.11] px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-950/10 backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/[0.17] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-900 disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-w-[210px]"
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : 'transition-transform duration-500 group-hover:rotate-180'} />
             Refresh dashboard
@@ -403,16 +403,16 @@ export default function Dashboard() {
           <div className="p-4 sm:p-6">
             <div className="relative isolate overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_20px_55px_rgba(15,23,42,0.18)]">
               <div className="relative min-h-[280px] sm:min-h-[360px]">
-                <AnimatePresence mode="wait">
+                <AnimatePresence initial={false} mode="sync">
                   {destinations[activeDestinationIndex] && (
                     <motion.button
                       key={destinations[activeDestinationIndex].id || destinations[activeDestinationIndex]._id || getDestinationName(destinations[activeDestinationIndex])}
                       type="button"
                       onClick={() => navigate('/destinations')}
-                      initial={{ opacity: 0, x: 34, scale: 1.015 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -28, scale: 0.99 }}
-                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      initial={{ opacity: 0, scale: 1.025 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.01 }}
+                      transition={{ opacity: { duration: 0.85, ease: 'easeInOut' }, scale: { duration: 1.05, ease: [0.22, 1, 0.36, 1] } }}
                       className="absolute inset-0 h-full w-full text-left"
                       aria-label={`Open destination manager for ${getDestinationName(destinations[activeDestinationIndex])}`}
                     >
