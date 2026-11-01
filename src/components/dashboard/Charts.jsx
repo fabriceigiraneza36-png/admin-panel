@@ -26,16 +26,31 @@ const extractRows = (payload, keys = []) => {
   return null
 }
 
-const ChartFrame = ({ children, className = '' }) => (
-  <motion.section
-    initial={{ opacity: 0, y: 18 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: false, amount: 0.18 }}
-    transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-    whileHover={{ y: -2 }}
-    className={'min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_14px_40px_rgba(5,150,105,0.06)] sm:p-5 ' + className}
-  >{children}</motion.section>
-)
+const ChartFrame = ({ children, className = '' }) => {
+  const [replayKey, setReplayKey] = useState(0)
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 22, scale: 0.985 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: false, amount: 0.2 }}
+      onViewportEnter={() => setReplayKey((current) => current + 1)}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -2 }}
+      className={'min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_14px_40px_rgba(5,150,105,0.06)] sm:p-5 ' + className}
+    >
+      <motion.div
+        key={replayKey}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="min-w-0"
+      >
+        {children}
+      </motion.div>
+    </motion.section>
+  )
+}
 
 /* ── Custom tooltip ── */
 const CustomTooltip = ({ active, payload, label }) => {
@@ -170,7 +185,7 @@ export function BookingChart() {
           <XAxis dataKey="name" tick={{fontSize:10,fill:'#9ca3af'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={10}/>
           <YAxis tick={{fontSize:10,fill:'#9ca3af'}} axisLine={false} tickLine={false} allowDecimals={false} width={38}/>
           <Tooltip content={<CustomTooltip/>}/>
-          <Area type="monotone" dataKey="bookings" stroke="#059669" strokeWidth={2.5} fill="url(#bookingTrendGreenGrad)" name="Bookings" dot={{fill:'#059669',r:3,strokeWidth:0}} activeDot={{r:5,fill:'#059669'}}/>
+          <Area type="monotone" dataKey="bookings" stroke="#059669" strokeWidth={2.5} fill="url(#bookingTrendGreenGrad)" name="Bookings" isAnimationActive animationDuration={950} animationEasing="ease-out" dot={{fill:'#059669',r:3,strokeWidth:0}} activeDot={{r:5,fill:'#059669'}}/>
         </AreaChart></ResponsiveContainer></div>
       )}
       {available&&<p className="mt-2 text-[10px] leading-relaxed text-gray-400">{period === 'year' ? 'Uses server-side monthly aggregates across all booking records.' : 'Uses the latest 100 booking records returned by the current API, not a full historical aggregate.'}</p>}
@@ -249,6 +264,9 @@ export function DestinationCategoryChart() {
               outerRadius={85}
               paddingAngle={3}
               dataKey="value"
+              isAnimationActive
+              animationDuration={900}
+              animationEasing="ease-out"
               stroke="none"
             >
               {data.map((_, i) => (
@@ -352,6 +370,9 @@ export function ContinentChart() {
               radius={[8, 8, 0, 0]}
               name="Countries"
               maxBarSize={48}
+              isAnimationActive
+              animationDuration={900}
+              animationEasing="ease-out"
             />
           </BarChart>
         </ResponsiveContainer>
