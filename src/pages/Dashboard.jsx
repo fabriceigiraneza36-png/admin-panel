@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, Activity, Globe2, MapPin,
   CalendarCheck, Users, FileText, Mail,
-  MessageSquare, TrendingUp, AlertCircle, ShieldCheck,
+  MessageSquare, TrendingUp, AlertCircle,
 } from 'lucide-react'
 import { useAuth }             from '@hooks/useAuth'
 import { useToast }            from '@hooks/useToast'
@@ -295,22 +295,21 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="group/hero relative isolate overflow-hidden rounded-[26px] border border-emerald-200/20 bg-[radial-gradient(ellipse_at_top_right,rgba(52,211,153,0.22),transparent_42%),linear-gradient(135deg,#022c22_0%,#065f46_52%,#047857_100%)] p-5 text-white shadow-[0_24px_70px_rgba(6,78,59,0.24)] ring-1 ring-white/10 sm:rounded-[32px] sm:p-7 lg:p-9"
       >
-        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl transition-transform duration-700 group-hover/hero:scale-110" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-teal-300/15 blur-3xl" />
+        <motion.div aria-hidden="true" animate={{ x: [0, 18, 0], y: [0, 14, 0], scale: [1, 1.1, 1] }} transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+        <motion.div aria-hidden="true" animate={{ x: [0, -14, 0], y: [0, -12, 0], scale: [1, 1.14, 1] }} transition={{ duration: 19, repeat: Infinity, ease: 'easeInOut' }} className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-teal-300/15 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:32px_32px]" />
         <div className="relative flex min-w-0 flex-col gap-6 sm:gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0 max-w-3xl">
             <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/[0.09] px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-[0.13em] text-emerald-50 shadow-inner shadow-white/5 backdrop-blur-xl sm:tracking-[0.18em]">
               <Globe2 size={13} /> Altuvera Tourism Command Center
             </div>
-            <h1 className="break-words text-[clamp(1.65rem,5.4vw,2.8rem)] font-black leading-[1.08] tracking-[-0.04em]">
+            <motion.h1 initial={{ opacity: 0, y: 18, filter: 'blur(7px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="break-words text-[clamp(1.65rem,5.4vw,2.8rem)] font-black leading-[1.08] tracking-[-0.04em]">
               {greeting()},{' '}
-              <span className="bg-gradient-to-r from-emerald-200 via-teal-200 to-white bg-clip-text text-transparent">Admin</span>{' '}
-              <ShieldCheck aria-hidden="true" className="inline-block align-[-0.08em] text-emerald-300" size={25} strokeWidth={2.2} />
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/80 sm:text-base sm:leading-7">
+              <span className="dashboard-admin-word bg-gradient-to-r from-emerald-200 via-teal-200 to-white bg-clip-text text-transparent">Admin</span>
+            </motion.h1>
+            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.18 }} className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/80 sm:text-base sm:leading-7">
               Manage destinations, bookings, travellers and content from one beautifully organized workspace.
-            </p>
+            </motion.p>
             <div className="mt-5 flex flex-wrap items-center gap-2.5 text-xs text-emerald-50/80 sm:mt-6">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
                 <Activity size={12} className="text-emerald-300" />
