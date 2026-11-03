@@ -1264,7 +1264,7 @@ export default function Packages() {
                 role="button"
                 tabIndex={0}
                 onClick={(event) => {
-                  if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return
+                  if (event.target.closest('button, a, input, select, textarea')) return
                   openBookingInBookings(bk)
                 }}
                 onKeyDown={(event) => {
