@@ -69,7 +69,7 @@ const normalizeConversation = (conversation) => {
 const GENERIC_SENDER_NAMES = new Set([
   'super admin', 'admin', 'administrator', 'altuvera support',
   'guest', 'guest user', 'visitor', 'traveler', 'traveller',
-  'end user', 'user', 'unknown member',
+  'end user', 'enduser', 'user', 'unknown member',
 ])
 const isGenericSenderName = (value) => !String(value || '').trim()
   || GENERIC_SENDER_NAMES.has(String(value).trim().toLowerCase().replace(/\s+/g, ' '))
@@ -80,6 +80,28 @@ const safeEndUserName = (name) => {
   const value = String(name || '').trim()
   return isGenericSenderName(value) ? 'Traveler' : value
 }
+
+const resolveConversationPersonName = (conversation) => {
+  if (!conversation || typeof conversation !== 'object') return safeEndUserName('');
+  const profileName = firstRealSenderName(
+    conversation.user?.fullName,
+    conversation.user?.full_name,
+    conversation.user_full_name,
+    conversation.u_full_name,
+    conversation.profile?.fullName,
+    conversation.profile?.full_name,
+  );
+  const savedName = firstRealSenderName(
+    conversation.guestName,
+    conversation.guest_name,
+    conversation.userName,
+    conversation.user_name,
+    conversation.name,
+  );
+  const fallback = conversation.guestEmail || conversation.guest_email ||
+    conversation.user?.email || conversation.user_email || '';
+  return safeEndUserName(profileName || savedName || fallback);
+};
 
 const fmtRelative = (d) => {
   if (!d) return ''
@@ -265,7 +287,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, currentUserId }) {
-  const title = conv.groupName || conv.subject || safeEndUserName(conv.guestName)
+  const title = conv.groupName || conv.subject || resolveConversationPersonName(conv)
   const relatedResource = conv.metadata?.relatedResource || conv.metadata?.related_resource || null
   const hasUnread = (conv.unreadAdmin || 0) > 0
   const previewBody = String(conv.lastMessage || '').trim()
@@ -328,7 +350,7 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, 
                     : 'border-l-transparent hover:bg-slate-50'}`}
     >
       <Avatar
-        name={safeEndUserName(conv.guestName)}
+        name={resolveConversationPersonName(conv)}
         src={conv.guestAvatar}
         size="md"
         online={conv.isOnline}
@@ -1575,7 +1597,7 @@ export default function Messages() {
           clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
-            toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
+            toast.success('Message sent to ' + (activeConv?.groupName || resolveConversationPersonName(activeConv)))
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
             toast.error(ack?.error || 'The message could not be sent. Please try again.')
@@ -1602,7 +1624,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
-          toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
+          toast.success('Message sent to ' + (activeConv?.groupName || resolveConversationPersonName(activeConv)))
         }
       } else {
         const payload = await res.json().catch(() => ({}))
@@ -2149,7 +2171,7 @@ export default function Messages() {
     ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
     : (activeConv?.subject
       || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
-      || safeEndUserName(activeConv?.guestName)
+      || resolveConversationPersonName(activeConv)
       || 'Conversation')
 
   const lastBookingMessage = [...messages].reverse().find(message =>
@@ -2618,7 +2640,7 @@ export default function Messages() {
                     </button>
 
                     <Avatar
-                      name={safeEndUserName(activeConv.guestName)}
+                      name={resolveConversationPersonName(activeConv)}
                       src={activeConv.guestAvatar}
                       size="md"
                       online={activeConv.isOnline}
@@ -2634,7 +2656,7 @@ export default function Messages() {
                             ? 'Active ' + fmtElapsed(presenceByConversation[String(activeId)]?.activeSince, now)
                             : (presenceByConversation[String(activeId)]?.lastSeenAt
                               ? 'Last seen ' + fmtElapsed(presenceByConversation[String(activeId)]?.lastSeenAt, now)
-                              : safeEndUserName(activeConv.guestName))}
+                              : resolveConversationPersonName(activeConv))}
                           {activeConv.bookingNumber && (
                             <span className="font-mono bg-slate-100 px-1 rounded ml-1.5 border border-slate-200 text-[10px]">
                               #{activeConv.bookingNumber}
