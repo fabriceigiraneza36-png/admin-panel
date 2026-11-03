@@ -339,6 +339,12 @@ export default function Bookings() {
   const deepLinkHandled = useRef(false)
   const deepLinkRequest = useRef(null)
 
+  useEffect(() => {
+    document.title = selected
+      ? `${formatBookingNumber(selected.booking_number) || 'Booking details'} | Bookings | Altuvera Admin`
+      : 'Bookings | Altuvera Admin';
+  }, [selected])
+
   // ── Navigation helpers ────────────────────────────────────────────────────
 
   const goList = () => {
