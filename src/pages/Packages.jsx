@@ -595,7 +595,7 @@ function InfoFieldBuilder({ value = [], onChange }) {
 
 // ── BookingRow ────────────────────────────────────────────────────────────────
 
-function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
+function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest, onOpenBookings }) {
   const [expanded, setExpanded] = useState(false)
 
   const statusColors = {
@@ -614,7 +614,11 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
           hover:bg-slate-50 transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
-        <StatusIcon status={booking.status} size={16} />
+        <button type="button" title={expanded ? 'Hide booking details' : 'View booking details'} aria-label={expanded ? 'Hide booking details' : 'View booking details'}
+          onClick={(event) => { event.stopPropagation(); setExpanded(value => !value) }}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+          <StatusIcon status={booking.status} size={16} />
+        </button>
         <Avatar src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url} name={booking.full_name || booking.user_name || booking.user_full_name} size="sm" rounded="full" />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-800 text-sm truncate">
@@ -684,6 +688,10 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
             <button onClick={() => onInfoRequest(booking)}
               className="btn-secondary btn-sm text-xs flex items-center gap-1.5">
               <FileText size={13} /> Request Info
+            </button>
+            <button type="button" onClick={() => onOpenBookings?.(booking)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">
+              <ExternalLink size={13} /> Open in Bookings
             </button>
             <div className="ml-auto">
               <select
@@ -1484,6 +1492,7 @@ export default function Packages() {
                   guest_email: b.email,
                   guest_name:  b.full_name,
                 })}
+                onOpenBookings={openBookingInBookings}
               />
               <div className="flex justify-end px-1 pt-2">
                 <button
