@@ -176,6 +176,42 @@ function DetailObject({ title, icon: Icon, value }) {
   )
 }
 
+function AdditionalBookingFields({ booking }) {
+  if (!booking || typeof booking !== 'object') return null;
+  const alreadyDisplayed = new Set([
+    'id','booking_id','booking_number','booking_ref','user_id','package_id','destination_id','country_id','service_id',
+    'source_table','full_name','guest_name','name','email','guest_email','user_email','phone','guest_phone','whatsapp',
+    'preferred_contact_method','preferred_contact_time','nationality','country','country_name',
+    'travel_date','return_date','end_date','booking_type','group_type','number_of_travelers','number_of_adults',
+    'number_of_children','travelers_count','adults','children','accommodation_type','destination_name','attraction_name',
+    'service_name','package_name','flexible_dates','flexible_months','pickup_location','accessibility_needs',
+    'marketing_source','newsletter_opt_in','email_verified','email_verified_at','itinerary_status',
+    'special_requests','dietary_requirements','admin_notes','status','priority','cancel_request_status',
+    'cancel_requested_at','cancel_request_reason','cancel_admin_response','cancel_reviewed_at',
+    'identity_portrait_url','identity_portrait_status','identity_portrait_verified_at',
+    'destination_details','country_details','service_details','package_details',
+    'created_at','updated_at','confirmed_at','cancelled_at','completed_at','deleted_at',
+    'user_name','user_full_name','user_avatar','user_avatar_url','avatar_url','user_is_verified',
+  ]);
+  const entries = Object.entries(booking).filter(([key, value]) =>
+    !alreadyDisplayed.has(key) &&
+    !/^user_|_id$|_uuid$|_token$/i.test(key) &&
+    hasBookingValue(value) &&
+    (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+  );
+  if (!entries.length) return null;
+  const labelFor = (key) => key.replace(/_/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+  return (
+    <SectionCard title="Additional booking information" icon={FileText}>
+      <InfoGrid>
+        {entries.map(([key, value]) => (
+          <InfoItem key={key} label={labelFor(key)} value={typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value} />
+        ))}
+      </InfoGrid>
+    </SectionCard>
+  );
+}
+
 function StepIndicator({ steps, current, completed }) {
   return (
     <div className="flex items-center mb-8">
@@ -1579,6 +1615,8 @@ export default function Bookings() {
                 )}
               </SectionCard>
               )}
+
+              <AdditionalBookingFields booking={selected} />
 
               <DetailObject title="Complete Destination Record" icon={MapPin} value={selected.destination_details} />
               <DetailObject title="Complete Country Record" icon={MapPin} value={selected.country_details} />
