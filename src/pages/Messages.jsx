@@ -452,6 +452,7 @@ const MsgBubble = React.memo(function MsgBubble({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [resourceModalOpen, setResourceModalOpen] = useState(false)
+  const navigate = useNavigate()
   // Keep a single message-actions modal open across every message bubble.
   // Opening another message's menu tells all other bubbles to close theirs.
   useEffect(() => {
@@ -520,7 +521,7 @@ const MsgBubble = React.memo(function MsgBubble({
                 </div>
               )}
               {!isDeleted && message.metadata?.relatedResource?.title && (
-                <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setResourceModalOpen(true) }}
+                <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); const resource = message.metadata.relatedResource; const type = String(resource.type || '').toLowerCase(); const id = resource.id ?? resource.resourceId ?? resource.resource_id ?? resource.destinationId ?? resource.destination_id ?? resource.countryId ?? resource.country_id ?? resource.packageId ?? resource.package_id; const route = type.includes('destination') ? '/destinations' : type.includes('country') ? '/countries' : type.includes('package') ? '/packages' : ''; if (route && id != null) { navigate(route + '?resourceId=' + encodeURIComponent(String(id)) + '&resourceType=' + encodeURIComponent(type)); setResourceModalOpen(false) } else { setResourceModalOpen(true) } }}
                   aria-label={`View imported ${message.metadata.relatedResource.type || 'resource'} details`}
                   className={"mb-2 flex w-full min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 " + (mine ? "border-white/20 bg-white/10 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-900")}>
                   {message.metadata.relatedResource.image && <img src={message.metadata.relatedResource.image} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />}
