@@ -1685,6 +1685,10 @@ export default function Packages() {
           const destinationName = typeof rawDestination === 'string'
             ? rawDestination.trim()
             : String(rawDestination?.name || rawDestination?.title || rawDestination?.slug || '').trim();
+          const rawCountry = pkg.country_name || pkg.country;
+          const countryNameForPreview = typeof rawCountry === 'string'
+            ? rawCountry.trim()
+            : String(rawCountry?.name || rawCountry?.title || rawCountry?.slug || '').trim();
           const shortDescription = String(pkg.short_description || '').trim();
           const fullDescription = String(pkg.description || '').trim();
           const coverImage = getPackageImageUrl(pkg.cover_image_url || pkg.poster_image_url || pkg.thumbnail_url || pkg.image_url);
