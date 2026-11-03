@@ -329,6 +329,7 @@ export default function Bookings() {
   const dSearch = useDebounce(search, 400)
   const [searchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
+  const deepLinkFetchStarted = useRef(new Set())
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
@@ -429,6 +430,27 @@ export default function Bookings() {
     }
 
     if (search !== bookingId) setSearch(bookingId)
+
+    // Fetch the exact record as well as searching the current list. A deep link
+    // must work even when the booking is outside the current page or filters.
+    const key = String(bookingId)
+    if (!deepLinkFetchStarted.current.has(key)) {
+      deepLinkFetchStarted.current.add(key)
+      bookingsAPI.getOne(bookingId)
+        .then(response => {
+          const payload = response?.data?.data ?? response?.data?.booking ?? response?.data ?? response
+          const booking = payload?.booking || payload
+          if (!booking?.id || deepLinkHandled.current) return
+          deepLinkHandled.current = true
+          setSelected(booking)
+          setReview({ decision: null, response: '' })
+          setView(VIEWS.VIEW)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        })
+        .catch(() => {
+          // Keep the list search active as a fallback for booking-number links.
+        })
+    }
   }, [items, loading, searchParams, search])
 
   // ── Update status quick-action ─────────────────────────────────────────

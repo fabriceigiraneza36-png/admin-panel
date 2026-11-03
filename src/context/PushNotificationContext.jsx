@@ -113,11 +113,30 @@ export function PushProvider ({ children }) {
 
     const inspectAndSync = async () => {
       try {
-        const subscription = await registration.pushManager.getSubscription()
+        if (!isLoggedIn) {
+          setSubscribed(false)
+          setServerSynced(false)
+          return
+        }
+
+        let subscription = await registration.pushManager.getSubscription()
+
+        // Browsers only permit silent setup after the user has already granted
+        // permission. Never trigger a permission prompt without a user gesture.
+        if (!subscription && 'Notification' in window && Notification.permission === 'granted') {
+          const keyResponse = await fetch(API_BASE + '/push/vapid-public-key', { cache: 'no-store' })
+          const keyData = await readJsonResponse(keyResponse, 'Could not load push configuration')
+          if (keyData.publicKey) {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+            })
+          }
+        }
+
         if (!active) return
         setSubscribed(Boolean(subscription))
-
-        if (!subscription || !isLoggedIn) {
+        if (!subscription) {
           setServerSynced(false)
           return
         }
@@ -127,7 +146,7 @@ export function PushProvider ({ children }) {
           if (active) setServerSynced(true)
         } catch (err) {
           if (active) setServerSynced(false)
-          console.warn('[Altuvera push] Existing browser subscription needs sync:', err.message)
+          console.warn('[Altuvera push] Browser subscription needs sync:', err.message)
         }
       } catch (err) {
         if (active) {
