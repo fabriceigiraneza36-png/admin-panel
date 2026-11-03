@@ -1387,9 +1387,14 @@ export default function Packages() {
           <MessageSquare size={16} className="text-purple-500" />
           Messages ({pkgMessages.length})
         </h4>
-        <button onClick={() => openReply()} className="btn-primary btn-sm">
-          <Send size={13} /> Send Reply
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => loadSubData(viewModal.data, 'messages')} className="btn-secondary btn-sm">
+            <RefreshCw size={13}/> Refresh
+          </button>
+          <button onClick={() => openReply()} className="btn-primary btn-sm">
+            <Send size={13} /> Send Reply
+          </button>
+        </div>
       </div>
       {subLoading
         ? <SubLoader />
@@ -1454,10 +1459,15 @@ export default function Packages() {
 
   const TabBookings = () => (
     <div className="space-y-3">
-      <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-        <BookOpen size={16} className="text-blue-500" />
-        Bookings ({pkgBookings.length})
-      </h4>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="font-semibold text-slate-700 flex items-center gap-2">
+          <BookOpen size={16} className="text-blue-500" />
+          Bookings ({pkgBookings.length})
+        </h4>
+        <button type="button" onClick={() => loadSubData(viewModal.data, 'bookings')} className="btn-secondary btn-sm">
+          <RefreshCw size={13}/> Refresh bookings
+        </button>
+      </div>
       {subLoading
         ? <SubLoader />
         : !pkgBookings.length
@@ -1822,30 +1832,25 @@ export default function Packages() {
                 ))}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
-                <button type="button" onClick={() => handleTogglePublish(pkg)}
-                  className={pkg.is_published
-                    ? 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
-                    : 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'}>
-                  {pkg.is_published ? <EyeOff size={14}/> : <Globe2 size={14}/>}
-                  {pkg.is_published ? 'Unpublish' : 'Publish'}
-                </button>
-                <button type="button" onClick={() => { viewModal.close(); openEdit(pkg) }}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50">
-                  <Pencil size={14}/> Edit package
-                </button>
-                <button type="button" onClick={() => { viewModal.close(); deleteModal.open(pkg) }}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
-                  <Trash2 size={14}/> Delete
-                </button>
-                <button type="button" onClick={() => openInfoRequest()}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 hover:bg-teal-100">
-                  <ClipboardList size={14}/> Request information
-                </button>
-              </div>
-
               {activeTab === 'details' && (
                 <div className="space-y-5">
+                  <section className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => handleTogglePublish(pkg)}
+                      className={pkg.is_published
+                        ? 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
+                        : 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'}>
+                      {pkg.is_published ? <EyeOff size={14}/> : <Globe2 size={14}/>}
+                      {pkg.is_published ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button type="button" onClick={() => { viewModal.close(); openEdit(pkg) }}
+                      className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50">
+                      <Pencil size={14}/> Edit package
+                    </button>
+                    <button type="button" onClick={() => { viewModal.close(); deleteModal.open(pkg) }}
+                      className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
+                      <Trash2 size={14}/> Delete
+                    </button>
+                  </section>
                   {stats.length > 0 && (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {stats.map(({ label, icon: Icon, value }, index) => (
