@@ -1394,10 +1394,12 @@ export default function Bookings() {
           VIEW (DETAIL) PAGE
           ════════════════════════════════════════════════════════════ */}
       {view === VIEWS.VIEW && selected && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 p-2 sm:p-4">
         <motion.div key="view"
+          role="dialog" aria-modal="true"
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-          className="space-y-5">
+          className="mx-auto my-2 w-full max-w-7xl space-y-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl sm:my-4 sm:rounded-3xl sm:p-5">
 
           {/* Top bar */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1665,6 +1667,7 @@ export default function Bookings() {
           </SectionCard>
 
         </motion.div>
+        </div>
       )}
 
       {/* ════════════════════════════════════════════════════════════════
