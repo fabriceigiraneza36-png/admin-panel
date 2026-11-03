@@ -137,13 +137,21 @@ function InfoGrid({ children }) {
   return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">{children}</div>
 }
 
+const hasBookingValue = (value) => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.some(hasBookingValue);
+  if (typeof value === 'object') return Object.values(value).some(hasBookingValue);
+  return true;
+};
+
 function InfoItem({ label, value, full = false }) {
+  if (!hasBookingValue(value) || value === '—' || value === 'N/A') return null;
+  const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
   return (
-    <div className={full ? 'sm:col-span-2 lg:col-span-3' : ''}>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-sm font-semibold text-slate-800 break-words">
-        {value || <span className="text-slate-300 font-normal">—</span>}
-      </p>
+    <div className={`min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 p-3 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+      <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-800">{displayValue}</p>
     </div>
   )
 }
@@ -1394,29 +1402,28 @@ export default function Bookings() {
           VIEW (DETAIL) PAGE
           ════════════════════════════════════════════════════════════ */}
       {view === VIEWS.VIEW && selected && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/55 p-2 sm:p-4">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-[3px] sm:items-center sm:p-4">
         <motion.div key="view"
-          role="dialog" aria-modal="true"
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-          className="mx-auto my-2 w-full max-w-7xl space-y-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl sm:my-4 sm:rounded-3xl sm:p-5">
+          role="dialog" aria-modal="true" aria-labelledby="booking-detail-title"
+          initial={{ opacity: 0, y: 12, scale: .99 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.18 }}
+          className="my-1 flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-[0_30px_100px_rgba(2,6,23,.4)] sm:my-0 sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl">
 
-          {/* Top bar */}
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <PageBreadcrumb view={view} booking={selected} onBack={goList} />
-              <h1 className="page-title flex items-center gap-2 mt-1">
-                <CalendarCheck size={26} className="text-emerald-600" />
-                {formatBookingNumber(selected.booking_number)}
-              </h1>
-              <p className="page-subtitle">
-                Submitted {formatTimeAgo(selected.created_at)}
-                {selected.email_verified
-                  ? ' · ✅ Email verified'
-                  : ' · ⏳ Awaiting email verification'}
-              </p>
+          {/* Sticky booking header */}
+          <div className="sticky top-0 z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><CalendarCheck size={20}/></div>
+              <div className="min-w-0">
+                <h1 id="booking-detail-title" className="truncate text-base font-black tracking-tight text-slate-900 sm:text-xl">
+                  {formatBookingNumber(selected.booking_number) || 'Booking details'}
+                </h1>
+                <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                  {selected.created_at ? 'Submitted ' + formatTimeAgo(selected.created_at) : 'Booking information'}
+                  {selected.email_verified === true ? ' · Email verified' : selected.email_verified === false ? ' · Email not verified' : ''}
+                </p>
+              </div>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
               {selected.status === 'pending' && (
                 <button
                   onClick={() => selected.email_verified
@@ -1452,17 +1459,19 @@ export default function Bookings() {
                   flex items-center gap-1.5 transition-all">
                 <Trash2 size={14} /> Delete
               </button>
-              <button onClick={goList} className="btn-secondary btn-sm">
-                <ArrowLeft size={14} /> Back
+              <button onClick={goList} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" aria-label="Close booking details" title="Close">
+                <XCircle size={17}/>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(260px,.8fr)]">
 
             {/* Left / main */}
-            <div className="lg:col-span-2 space-y-5">
+            <div className="min-w-0 space-y-4">
 
+              { [selected.full_name, selected.email, selected.phone, selected.whatsapp, selected.preferred_contact_method, selected.preferred_contact_time, selected.nationality, selected.country].some(hasBookingValue) && (
               <SectionCard title="Guest Information" icon={User}>
                 <InfoGrid>
                   <InfoItem label="Full Name"  value={selected.full_name} />
@@ -1475,11 +1484,13 @@ export default function Bookings() {
                   <InfoItem label="Country"     value={selected.country} />
                 </InfoGrid>
               </SectionCard>
+              )}
 
+              { [selected.travel_date, selected.return_date, selected.booking_type, selected.group_type, selected.number_of_travelers, selected.number_of_adults, selected.number_of_children, selected.accommodation_type, selected.destination_name, selected.attraction_name, selected.country_name, selected.service_name, selected.package_name, selected.flexible_dates, selected.flexible_months, selected.pickup_location, selected.accessibility_needs, selected.marketing_source, selected.newsletter_opt_in, selected.email_verified_at, selected.itinerary_status, selected.special_requests, selected.dietary_requirements].some(hasBookingValue) && (
               <SectionCard title="Trip Details" icon={MapPin}>
                 <InfoGrid>
-                  <InfoItem label="Travel Date"   value={formatDate(selected.travel_date)} />
-                  <InfoItem label="Return Date"   value={formatDate(selected.return_date)} />
+                  <InfoItem label="Travel Date"   value={selected.travel_date ? formatDate(selected.travel_date) : null} />
+                  <InfoItem label="Return Date"   value={selected.return_date ? formatDate(selected.return_date) : null} />
                   <InfoItem label="Booking Type"  value={selected.booking_type} />
                   <InfoItem label="Group Type"    value={selected.group_type} />
                   <InfoItem label="Travelers"     value={selected.number_of_travelers} />
@@ -1491,14 +1502,14 @@ export default function Bookings() {
                   <InfoItem label="Country"       value={selected.country_name} />
                   <InfoItem label="Service"       value={selected.service_name} />
                   <InfoItem label="Package"       value={selected.package_name} />
-                  <InfoItem label="Flexible Dates" value={selected.flexible_dates ? 'Yes' : 'No'} />
+                  <InfoItem label="Flexible Dates" value={selected.flexible_dates != null ? (selected.flexible_dates ? 'Yes' : 'No') : null} />
                   <InfoItem label="Flexible Months" value={selected.flexible_months} />
                   <InfoItem label="Pickup Location" value={selected.pickup_location} />
                   <InfoItem label="Accessibility Needs" value={selected.accessibility_needs} />
                   <InfoItem label="Marketing Source" value={selected.marketing_source} />
-                  <InfoItem label="Newsletter Opt-in" value={selected.newsletter_opt_in ? 'Yes' : 'No'} />
-                  <InfoItem label="Email Verified At" value={selected.email_verified_at ? formatDate(selected.email_verified_at) : 'Pending'} />
-                  <InfoItem label="Itinerary Status" value={selected.itinerary_status || 'not_started'} />
+                  <InfoItem label="Newsletter Opt-in" value={selected.newsletter_opt_in != null ? (selected.newsletter_opt_in ? 'Yes' : 'No') : null} />
+                  <InfoItem label="Email Verified At" value={selected.email_verified_at ? formatDate(selected.email_verified_at) : null} />
+                  <InfoItem label="Itinerary Status" value={selected.itinerary_status || null} />
                 </InfoGrid>
                 {selected.special_requests && (
                   <div className="mt-5 pt-5 border-t border-slate-100">
@@ -1520,6 +1531,7 @@ export default function Bookings() {
                   </div>
                 )}
               </SectionCard>
+              )}
 
               <DetailObject title="Complete Destination Record" icon={MapPin} value={selected.destination_details} />
               <DetailObject title="Complete Country Record" icon={MapPin} value={selected.country_details} />
@@ -1551,7 +1563,7 @@ export default function Bookings() {
             </div>
 
             {/* Right / sidebar */}
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-4">
 
               <SectionCard title="Status">
                 <div className="space-y-3">
@@ -1660,11 +1672,8 @@ export default function Bookings() {
               )}
             </div>
           </div>
-          <SectionCard title="Complete submitted booking record — no fields hidden" icon={FileText}>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-auto max-h-[520px]">
-              <pre className="text-[11px] leading-5 text-slate-600 whitespace-pre-wrap break-words">{JSON.stringify(selected, null, 2)}</pre>
-            </div>
-          </SectionCard>
+          </div>
+          </div>
 
         </motion.div>
         </div>
