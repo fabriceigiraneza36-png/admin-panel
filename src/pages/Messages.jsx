@@ -287,7 +287,7 @@ function ScrollBtn({ visible, onClick, unread = 0, composerVisible = true }) {
 /* ─── Conversation Row ─────────────────────────────────────────────────────── */
 
 const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, currentUserId }) {
-  const title = conv.groupName || conv.subject || resolveConversationPersonName(conv)
+  const title = conv.groupName || firstRealSenderName(conv.subject) || resolveConversationPersonName(conv)
   const relatedResource = conv.metadata?.relatedResource || conv.metadata?.related_resource || null
   const hasUnread = (conv.unreadAdmin || 0) > 0
   const previewBody = String(conv.lastMessage || '').trim()
@@ -2169,7 +2169,7 @@ export default function Messages() {
 
   const convTitle = activeConv?.groupId
     ? (activeConv?.groupName || activeConv?.subject || 'Group conversation')
-    : (activeConv?.subject
+    : (firstRealSenderName(activeConv?.subject)
       || (activeConv?.bookingNumber ? `Booking #${activeConv.bookingNumber}` : null)
       || resolveConversationPersonName(activeConv)
       || 'Conversation')
