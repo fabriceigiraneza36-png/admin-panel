@@ -113,7 +113,24 @@ export function PushProvider ({ children }) {
 
     const inspectAndSync = async () => {
       try {
-        const subscription = await registration.pushManager.getSubscription()
+        let subscription = await registration.pushManager.getSubscription()
+        if (!active) return
+
+        // Administrator and manager push eligibility is always enabled at the
+        // backend. When this browser has already granted notification permission,
+        // register it automatically instead of requiring a test/settings button.
+        // Browsers do not permit an app to grant the initial permission silently.
+        if (!subscription && isLoggedIn && Notification.permission === 'granted') {
+          const keyResponse = await fetch(API_BASE + '/push/vapid-public-key', { cache: 'no-store' })
+          const keyData = await readJsonResponse(keyResponse, 'Could not load push configuration')
+          if (!keyData.publicKey) throw new Error('VAPID public key is not configured on the backend.')
+          if (!active) return
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+          })
+        }
+
         if (!active) return
         setSubscribed(Boolean(subscription))
 
