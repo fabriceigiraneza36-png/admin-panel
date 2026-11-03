@@ -35,41 +35,121 @@ import { useDebounce }   from '@hooks/useDebounce'
 // ── Utils ─────────────────────────────────────────────────────────────────────
 import { formatNumber, formatTimeAgo, formatDate } from '@utils/formatters'
 
-const hasPackageValue = (value) => {
+const normalizePackageValue = (value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed || /^(?:null|undefined|n\/a|none)$/i.test(trimmed)) return null;
+  // API JSONB columns can arrive either as parsed values or JSON-encoded strings.
+  if (
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+  ) {
+    try { return JSON.parse(trimmed); } catch { /* keep ordinary text unchanged */ }
+  }
+  return trimmed;
+};
+
+const hasPackageValue = (rawValue) => {
+  const value = normalizePackageValue(rawValue);
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
   if (Array.isArray(value)) return value.some(hasPackageValue);
   if (typeof value === 'object') return Object.values(value).some(hasPackageValue);
+  // Explicit false and zero are values, not empty fields.
   return true;
 };
 
 const PACKAGE_VIEW_HIDDEN_FIELDS = new Set([
   'id', 'slug', 'destination_id', 'created_at', 'updated_at',
-  'poster_mode', 'cover_image_url', 'thumbnail_url', 'card_bg_image',
-  'card_theme', 'accent_color', 'sort_order', 'meta_title', 'meta_description',
-  'is_published', 'is_featured', 'is_sold_out', 'booking_count', 'view_count',
-  'badge_label', 'badge_color', 'is_price_visible', 'title',
-  'destination_name', 'destination',
+  'poster_mode', 'cover_image_url', 'poster_image_url', 'thumbnail_url',
+  'card_bg_image', 'card_theme', 'accent_color', 'sort_order',
+  'meta_title', 'meta_description', 'booking_count', 'view_count',
+  'inquiry_count', 'author_id', 'author_name', 'published_at',
+  'badge_label', 'badge_color', 'is_price_visible',
+  'title', 'destination_name', 'destination', 'country_name', 'country',
   'description', 'short_description', 'price', 'currency',
-  'duration_days', 'duration_nights', 'category', 'min_travelers', 'max_travelers',
+  'duration_days', 'duration_nights', 'category',
+  'min_travelers', 'max_travelers', 'is_published', 'is_featured', 'is_sold_out',
+  'images', 'gallery', 'image_gallery', 'highlights', 'features',
+  'inclusions', 'exclusions', 'itinerary', 'faqs', 'tags',
+  'available_months', 'departure_dates', 'availability_note',
 ]);
 
 const isVisiblePackageDetail = ([key, value]) =>
   !PACKAGE_VIEW_HIDDEN_FIELDS.has(String(key).toLowerCase()) && hasPackageValue(value);
 
-const formatPackageDetailValue = (value, depth = 0) => {
+const formatPackageDetailValue = (rawValue, depth = 0) => {
+  const value = normalizePackageValue(rawValue);
   if (Array.isArray(value)) {
-    return value.filter(hasPackageValue).map((item) => formatPackageDetailValue(item, depth + 1)).filter(Boolean).join(' · ');
+    return value.filter(hasPackageValue)
+      .map((item) => formatPackageDetailValue(item, depth + 1))
+      .filter(Boolean).join(' · ');
   }
   if (value && typeof value === 'object') {
-    if (depth >= 2) return Object.values(value).filter(hasPackageValue).map(String).join(' · ');
     return Object.entries(value).filter(([, item]) => hasPackageValue(item))
-      .map(([key, item]) => key.replace(/_/g, ' ') + ': ' + formatPackageDetailValue(item, depth + 1))
-      .join(' · ');
+      .map(([key, item]) => {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+        return label + ': ' + formatPackageDetailValue(item, depth + 1);
+      }).join(' · ');
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return value === null || value === undefined ? '' : String(value);
 };
+
+const getPackageCollection = (value) => {
+  const normalized = normalizePackageValue(value);
+  if (Array.isArray(normalized)) return normalized.filter(hasPackageValue);
+  return hasPackageValue(normalized) ? [normalized] : [];
+};
+
+const getPackageItemLabel = (item) => {
+  const value = normalizePackageValue(item);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return formatPackageDetailValue(value);
+  }
+  const day = value.day_number ?? value.day ?? null;
+  const heading = value.title || value.name || value.label || value.question || value.subject || '';
+  const detail = value.description || value.answer || value.details || value.text || value.content || '';
+  const dayLabel = day !== null && day !== undefined && day !== '' ? 'Day ' + day : '';
+  if (heading || detail || dayLabel) return [dayLabel, heading, detail].filter(Boolean).join(' · ');
+  return formatPackageDetailValue(value);
+};
+
+const getPackageImageUrl = (item) => {
+  if (typeof item === 'string') return item.trim();
+  if (!item || typeof item !== 'object') return '';
+  return String(item.url || item.image_url || item.imageUrl || item.src || '').trim();
+};
+
+function PackageDetailSection ({ title, icon: Icon, items }) {
+  if (!items?.length) return null;
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700 shadow-sm">
+          <Icon size={17} strokeWidth={2.1} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-extrabold text-slate-800">{title}</h3>
+          <p className="text-[11px] text-slate-400">{items.length} {items.length === 1 ? 'item' : 'items'}</p>
+        </div>
+      </div>
+      <ul className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+        {items.map((item, index) => (
+          <li key={index} className="flex min-w-0 items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700">
+              <CheckCircle size={13} />
+            </span>
+            <span className="min-w-0 whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">
+              {getPackageItemLabel(item)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -1507,141 +1587,282 @@ export default function Packages() {
       <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
-        title={viewModal.data?.title}
-        size="xl"
-        icon={<Package size={20} />}
+        title={viewModal.data?.title || 'Package overview'}
+        size="2xl"
+        icon={<Package size={19} strokeWidth={2.1} />}
         footer={
-          <div className="flex justify-between gap-2 flex-wrap">
-            <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => handleTogglePublish(viewModal.data)}
                 className={viewModal.data?.is_published
-                   ? 'btn-warning btn-sm font-bold min-w-[112px]'
-                   : 'btn-success btn-sm font-bold min-w-[112px] shadow-md'}
+                  ? 'btn-warning btn-sm inline-flex items-center gap-1.5'
+                  : 'btn-success btn-sm inline-flex items-center gap-1.5'}
               >
                 {viewModal.data?.is_published
-                  ? <><EyeOff size={13} /> Unpublish</>
-                  : <><Globe2  size={13} /> Publish</>}
+                  ? <><EyeOff size={14} /> Unpublish</>
+                  : <><Globe2 size={14} /> Publish</>}
               </button>
               <button
                 onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
-                className="btn-primary btn-sm"
+                className="btn-primary btn-sm inline-flex items-center gap-1.5"
               >
-                <Pencil size={13} /> Edit
+                <Pencil size={14} /> Edit package
               </button>
               <button
                 onClick={() => {
                   viewModal.close()
                   deleteModal.open(viewModal.data)
                 }}
-                className="btn-danger btn-sm"
+                className="btn-danger btn-sm inline-flex items-center gap-1.5"
               >
-                <Trash2 size={13} /> Delete
+                <Trash2 size={14} /> Delete
               </button>
             </div>
-            <button onClick={viewModal.close} className="btn-secondary btn-sm">
-              Close
+            <button onClick={viewModal.close} className="btn-secondary btn-sm inline-flex items-center justify-center gap-1.5">
+              <XCircle size={14} /> Close
             </button>
           </div>
         }
       >
-        {viewModal.data && (
-          <div className="space-y-4">
-            {/* Cover image */}
-            {viewModal.data.cover_image_url && (
-              <img
-                src={viewModal.data.cover_image_url}
-                alt={viewModal.data.title}
-                className="w-full h-48 object-cover rounded-2xl"
-              />
-            )}
+        {viewModal.data && (() => {
+          const pkg = viewModal.data;
+          const rawDestination = pkg.destination_name || pkg.destination;
+          const destinationName = typeof rawDestination === 'string'
+            ? rawDestination.trim()
+            : String(rawDestination?.name || rawDestination?.title || rawDestination?.slug || '').trim();
+          const shortDescription = String(pkg.short_description || '').trim();
+          const fullDescription = String(pkg.description || '').trim();
+          const coverImage = getPackageImageUrl(pkg.cover_image_url || pkg.poster_image_url || pkg.thumbnail_url || pkg.image_url);
+          const durationParts = [
+            hasPackageValue(pkg.duration_days) ? String(pkg.duration_days) + ' days' : '',
+            hasPackageValue(pkg.duration_nights) ? String(pkg.duration_nights) + ' nights' : '',
+          ].filter(Boolean);
+          const travelerParts = [
+            hasPackageValue(pkg.min_travelers) ? 'Min ' + pkg.min_travelers : '',
+            hasPackageValue(pkg.max_travelers) ? 'Max ' + pkg.max_travelers : '',
+          ].filter(Boolean);
+          const stats = [
+            { label: 'Starting price', icon: DollarSign, value: hasPackageValue(pkg.price) ? fmtPrice(pkg.price, pkg.currency || 'USD') : null },
+            { label: 'Duration', icon: Calendar, value: durationParts.length ? durationParts.join(' / ') : null },
+            { label: 'Category', icon: Tag, value: hasPackageValue(pkg.category) ? formatPackageDetailValue(pkg.category) : null },
+            { label: 'Travellers', icon: Users, value: travelerParts.length ? travelerParts.join(' · ') : null },
+            { label: 'Publication', icon: CheckCircle, value: typeof pkg.is_published === 'boolean' ? (pkg.is_published ? 'Published' : 'Draft / unpublished') : null },
+            { label: 'Sales status', icon: AlertCircle, value: pkg.is_sold_out === true ? 'Sold out' : null },
+          ].filter((item) => hasPackageValue(item.value));
 
-            {/* Tabs */}
-            <div className="flex gap-0.5 border-b border-slate-200
-              overflow-x-auto pb-0">
-              {[
-                 { id: 'details', label: 'Overview', icon: Package },
-                 { id: 'bookings', label: 'Bookings', icon: BookOpen },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => switchTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-sm
-                    font-semibold whitespace-nowrap border-b-2 transition-all ${
-                    activeTab === tab.id
-                      ? 'border-emerald-500 text-emerald-600 bg-emerald-50/50'
-                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
+          const contentSections = [
+            { title: 'Experience highlights', icon: Star, value: pkg.highlights },
+            { title: 'Features', icon: CheckCircle, value: pkg.features },
+            { title: "What's included", icon: CheckCircle, value: pkg.inclusions },
+            { title: "What's not included", icon: XCircle, value: pkg.exclusions },
+            { title: 'Trip itinerary', icon: Calendar, value: pkg.itinerary },
+            { title: 'Frequently asked questions', icon: MessageSquare, value: pkg.faqs },
+            { title: 'Tags', icon: Tag, value: pkg.tags },
+            { title: 'Available months', icon: Calendar, value: pkg.available_months },
+            { title: 'Departure dates', icon: Clock, value: pkg.departure_dates },
+            { title: 'Availability note', icon: AlertCircle, value: pkg.availability_note },
+          ].map((section) => ({ ...section, items: getPackageCollection(section.value) }))
+            .filter((section) => section.items.length > 0);
+
+          const galleryUrls = [...new Set([
+            ...getPackageCollection(pkg.images),
+            ...getPackageCollection(pkg.gallery),
+            ...getPackageCollection(pkg.image_gallery),
+          ].map(getPackageImageUrl).filter((url) => url && url !== coverImage))];
+
+          const additionalDetails = Object.entries(pkg).filter(isVisiblePackageDetail);
+          const statusLabels = [
+            typeof pkg.is_published === 'boolean' ? (pkg.is_published ? 'Published' : 'Unpublished') : '',
+            pkg.is_featured === true ? 'Featured' : '',
+            pkg.is_sold_out === true ? 'Sold out' : '',
+          ].filter(Boolean);
+
+          return (
+            <div className="space-y-5 pb-1">
+              <section className="relative isolate min-h-[220px] overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-slate-900 shadow-lg sm:min-h-[270px]">
+                {coverImage && (
+                  <img
+                    src={coverImage}
+                    alt={pkg.title || 'Package cover'}
+                    className="absolute inset-0 -z-20 h-full w-full object-cover"
+                    loading="eager"
+                  />
+                )}
+                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/90 via-emerald-950/60 to-slate-950/20" />
+                <div className="relative flex min-h-[220px] flex-col justify-end gap-3 p-5 sm:min-h-[270px] sm:p-7">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-white backdrop-blur-sm">
+                      <Package size={12} /> Safari package
+                    </span>
+                    {statusLabels.map((label) => (
+                      <span key={label} className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-semibold text-white/95 backdrop-blur-sm">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="max-w-3xl">
+                    <h2 className="break-words text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
+                      {pkg.title || 'Package overview'}
+                    </h2>
+                    {destinationName && (
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-emerald-100">
+                        <MapPin size={15} /> {destinationName}
+                      </p>
+                    )}
+                    {(shortDescription || (!shortDescription && fullDescription)) && (
+                      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
+                        {shortDescription || fullDescription}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex border-b border-slate-200">
+                {[
+                  { id: 'details', label: 'Overview', icon: Eye },
+                  { id: 'bookings', label: 'Bookings', icon: BookOpen },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => switchTab(tab.id)}
+                    className={'-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-bold transition-colors ' + (
+                      activeTab === tab.id
+                        ? 'border-emerald-600 bg-emerald-50/50 text-emerald-700'
+                        : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                    )}
+                  >
+                    <tab.icon size={16} strokeWidth={2.1} />
+                    {tab.label}
+                    {tab.id === 'bookings' && hasPackageValue(pkg.booking_count) && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{pkg.booking_count}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === 'details' && (
+                <div className="space-y-5">
+                  {stats.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {stats.map(({ label, icon: Icon, value }, index) => (
+                        <motion.div
+                          key={label}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: .2, delay: Math.min(index * .04, .2) }}
+                          className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                        >
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                            <Icon size={18} strokeWidth={2.1} />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[.13em] text-slate-400">{label}</p>
+                            <p className="mt-1 break-words text-sm font-bold text-slate-800">{String(value)}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {fullDescription && fullDescription !== shortDescription && (
+                    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                      <div className="mb-2 flex items-center gap-2">
+                        <FileText size={17} className="text-emerald-700" />
+                        <h3 className="text-sm font-extrabold text-slate-800">About this experience</h3>
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">{fullDescription}</p>
+                    </section>
+                  )}
+
+                  {contentSections.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                      {contentSections.map((section) => (
+                        <PackageDetailSection
+                          key={section.title}
+                          title={section.title}
+                          icon={section.icon}
+                          items={section.items}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {galleryUrls.length > 0 && (
+                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700 shadow-sm"><Image size={17}/></span>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-slate-800">Package gallery</h3>
+                          <p className="text-[11px] text-slate-400">{galleryUrls.length} {galleryUrls.length === 1 ? 'image' : 'images'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3">
+                        {galleryUrls.map((url, index) => (
+                          <div key={url} className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                            <img src={url} alt={(pkg.title || 'Package') + ' gallery image ' + (index + 1)} loading="lazy" className="h-28 w-full object-cover transition-transform duration-300 hover:scale-105 sm:h-36" />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {hasPackageValue(pkg.is_featured) && (
+                    <div className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-xs font-semibold text-amber-800">
+                      <Star size={15} /> {pkg.is_featured ? 'Featured package' : 'Not featured'}
+                    </div>
+                  )}
+
+                  {additionalDetails.length > 0 && (
+                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700 shadow-sm"><FileText size={17}/></span>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-extrabold text-slate-800">Additional package details</h3>
+                          <p className="text-[11px] text-slate-400">{additionalDetails.length} saved {additionalDetails.length === 1 ? 'detail' : 'details'}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+                        {additionalDetails.map(([key, value], index) => {
+                          const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image
+                            : /price|cost|currency|discount/i.test(key) ? DollarSign
+                              : /date|duration|month|time/i.test(key) ? Calendar
+                                : /destination|country|location|region|address/i.test(key) ? MapPin
+                                  : /traveler|group|people|booking/i.test(key) ? Users
+                                    : /description|content|itinerary|inclusion|exclusion|faq|highlight|feature|tag/i.test(key) ? BookOpen
+                                      : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
+                          return (
+                            <motion.div
+                              key={key}
+                              initial={{ opacity: 0, y: 7 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: .18, delay: Math.min(index * .02, .2) }}
+                              className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 transition-colors hover:border-emerald-200 hover:bg-emerald-50/30"
+                            >
+                              <div className="mb-2 flex items-center gap-2">
+                                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Icon size={15}/></span>
+                                <span className="break-words text-[10px] font-extrabold uppercase tracking-[.1em] text-slate-500">
+                                  {key.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                                </span>
+                              </div>
+                              <p className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">
+                                {formatPackageDetailValue(value)}
+                              </p>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'bookings' && <TabBookings />}
             </div>
-
-             {activeTab === 'details' && (
-               <div className="space-y-4">
-                 {(() => {
-                   const raw = viewModal.data.destination_name || viewModal.data.destination;
-                   const destinationName = typeof raw === 'string'
-                     ? raw.trim()
-                     : String(raw?.name || raw?.title || raw?.slug || '').trim();
-                   const description = String(viewModal.data.short_description || viewModal.data.description || '').trim();
-                   if (!destinationName && !description) return null;
-                   return (
-                     <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
-                       {destinationName && (
-                         <div className="flex items-center gap-3">
-                           <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
-                           <div className="min-w-0">
-                             <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
-                             <p className="text-base font-bold text-slate-800 break-words">{destinationName}</p>
-                           </div>
-                         </div>
-                       )}
-                       {description && <p className={destinationName ? "mt-4 text-sm leading-6 text-slate-600" : "text-sm leading-6 text-slate-600"}>{description}</p>}
-                     </div>
-                   );
-                 })()}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   {[
-                     ['Price', DollarSign, viewModal.data.price !== null && viewModal.data.price !== undefined && viewModal.data.price !== '' ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null],
-                     ['Duration', Calendar, (viewModal.data.duration_days || viewModal.data.duration_nights) ? [viewModal.data.duration_days ? String(viewModal.data.duration_days) + ' days' : null, viewModal.data.duration_nights ? String(viewModal.data.duration_nights) + ' nights' : null].filter(Boolean).join(' / ') : null],
-                     ['Category', Tag, viewModal.data.category || null],
-                     ['Travelers', Users, (viewModal.data.min_travelers || viewModal.data.max_travelers) ? [viewModal.data.min_travelers ? 'Min ' + viewModal.data.min_travelers : null, viewModal.data.max_travelers ? 'Max ' + viewModal.data.max_travelers : null].filter(Boolean).join(' · ') : null],
-                     ['Image mode', Image, viewModal.data.poster_mode || null],
-                     ['Publication', CheckCircle, typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null],
-                   ].filter(([, , value]) => value !== null && value !== undefined && value !== '').map(([label, Icon, value]) => (
-                     <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
-                       <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
-                     </div>
-                   ))}
-                 </div>
-                 <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                   <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
-                     <FileText size={16} className="text-emerald-600"/>
-                     <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).length} details</span>
-                   </div>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                     {Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).map(([key, value], index) => {
-                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight|feature|tag/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
-                       const textValue = formatPackageDetailValue(value);
-                       return (
-                         <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
-                           <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
-                           <div className="text-xs leading-5 text-slate-700 break-words whitespace-pre-wrap">{textValue}</div>
-                         </motion.div>
-                       );
-                     })}
-                   </div>
-                 </div>
-               </div>
-             )}
-             {activeTab === 'bookings' && <TabBookings />}
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* ════════════════════════════════════════════════════════════════════
