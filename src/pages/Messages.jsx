@@ -2123,7 +2123,7 @@ export default function Messages() {
     const getUserKey = (conv) => {
       const id = conv.guestId ?? conv.guest_id ?? conv.userId ?? conv.user_id ?? conv.customerId ?? conv.customer_id;
       const email = conv.guestEmail ?? conv.guest_email ?? conv.userEmail ?? conv.user_email ?? conv.email;
-      const name = safeEndUserName(conv.guestName ?? conv.guest_name ?? conv.userName ?? conv.user_name);
+      const name = resolveConversationPersonName(conv);
       const avatar = conv.guestAvatar ?? conv.guest_avatar ?? conv.userAvatar ?? conv.user_avatar ?? '';
       if (conv.groupId || conv.group_id || conv.isGroup || conv.is_group) return null;
       return id != null ? 'user:' + String(id) : email ? 'email:' + String(email).toLowerCase() : 'name:' + name.toLowerCase() + ':' + String(avatar);
@@ -2143,7 +2143,7 @@ export default function Messages() {
         return;
       }
       const key = getUserKey(conv);
-      const name = safeEndUserName(conv.guestName ?? conv.guest_name ?? conv.userName ?? conv.user_name);
+      const name = resolveConversationPersonName(conv);
       const avatar = conv.guestAvatar ?? conv.guest_avatar ?? conv.userAvatar ?? conv.user_avatar ?? '';
       if (!userGroups.has(key)) userGroups.set(key, { key, name, avatar, conversations: [] });
       userGroups.get(key).conversations.push(conv);
@@ -2766,7 +2766,7 @@ export default function Messages() {
                             message={item.data}
                             mine={isAdminMessage(item.data)}
                             currentUserId={user?.id}
-                            guestName={activeConv?.guestName}
+                            guestName={resolveConversationPersonName(activeConv)}
                             guestAvatar={activeConv?.guestAvatar}
                             isGroup={Boolean(activeConv?.groupId || activeConv?.group_id || activeConv?.isGroup || activeConv?.is_group || activeConv?.groupName || activeConv?.group_name || String(activeConv?.conversationType || activeConv?.conversation_type || '').toLowerCase() === 'group')}
                             adminAvatar={user?.avatar_url || user?.avatarUrl || user?.profile_picture_url || user?.profilePictureUrl || user?.avatar || user?.profilePicture}
@@ -2826,7 +2826,7 @@ export default function Messages() {
                         <CornerUpLeft size={13} className="text-emerald-600 flex-shrink-0" />
                         <div className="min-w-0">
                           <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
-                            {isAdminMessage(replyMsg) && String(replyMsg?.senderId ?? replyMsg?.sender_id) === String(user?.id) ? 'Replying to yourself' : `Replying to ${getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: activeConv?.guestName })}`}
+                            {isAdminMessage(replyMsg) && String(replyMsg?.senderId ?? replyMsg?.sender_id) === String(user?.id) ? 'Replying to yourself' : `Replying to ${getMessageSenderLabel(replyMsg, { currentUserId: user?.id, guestName: resolveConversationPersonName(activeConv) })}`}
                           </span>
                           <span className="text-xs text-slate-600 truncate block">
                             {replyMsg.body}
