@@ -3,12 +3,13 @@
 
 async function displayPushNotification (data) {
   const payloadData = data.data && typeof data.data === 'object' ? data.data : {}
+  const { receiptToken: _receiptToken, receiptUrl: _receiptUrl, ...notificationData } = payloadData
   const notificationOptions = {
     body: data.body || data.message || 'You have a new admin alert.',
     icon: data.icon || '/favicon.ico',
     badge: data.badge || '/favicon.ico',
     data: {
-      ...payloadData,
+      ...notificationData,
       url: payloadData.url || data.url || '/notifications',
     },
     requireInteraction: data.requireInteraction === true,
