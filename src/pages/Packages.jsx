@@ -35,6 +35,14 @@ import { useDebounce }   from '@hooks/useDebounce'
 // ── Utils ─────────────────────────────────────────────────────────────────────
 import { formatNumber, formatTimeAgo, formatDate } from '@utils/formatters'
 
+const hasPackageValue = (value) => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(hasPackageValue);
+  if (typeof value === 'object') return Object.values(value).some(hasPackageValue);
+  return true;
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1255,6 +1263,15 @@ export default function Packages() {
                   guest_name:  b.full_name,
                 })}
               />
+              <div className="flex justify-end px-1 pt-2">
+                <button
+                  type="button"
+                  onClick={() => window.location.assign('/bookings?bookingId=' + encodeURIComponent(bk.id) + '&bookingType=package')}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                >
+                  <Eye size={13} /> Open in Bookings
+                </button>
+              </div>
               </div>
             ))}
           </div>
@@ -1507,32 +1524,37 @@ export default function Packages() {
 
              {activeTab === 'details' && (
                <div className="space-y-4">
-                 <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
-                   <div className="flex items-center gap-3 mb-4">
-                     <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
-                     <div className="min-w-0">
-                       <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
-                       <p className="text-base font-bold text-slate-800 break-words">
-                         {(() => {
-                           const raw = viewModal.data.destination_name || viewModal.data.destination;
-                           return typeof raw === 'string' ? raw : String(raw?.name || raw?.title || raw?.slug || 'Destination not linked');
-                         })()}
-                       </p>
+                 {(() => {
+                   const raw = viewModal.data.destination_name || viewModal.data.destination;
+                   const destinationName = typeof raw === 'string'
+                     ? raw.trim()
+                     : String(raw?.name || raw?.title || raw?.slug || '').trim();
+                   const description = String(viewModal.data.short_description || viewModal.data.description || '').trim();
+                   if (!destinationName && !description) return null;
+                   return (
+                     <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
+                       {destinationName && (
+                         <div className="flex items-center gap-3">
+                           <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
+                           <div className="min-w-0">
+                             <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
+                             <p className="text-base font-bold text-slate-800 break-words">{destinationName}</p>
+                           </div>
+                         </div>
+                       )}
+                       {description && <p className={destinationName ? "mt-4 text-sm leading-6 text-slate-600" : "text-sm leading-6 text-slate-600"}>{description}</p>}
                      </div>
-                   </div>
-                   {(viewModal.data.description || viewModal.data.short_description) && (
-                     <p className="text-sm leading-6 text-slate-600">{viewModal.data.short_description || viewModal.data.description}</p>
-                   )}
-                 </div>
+                   );
+                 })()}
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                    {[
-                     ['Price', DollarSign, viewModal.data.price != null ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : 'Not specified'],
-                     ['Duration', Calendar, viewModal.data.duration_days ? `${viewModal.data.duration_days} days / ${viewModal.data.duration_nights ?? '—'} nights` : 'Not specified'],
-                     ['Category', Tag, viewModal.data.category || 'Not specified'],
-                     ['Travelers', Users, viewModal.data.min_travelers || viewModal.data.max_travelers ? `${viewModal.data.min_travelers || 1}–${viewModal.data.max_travelers || '—'} travelers` : 'Not specified'],
-                     ['Image mode', Image, viewModal.data.poster_mode || 'poster'],
-                     ['Publication', CheckCircle, viewModal.data.is_published ? 'Published' : 'Unpublished'],
-                   ].map(([label, Icon, value]) => (
+                     ['Price', DollarSign, hasPackageValue(viewModal.data.price) ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null],
+                     ['Duration', Calendar, hasPackageValue(viewModal.data.duration_days) || hasPackageValue(viewModal.data.duration_nights) ? [viewModal.data.duration_days ? String(viewModal.data.duration_days) + ' days' : '', viewModal.data.duration_nights != null ? String(viewModal.data.duration_nights) + ' nights' : ''].filter(Boolean).join(' / ') : null],
+                     ['Category', Tag, hasPackageValue(viewModal.data.category) ? viewModal.data.category : null],
+                     ['Travelers', Users, hasPackageValue(viewModal.data.min_travelers) || hasPackageValue(viewModal.data.max_travelers) ? [viewModal.data.min_travelers ? 'Min ' + viewModal.data.min_travelers : '', viewModal.data.max_travelers ? 'Max ' + viewModal.data.max_travelers : ''].filter(Boolean).join(' · ') : null],
+                     ['Image mode', Image, hasPackageValue(viewModal.data.poster_mode) ? viewModal.data.poster_mode : null],
+                     ['Publication', CheckCircle, typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null],
+                   ].filter(([, , value]) => hasPackageValue(value)).map(([label, Icon, value]) => (
                      <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
@@ -1543,12 +1565,12 @@ export default function Packages() {
                    <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
                      <FileText size={16} className="text-emerald-600"/>
                      <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.keys(viewModal.data || {}).length} fields</span>
+                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(([, value]) => hasPackageValue(value)).length} fields</span>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                     {Object.entries(viewModal.data || {}).map(([key, value], index) => {
+                     {Object.entries(viewModal.data || {}).filter(([, value]) => hasPackageValue(value)).map(([key, value], index) => {
                        const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
-                       const textValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+                       const textValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
                        return (
                          <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
                            <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
