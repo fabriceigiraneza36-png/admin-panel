@@ -510,14 +510,6 @@ export default function Notifications() {
 
         <div className="flex gap-2 flex-wrap w-full sm:w-auto">
           <button
-            type="button"
-            onClick={openPushSettings}
-            className="px-3 py-1.5 text-sm border border-emerald-200 text-emerald-800 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors inline-flex items-center gap-1.5"
-          >
-            <Settings size={14} />
-            <span>Push settings</span>
-          </button>
-          <button
             onClick={refresh}
             disabled={loading}
             className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg
@@ -552,7 +544,27 @@ export default function Notifications() {
         </div>
       </div>
 
-      {/* Browser push delivery is managed in the settings dialog below. */}
+      <section className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700">
+            <Settings size={18} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold text-slate-900">External browser notifications</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+              Manage browser push delivery for subscribed travellers. Administrator and manager alerts remain enabled independently.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={openPushSettings}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+        >
+          <Bell size={14} />
+          Manage delivery
+        </button>
+      </section>
 
       {/* Search */}
       <div className="mb-4 relative">
