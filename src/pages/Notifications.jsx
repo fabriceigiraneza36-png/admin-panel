@@ -17,12 +17,13 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
-  Send, Smartphone,
+  Send, Smartphone, Settings, ShieldCheck, Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useNotifications } from "@context/NotificationContext";
 import { usePush } from "@context/PushNotificationContext";
+import apiClient from "@api/client";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
 import Avatar                from "@components/common/Avatar";
 import { getNotificationTarget } from "@utils/notificationTarget";
@@ -364,6 +365,76 @@ export default function Notifications() {
   const [busyId, setBusyId] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
+  const [pushSettingsOpen, setPushSettingsOpen] = useState(false);
+  const [allowUserPush, setAllowUserPush] = useState(true);
+  const [pushSettingsLoading, setPushSettingsLoading] = useState(false);
+  const [pushSettingsSaving, setPushSettingsSaving] = useState(false);
+  const [pushSettingsError, setPushSettingsError] = useState("");
+  const {
+    supported: adminPushSupported,
+    permission: adminPushPermission,
+    subscribed: adminPushSubscribed,
+    serverSynced: adminPushSynced,
+    loading: adminPushBusy,
+    subscribeUser: subscribeAdminBrowser,
+    requestPermission: requestAdminPushPermission,
+    syncSubscription: syncAdminBrowser,
+  } = usePush();
+
+  const loadPushSettings = useCallback(async () => {
+    setPushSettingsLoading(true);
+    setPushSettingsError("");
+    try {
+      const response = await apiClient.get("/push/user-delivery-settings");
+      const data = response?.data || response;
+      setAllowUserPush(data?.enabled !== false);
+    } catch (error) {
+      setPushSettingsError(error?.response?.data?.message || error?.message || "Could not load push settings.");
+    } finally {
+      setPushSettingsLoading(false);
+    }
+  }, []);
+
+  const openPushSettings = useCallback(() => {
+    setPushSettingsOpen(true);
+    void loadPushSettings();
+  }, [loadPushSettings]);
+
+  const saveUserPushSetting = useCallback(async () => {
+    const nextValue = !allowUserPush;
+    setPushSettingsSaving(true);
+    setPushSettingsError("");
+    try {
+      const response = await apiClient.patch("/push/user-delivery-settings", { enabled: nextValue });
+      const data = response?.data || response;
+      setAllowUserPush(data?.enabled !== false);
+    } catch (error) {
+      setPushSettingsError(error?.response?.data?.message || error?.message || "Could not save push settings.");
+    } finally {
+      setPushSettingsSaving(false);
+    }
+  }, [allowUserPush]);
+
+  const enableAdminBrowserPush = useCallback(async () => {
+    setPushSettingsError("");
+    if (!adminPushSupported) {
+      setPushSettingsError("This browser does not support web push notifications.");
+      return;
+    }
+    let permission = adminPushPermission;
+    if (permission !== "granted") permission = await requestAdminPushPermission();
+    if (permission !== "granted") {
+      setPushSettingsError(permission === "denied"
+        ? "Notifications are blocked for this site. Allow them in your browser or device site settings, then return here."
+        : "Browser notification permission was not granted.");
+      return;
+    }
+    if (adminPushSubscribed) {
+      await syncAdminBrowser();
+    } else {
+      await subscribeAdminBrowser();
+    }
+  }, [adminPushSupported, adminPushPermission, requestAdminPushPermission, adminPushSubscribed, syncAdminBrowser, subscribeAdminBrowser]);
 
   const openUserProfile = useCallback((userId) => {
     if (!userId) return;
@@ -439,6 +510,14 @@ export default function Notifications() {
 
         <div className="flex gap-2 flex-wrap w-full sm:w-auto">
           <button
+            type="button"
+            onClick={openPushSettings}
+            className="px-3 py-1.5 text-sm border border-emerald-200 text-emerald-800 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors inline-flex items-center gap-1.5"
+          >
+            <Settings size={14} />
+            <span>Push settings</span>
+          </button>
+          <button
             onClick={refresh}
             disabled={loading}
             className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg
@@ -473,8 +552,7 @@ export default function Notifications() {
         </div>
       </div>
 
-      {/* ── Push Notifications ── */}
-      <PushNotificationBar />
+      {/* Browser push delivery is managed in the settings dialog below. */}
 
       {/* Search */}
       <div className="mb-4 relative">
@@ -573,6 +651,104 @@ export default function Notifications() {
           >
             {loading ? "Loading…" : "Load more"}
           </button>
+        </div>
+      )}
+
+      {/* Browser push settings — existing admin subscription stays one-way enabled. */}
+      {pushSettingsOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-3 sm:p-5"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPushSettingsOpen(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="push-settings-title"
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-emerald-100 bg-white shadow-2xl"
+          >
+            <div className="flex items-start gap-3 border-b border-emerald-100 bg-gradient-to-br from-emerald-50 to-white px-5 py-5 sm:px-6">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-100 bg-white text-emerald-700">
+                <Settings size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 id="push-settings-title" className="text-lg font-extrabold text-slate-900">Browser push settings</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">Manage traveller push delivery while keeping administrator alerts available.</p>
+              </div>
+              <button type="button" onClick={() => setPushSettingsOpen(false)} aria-label="Close push settings" className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5 sm:p-6">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-emerald-700 border border-emerald-100">
+                    <ShieldCheck size={19} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-extrabold text-slate-900">Administrator browser alerts</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">Admin and manager push delivery is not controlled by the traveller setting. This browser still needs notification permission and an active subscription.</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${adminPushSubscribed && adminPushSynced ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                        {adminPushSubscribed && adminPushSynced ? "This browser is registered" : adminPushPermission === "denied" ? "Permission blocked" : "Setup needed"}
+                      </span>
+                      {adminPushSupported && !(adminPushSubscribed && adminPushSynced) && (
+                        <button
+                          type="button"
+                          onClick={enableAdminBrowserPush}
+                          disabled={adminPushBusy || adminPushPermission === "unsupported"}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {adminPushBusy ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                          {adminPushBusy ? "Enabling…" : adminPushSubscribed ? "Sync browser" : "Enable on this browser"}
+                        </button>
+                      )}
+                    </div>
+                    {adminPushPermission === "denied" && (
+                      <p className="mt-2 text-xs leading-relaxed text-amber-800">Allow notifications for this site in your browser or device settings, then return and sync this browser.</p>
+                    )}
+                    {!adminPushSupported && <p className="mt-2 text-xs text-slate-500">Web push is not supported in this browser.</p>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-extrabold text-slate-900">Allow browser push to travellers</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">When enabled, subscribed Altuvera users can receive eligible booking, message, account, and other dashboard notifications while away from the website. Turning this off does not disable admin or manager push alerts.</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={allowUserPush}
+                    aria-label="Allow browser push notifications to travellers"
+                    onClick={saveUserPushSetting}
+                    disabled={pushSettingsLoading || pushSettingsSaving}
+                    className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${allowUserPush ? "bg-emerald-600" : "bg-slate-300"}`}
+                  >
+                    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowUserPush ? "translate-x-6" : "translate-x-1"}`} />
+                  </button>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  {pushSettingsLoading || pushSettingsSaving ? (
+                    <><Loader2 size={13} className="animate-spin text-emerald-700" /><span className="text-slate-500">{pushSettingsSaving ? "Saving setting…" : "Loading setting…"}</span></>
+                  ) : (
+                    <><span className={`h-2 w-2 rounded-full ${allowUserPush ? "bg-emerald-500" : "bg-slate-400"}`} /><span className="font-semibold text-slate-600">{allowUserPush ? "Traveller push delivery allowed" : "Traveller push delivery paused"}</span></>
+                  )}
+                </div>
+              </div>
+
+              {pushSettingsError && (
+                <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs leading-relaxed text-rose-700">{pushSettingsError}</p>
+              )}
+            </div>
+            <div className="flex justify-end border-t border-slate-100 px-5 py-4 sm:px-6">
+              <button type="button" onClick={() => setPushSettingsOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Done</button>
+            </div>
+          </section>
         </div>
       )}
 
