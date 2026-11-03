@@ -39,6 +39,45 @@ import { formatNumber, formatTimeAgo, formatDate } from '@utils/formatters'
 // CONSTANTS
 // ══════════════════════════════════════════════════════════════════════════════
 
+
+const hasPackageValue = (value) => {
+  if (value === null || value === undefined) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (Array.isArray(value)) return value.some(hasPackageValue)
+  if (typeof value === 'object') return Object.values(value).some(hasPackageValue)
+  return true
+}
+
+const formatPackageValue = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(item => {
+      if (item && typeof item === 'object') {
+        return item.name || item.title || item.label || item.value ||
+          Object.entries(item).filter(([, child]) => hasPackageValue(child))
+            .map(([key, child]) => key.replace(/_/g, ' ') + ': ' + formatPackageValue(child)).join(' · ')
+      }
+      return formatPackageValue(item)
+    }).filter(Boolean).join(' · ')
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([, child]) => hasPackageValue(child))
+      .map(([key, child]) => key.replace(/_/g, ' ') + ': ' + formatPackageValue(child))
+      .join(' · ')
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return String(value)
+}
+
+const PACKAGE_TECHNICAL_FIELDS = new Set([
+  'id', 'slug', 'destination_id', 'created_at', 'updated_at', 'deleted_at',
+  'view_count', 'booking_count', 'inquiry_count', 'sort_order', 'owner_id',
+  'is_published', 'is_featured', 'cover_image_url', 'thumbnail_url',
+  'image_gallery', 'images', 'gallery', 'destination', 'destination_name',
+  'title', 'short_description', 'description', 'category', 'price', 'currency',
+  'duration_days', 'duration_nights', 'min_travelers', 'max_travelers', 'poster_mode',
+])
+
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'KES', 'TZS', 'UGX']
 
 const CATEGORIES = [
@@ -461,7 +500,7 @@ function InfoFieldBuilder({ value = [], onChange }) {
 
 // ── BookingRow ────────────────────────────────────────────────────────────────
 
-function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
+function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest, onOpenBooking }) {
   const [expanded, setExpanded] = useState(false)
 
   const statusColors = {
@@ -476,9 +515,18 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
     <div className="border border-slate-200 rounded-xl overflow-hidden
       hover:border-slate-300 transition-colors">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Open full booking for ${booking.full_name || booking.user_name || booking.user_full_name || booking.booking_number || booking.id}`}
         className="flex items-center gap-3 p-3 cursor-pointer
-          hover:bg-slate-50 transition-colors"
-        onClick={() => setExpanded(v => !v)}
+          hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        onClick={() => onOpenBooking?.(booking)}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onOpenBooking?.(booking)
+          }
+        }}
       >
         <StatusIcon status={booking.status} size={16} />
         <Avatar src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url} name={booking.full_name || booking.user_name || booking.user_full_name} size="sm" rounded="full" />
@@ -500,10 +548,17 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
           capitalize shrink-0 ${statusColors[booking.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
           {booking.status}
         </span>
-        {expanded
-          ? <ChevronUp size={14} className="text-slate-400 shrink-0" />
-          : <ChevronDown size={14} className="text-slate-400 shrink-0" />
-        }
+        <button
+          type="button"
+          aria-label={expanded ? 'Collapse booking summary' : 'Expand booking summary'}
+          onClick={event => {
+            event.stopPropagation()
+            setExpanded(value => !value)
+          }}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"
+        >
+          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
       </div>
 
       {expanded && (
@@ -747,8 +802,27 @@ export default function Packages() {
         const res = await packagesAPI.getMessages(pkg.id)
         setPkgMessages(res.data?.data || [])
       } else if (tab === 'bookings') {
-        const res = await packagesAPI.getBookings(pkg.id)
-        setPkgBookings(res.data?.data || [])
+        const firstResponse = await packagesAPI.getBookings(pkg.id, { page: 1, limit: 100 })
+        const firstBody = firstResponse?.data ?? firstResponse
+        const rows = Array.isArray(firstBody?.data)
+          ? [...firstBody.data]
+          : Array.isArray(firstBody) ? [...firstBody]
+            : Array.isArray(firstBody?.bookings) ? [...firstBody.bookings] : []
+        const pages = Math.min(Math.max(Number(firstBody?.pagination?.pages) || 1, 1), 10)
+        if (pages > 1) {
+          const pageResponses = await Promise.all(
+            Array.from({ length: pages - 1 }, (_, index) =>
+              packagesAPI.getBookings(pkg.id, { page: index + 2, limit: 100 })
+            )
+          )
+          pageResponses.forEach(response => {
+            const body = response?.data ?? response
+            const pageRows = Array.isArray(body?.data) ? body.data
+              : Array.isArray(body) ? body : Array.isArray(body?.bookings) ? body.bookings : []
+            rows.push(...pageRows)
+          })
+        }
+        setPkgBookings(rows)
       } else if (tab === 'info') {
         const res = await packagesAPI.getInfoRequests(pkg.id)
         setPkgInfoReqs(res.data?.data || [])
@@ -1245,6 +1319,10 @@ export default function Packages() {
               >
               <BookingRow
                 booking={bk}
+                onOpenBooking={(booking) => {
+                  const bookingId = booking.id || booking.booking_id || booking.booking_number
+                  if (bookingId) window.location.assign('/bookings?bookingId=' + encodeURIComponent(bookingId))
+                }}
                 onUpdate={handleBookingUpdate}
                 onConfirm={handleBookingConfirm}
                 onCancel={handleBookingCancel}
@@ -1506,58 +1584,125 @@ export default function Packages() {
             </div>
 
              {activeTab === 'details' && (
-               <div className="space-y-4">
-                 <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
-                   <div className="flex items-center gap-3 mb-4">
-                     <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
-                     <div className="min-w-0">
-                       <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
-                       <p className="text-base font-bold text-slate-800 break-words">
-                         {(() => {
-                           const raw = viewModal.data.destination_name || viewModal.data.destination;
-                           return typeof raw === 'string' ? raw : String(raw?.name || raw?.title || raw?.slug || 'Destination not linked');
-                         })()}
-                       </p>
-                     </div>
-                   </div>
-                   {(viewModal.data.description || viewModal.data.short_description) && (
-                     <p className="text-sm leading-6 text-slate-600">{viewModal.data.short_description || viewModal.data.description}</p>
-                   )}
-                 </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   {[
-                     ['Price', DollarSign, viewModal.data.price != null ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : 'Not specified'],
-                     ['Duration', Calendar, viewModal.data.duration_days ? `${viewModal.data.duration_days} days / ${viewModal.data.duration_nights ?? '—'} nights` : 'Not specified'],
-                     ['Category', Tag, viewModal.data.category || 'Not specified'],
-                     ['Travelers', Users, viewModal.data.min_travelers || viewModal.data.max_travelers ? `${viewModal.data.min_travelers || 1}–${viewModal.data.max_travelers || '—'} travelers` : 'Not specified'],
-                     ['Image mode', Image, viewModal.data.poster_mode || 'poster'],
-                     ['Publication', CheckCircle, viewModal.data.is_published ? 'Published' : 'Unpublished'],
-                   ].map(([label, Icon, value]) => (
-                     <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
-                       <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
-                     </div>
-                   ))}
-                 </div>
-                 <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                   <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
-                     <FileText size={16} className="text-emerald-600"/>
-                     <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.keys(viewModal.data || {}).length} fields</span>
-                   </div>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                     {Object.entries(viewModal.data || {}).map(([key, value], index) => {
-                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
-                       const textValue = value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-                       return (
-                         <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
-                           <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
-                           <div className="text-xs leading-5 text-slate-700 break-words whitespace-pre-wrap">{textValue}</div>
-                         </motion.div>
-                       );
-                     })}
-                   </div>
-                 </div>
+               <div className="space-y-5">
+                 {(() => {
+                   const rawDestination = viewModal.data.destination_name || viewModal.data.destination
+                   const destinationName = typeof rawDestination === 'string'
+                     ? rawDestination
+                     : rawDestination?.name || rawDestination?.title || rawDestination?.slug || ''
+                   const description = viewModal.data.short_description || viewModal.data.description
+                   const summary = [
+                     {
+                       label: 'Price',
+                       icon: DollarSign,
+                       value: viewModal.data.price !== null && viewModal.data.price !== undefined
+                         ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null,
+                     },
+                     {
+                       label: 'Duration',
+                       icon: Calendar,
+                       value: hasPackageValue(viewModal.data.duration_days) || hasPackageValue(viewModal.data.duration_nights)
+                         ? [hasPackageValue(viewModal.data.duration_days) ? viewModal.data.duration_days + ' days' : null,
+                            hasPackageValue(viewModal.data.duration_nights) ? viewModal.data.duration_nights + ' nights' : null].filter(Boolean).join(' / ')
+                         : null,
+                     },
+                     { label: 'Category', icon: Tag, value: viewModal.data.category },
+                     {
+                       label: 'Travelers',
+                       icon: Users,
+                       value: hasPackageValue(viewModal.data.min_travelers) || hasPackageValue(viewModal.data.max_travelers)
+                         ? [hasPackageValue(viewModal.data.min_travelers) ? 'From ' + viewModal.data.min_travelers : null,
+                            hasPackageValue(viewModal.data.max_travelers) ? 'Up to ' + viewModal.data.max_travelers : null].filter(Boolean).join(' · ')
+                         : null,
+                     },
+                     { label: 'Image format', icon: Image, value: viewModal.data.poster_mode },
+                     { label: 'Publication', icon: CheckCircle, value: typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null },
+                   ].filter(field => hasPackageValue(field.value))
+                   const details = Object.entries(viewModal.data || {}).filter(([key, value]) =>
+                     !PACKAGE_TECHNICAL_FIELDS.has(key) && hasPackageValue(value)
+                   )
+                   const iconForField = (key) => /price|cost|currency|discount/i.test(key) ? DollarSign
+                     : /date|duration|month|time/i.test(key) ? Calendar
+                     : /destination|country|location|region|address/i.test(key) ? MapPin
+                     : /traveler|group|people|guest/i.test(key) ? Users
+                     : /image|photo|gallery|poster|cover/i.test(key) ? Image
+                     : /included|excluded|itinerary|highlight|feature|faq|activity/i.test(key) ? BookOpen
+                     : /category|type|tag/i.test(key) ? Tag
+                     : /published|active|sold_out|featured/i.test(key) ? CheckCircle
+                     : FileText
+                   return (
+                     <>
+                       {hasPackageValue(destinationName) && (
+                         <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-white p-4 sm:p-5">
+                           <div className="flex items-start gap-3">
+                             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700 shadow-sm"><MapPin size={19} /></span>
+                             <div className="min-w-0">
+                               <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-700">Linked destination</p>
+                               <h3 className="mt-1 text-base font-bold text-slate-900 break-words">{destinationName}</h3>
+                               {hasPackageValue(description) && <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>}
+                             </div>
+                           </div>
+                         </section>
+                       )}
+                       {!hasPackageValue(destinationName) && hasPackageValue(description) && (
+                         <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">{description}</p>
+                       )}
+                       {summary.length > 0 && (
+                         <section>
+                           <div className="mb-3 flex items-center gap-2">
+                             <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Package size={16} /></span>
+                             <div>
+                               <h3 className="text-sm font-bold text-slate-900">Package at a glance</h3>
+                               <p className="text-xs text-slate-500">Key details available for this experience</p>
+                             </div>
+                           </div>
+                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                             {summary.map(({ label, icon: Icon, value }) => (
+                               <div key={label} className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition-colors hover:border-emerald-200">
+                                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Icon size={16} /></span>
+                                 <div className="min-w-0">
+                                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                                   <p className="mt-1 break-words text-sm font-semibold text-slate-800">{String(value)}</p>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </section>
+                       )}
+                       {details.length > 0 && (
+                         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                           <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                             <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm"><FileText size={16} /></span>
+                             <div className="min-w-0">
+                               <h3 className="text-sm font-bold text-slate-900">More package information</h3>
+                               <p className="text-xs text-slate-500">{details.length} available detail{details.length === 1 ? '' : 's'}</p>
+                             </div>
+                           </div>
+                           <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
+                             {details.map(([key, value]) => {
+                               const Icon = iconForField(key)
+                               return (
+                                 <div key={key} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 transition-colors hover:border-emerald-200 hover:bg-emerald-50/20">
+                                   <div className="mb-2 flex items-center gap-2">
+                                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Icon size={14} /></span>
+                                     <span className="break-words text-[11px] font-bold uppercase tracking-wide text-slate-500">{key.replace(/_/g, ' ')}</span>
+                                   </div>
+                                   <div className="break-words whitespace-pre-wrap text-sm leading-6 text-slate-700">{formatPackageValue(value)}</div>
+                                 </div>
+                               )
+                             })}
+                           </div>
+                         </section>
+                       )}
+                       {!destinationName && !summary.length && !details.length && (
+                         <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                           <Package size={22} className="mx-auto text-slate-300" />
+                           <p className="mt-2 text-sm font-semibold text-slate-600">No additional package details available</p>
+                         </div>
+                       )}
+                     </>
+                   )
+                 })()}
                </div>
              )}
              {activeTab === 'bookings' && <TabBookings />}
