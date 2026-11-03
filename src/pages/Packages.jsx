@@ -43,6 +43,34 @@ const hasPackageValue = (value) => {
   return true;
 };
 
+const PACKAGE_VIEW_HIDDEN_FIELDS = new Set([
+  'id', 'slug', 'destination_id', 'created_at', 'updated_at',
+  'poster_mode', 'cover_image_url', 'thumbnail_url', 'card_bg_image',
+  'card_theme', 'accent_color', 'sort_order', 'meta_title', 'meta_description',
+  'is_published', 'is_featured', 'is_sold_out', 'booking_count', 'view_count',
+  'badge_label', 'badge_color', 'is_price_visible', 'title',
+  'destination_name', 'destination', 'country_name', 'country',
+  'description', 'short_description', 'price', 'currency',
+  'duration_days', 'duration_nights', 'category', 'min_travelers', 'max_travelers',
+]);
+
+const isVisiblePackageDetail = ([key, value]) =>
+  !PACKAGE_VIEW_HIDDEN_FIELDS.has(String(key).toLowerCase()) && hasPackageValue(value);
+
+const formatPackageDetailValue = (value, depth = 0) => {
+  if (Array.isArray(value)) {
+    return value.filter(hasPackageValue).map((item) => formatPackageDetailValue(item, depth + 1)).filter(Boolean).join('\\n');
+  }
+  if (value && typeof value === 'object') {
+    if (depth >= 2) return Object.values(value).filter(hasPackageValue).map(String).join(' · ');
+    return Object.entries(value).filter(([, item]) => hasPackageValue(item))
+      .map(([key, item]) => key.replace(/_/g, ' ') + ': ' + formatPackageDetailValue(item, depth + 1))
+      .join('\\n');
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return value === null || value === undefined ? '' : String(value);
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════════════════════════════
