@@ -1020,28 +1020,34 @@ export default function Packages() {
 
   // ── Booking actions ────────────────────────────────────────────────────────
 
+  const openBookingInBookings = (booking) => {
+    if (!booking?.id || !viewModal.data?.id) return
+    const params = new URLSearchParams({
+      bookingId: String(booking.id),
+      bookingType: 'package',
+      packageId: String(viewModal.data.id),
+    })
+    if (booking.source_table) params.set('bookingSource', booking.source_table)
+    window.location.assign('/bookings?' + params.toString())
+  }
+
   const handleBookingUpdate = async (booking, changes) => {
     try {
-      await packagesAPI.updateBooking(viewModal.data.id, booking.id, changes)
+      await packagesAPI.updateBooking(viewModal.data.id, booking.id, {
+        ...changes,
+        source_table: booking.source_table || 'bookings',
+      })
       toast.success('Booking updated')
       loadSubData(viewModal.data, 'bookings')
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   const handleBookingConfirm = async (booking) => {
-    try {
-      await packagesAPI.confirmBooking(viewModal.data.id, booking.id)
-      toast.success('Booking confirmed')
-      loadSubData(viewModal.data, 'bookings')
-    } catch (e) { toast.error(getErrorMessage(e)) }
+    await handleBookingUpdate(booking, { status: 'confirmed' })
   }
 
   const handleBookingCancel = async (booking) => {
-    try {
-      await packagesAPI.cancelBooking(viewModal.data.id, booking.id, {})
-      toast.success('Booking cancelled')
-      loadSubData(viewModal.data, 'bookings')
-    } catch (e) { toast.error(getErrorMessage(e)) }
+    await handleBookingUpdate(booking, { status: 'cancelled' })
   }
 
   // ── Info requests ──────────────────────────────────────────────────────────
@@ -1254,10 +1260,25 @@ export default function Packages() {
           <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
             {pkgBookings.map(bk => (
               <div
-                key={bk.id}
-                className={String(bk.id) === String(focusedBookingId)
-                  ? 'rounded-2xl ring-2 ring-emerald-400 ring-offset-2 bg-emerald-50/40 p-1'
-                  : ''}
+                key={String(bk.source_table || 'bookings') + ':' + bk.id}
+                role="button"
+                tabIndex={0}
+                onClick={(event) => {
+                  if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return
+                  openBookingInBookings(bk)
+                }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openBookingInBookings(bk)
+                  }
+                }}
+                className={'rounded-2xl p-1 cursor-pointer transition-colors hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ' + (
+                  String(bk.id) === String(focusedBookingId)
+                    ? 'ring-2 ring-emerald-400 ring-offset-2 bg-emerald-50/40'
+                    : ''
+                )}
               >
               <BookingRow
                 booking={bk}
@@ -1274,7 +1295,7 @@ export default function Packages() {
               <div className="flex justify-end px-1 pt-2">
                 <button
                   type="button"
-                  onClick={() => window.location.assign('/bookings?bookingId=' + encodeURIComponent(bk.id) + '&bookingType=package')}
+                  onClick={(event) => { event.stopPropagation(); openBookingInBookings(bk) }}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
                 >
                   <Eye size={13} /> Open in Bookings
