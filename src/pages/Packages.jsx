@@ -6,7 +6,7 @@ import {
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, X, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
-  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList, ChevronLeft, ChevronRight,
+  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList, ChevronLeft, ChevronRight, ExternalLink,
 } from 'lucide-react'
 
 // ── API — both named exports come from the same file ─────────────────────────
