@@ -6,7 +6,7 @@ import {
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
-  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag,
+  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList,
 } from 'lucide-react'
 
 // ── API — both named exports come from the same file ─────────────────────────
@@ -1183,6 +1183,7 @@ export default function Packages() {
       await packagesAPI.createInfoRequest(infoModal.data.id, infoForm)
       toast.success('Info request sent to traveler')
       infoModal.close()
+      setActiveTab('info')
       loadSubData(viewModal.data, 'info')
     } catch (e) {
       toast.error(getErrorMessage(e))
@@ -1591,37 +1592,44 @@ export default function Packages() {
         size="2xl"
         icon={<Package size={19} strokeWidth={2.1} />}
         footer={
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleTogglePublish(viewModal.data)}
-                className={viewModal.data?.is_published
-                  ? 'btn-warning btn-sm inline-flex items-center gap-1.5'
-                  : 'btn-success btn-sm inline-flex items-center gap-1.5'}
-              >
-                {viewModal.data?.is_published
-                  ? <><EyeOff size={14} /> Unpublish</>
-                  : <><Globe2 size={14} /> Publish</>}
-              </button>
-              <button
-                onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
-                className="btn-primary btn-sm inline-flex items-center gap-1.5"
-              >
-                <Pencil size={14} /> Edit package
-              </button>
-              <button
-                onClick={() => {
-                  viewModal.close()
-                  deleteModal.open(viewModal.data)
-                }}
-                className="btn-danger btn-sm inline-flex items-center gap-1.5"
-              >
-                <Trash2 size={14} /> Delete
-              </button>
+          <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,.06)] backdrop-blur sm:px-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <button type="button" onClick={() => handleTogglePublish(viewModal.data)}
+                  className={viewModal.data?.is_published
+                    ? 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
+                    : 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'}>
+                  {viewModal.data?.is_published ? <EyeOff size={15}/> : <Globe2 size={15}/>}
+                  {viewModal.data?.is_published ? 'Unpublish' : 'Publish'}
+                </button>
+                <button type="button" onClick={() => { setActiveTab('messages'); loadSubData(viewModal.data, 'messages') }}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800 hover:bg-violet-100">
+                  <MessageSquare size={15}/> Messages
+                </button>
+                <button type="button" onClick={() => { setActiveTab('bookings'); loadSubData(viewModal.data, 'bookings') }}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100">
+                  <Calendar size={15}/> Bookings
+                </button>
+                <button type="button" onClick={() => openInfoRequest()}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 hover:bg-teal-100">
+                  <ClipboardList size={15}/> Request info
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-800">
+                  <Pencil size={15}/> Edit package
+                </button>
+                <button type="button" onClick={() => { viewModal.close(); deleteModal.open(viewModal.data) }}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
+                  <Trash2 size={15}/> Delete
+                </button>
+                <button type="button" onClick={viewModal.close}
+                  className="col-span-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:col-span-1">
+                  <X size={15}/> Close
+                </button>
+              </div>
             </div>
-            <button onClick={viewModal.close} className="btn-secondary btn-sm inline-flex items-center justify-center gap-1.5">
-              <XCircle size={14} /> Close
-            </button>
           </div>
         }
       >
@@ -1720,10 +1728,12 @@ export default function Packages() {
                 </div>
               </section>
 
-              <div className="flex border-b border-slate-200">
+              <div className="flex gap-1 overflow-x-auto border-b border-slate-200 -mx-1 px-1" role="tablist" aria-label="Package workspace">
                 {[
                   { id: 'details', label: 'Overview', icon: Eye },
-                  { id: 'bookings', label: 'Bookings', icon: BookOpen },
+                  { id: 'messages', label: 'Messages', icon: MessageSquare },
+                  { id: 'bookings', label: 'Bookings', icon: Calendar },
+                  { id: 'info', label: 'Info forms', icon: ClipboardList },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1860,7 +1870,9 @@ export default function Packages() {
                 </div>
               )}
 
+              {activeTab === 'messages' && <TabMessages />}
               {activeTab === 'bookings' && <TabBookings />}
+              {activeTab === 'info' && <TabInfoRequests />}
             </div>
           );
         })()}
