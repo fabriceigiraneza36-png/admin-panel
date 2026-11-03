@@ -280,14 +280,18 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
         <h4 className="font-bold text-amber-900 text-sm">Cancellation Request</h4>
         <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide ml-auto ${isPending ? 'bg-amber-200 text-amber-800' : isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{booking.cancel_request_status}</span>
       </div>
-      <div className="mb-4">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Requested At</p>
-        <p className="font-semibold text-slate-700">{booking.cancel_requested_at ? new Date(booking.cancel_requested_at).toLocaleString() : '—'}</p>
-      </div>
-      <div className="mb-4">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Customer Reason</p>
-        <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-3 leading-relaxed">{booking.cancel_request_reason || 'No reason provided.'}</p>
-      </div>
+      {hasBookingValue(booking.cancel_requested_at) && (
+        <div className="mb-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Requested At</p>
+          <p className="font-semibold text-slate-700">{new Date(booking.cancel_requested_at).toLocaleString()}</p>
+        </div>
+      )}
+      {hasBookingValue(booking.cancel_request_reason) && (
+        <div className="mb-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Customer Reason</p>
+          <p className="text-sm text-slate-700 bg-white border border-slate-200 rounded-xl p-3 leading-relaxed">{booking.cancel_request_reason}</p>
+        </div>
+      )}
       {isPending ? (
         <div className="space-y-4">
           <div className="flex gap-3">
