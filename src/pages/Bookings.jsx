@@ -200,7 +200,7 @@ function AdditionalBookingFields({ booking }) {
     (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
   );
   if (!entries.length) return null;
-  const labelFor = (key) => key.replace(/_/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+  const labelFor = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   return (
     <SectionCard title="Additional booking information" icon={FileText}>
       <InfoGrid>
