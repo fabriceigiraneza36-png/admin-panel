@@ -38,7 +38,7 @@ async function readJsonResponse (response, fallbackMessage) {
 
 async function sendSubscriptionToBackend (subscription) {
   const token = getStoredToken()
-  if (!token) throw new Error('Sign in to the admin panel before syncing this browser subscription.')
+  if (!token) throw new Error('Sign in to Altuvera before syncing this browser subscription.')
   const json = subscription.toJSON()
   if (!subscription.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
     throw new Error('The browser returned an incomplete push subscription. Re-enable browser notifications.')
