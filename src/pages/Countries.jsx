@@ -1,5 +1,6 @@
 // admin/src/pages/Countries.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Globe2, Plus, Eye, Pencil, Trash2, RefreshCw, Star, FileText,
   MapPin, DollarSign, Image as ImageIcon, Info, Check,
@@ -954,6 +955,8 @@ export default function Countries() {
   const toast = useToast()
   const pag = usePagination()
   const viewModal = useModal()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const resourceDeepLinkHandled = useRef(false)
   const formModal = useModal()
 
   const [countries, setCountries] = useState([])
@@ -1022,6 +1025,32 @@ export default function Countries() {
   }, [pag.page, pag.limit, sortBy, sortOrder, debouncedSearch, featured])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (loading || resourceDeepLinkHandled.current) return
+    const resourceId = searchParams.get('resourceId')
+    const resourceType = (searchParams.get('resourceType') || '').toLowerCase()
+    if (!resourceId || (resourceType && !resourceType.includes('country'))) return
+    let cancelled = false
+    const openResource = async () => {
+      try {
+        let country = countries.find(item => String(item.id) === String(resourceId))
+        if (!country) {
+          const response = await countriesAPI.getOne(resourceId)
+          const body = response?.data ?? response
+          country = body?.data?.country ?? body?.data ?? body?.country ?? body
+        }
+        if (cancelled || !country?.id) return
+        resourceDeepLinkHandled.current = true
+        viewModal.open(country)
+        setSearchParams({}, { replace: true })
+      } catch (error) {
+        if (!cancelled) toast.error(getErrorMessage(error))
+      }
+    }
+    openResource()
+    return () => { cancelled = true }
+  }, [countries, loading, searchParams, setSearchParams, toast, viewModal])
 
   const buildForm = (c) => {
     let heroImages = c.hero_images
