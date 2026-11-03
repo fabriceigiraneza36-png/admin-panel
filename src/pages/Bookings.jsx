@@ -1758,7 +1758,6 @@ export default function Bookings() {
             </div>
           </div>
           </div>
-          </div>
 
         </motion.div>
         </div>
