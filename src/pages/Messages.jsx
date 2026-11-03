@@ -26,6 +26,19 @@ import '../messaging-phase2.css'
 /* ─── Token / Fetch Helpers ────────────────────────────────────────────────── */
 
 const TOKEN_KEYS = ['altuvera_admin_token', 'auth_token', 'token']
+const ADMIN_MESSAGE_DRAFT_PREFIX = 'altuvera_admin_message_draft:'
+const readAdminMessageDraft = (conversationId) => {
+  if (!conversationId) return ''
+  try { return localStorage.getItem(ADMIN_MESSAGE_DRAFT_PREFIX + String(conversationId)) || '' } catch { return '' }
+}
+const saveAdminMessageDraft = (conversationId, value) => {
+  if (!conversationId) return
+  try {
+    const key = ADMIN_MESSAGE_DRAFT_PREFIX + String(conversationId)
+    if (value) localStorage.setItem(key, value)
+    else localStorage.removeItem(key)
+  } catch { /* Draft persistence is best-effort; typing must always work. */ }
+}
 const getToken = () => {
   try {
     for (const k of TOKEN_KEYS) {
@@ -1058,6 +1071,7 @@ export default function Messages() {
   const loadingOlderRef = useRef(false)
   const [sending, setSending] = useState(false)
   const [draft, setDraft] = useState('')
+  const [draftRecoveryVisible, setDraftRecoveryVisible] = useState(false)
   const [aiSuggestions, setAiSuggestions] = useState([])
   const [aiSuggestionLanguage, setAiSuggestionLanguage] = useState('')
   const aiSuggestionRequestRef = useRef(0)
@@ -1537,7 +1551,10 @@ export default function Messages() {
   }, [messages.length, atBottom, scrollToBottom])
 
   useEffect(() => {
-    setDraft(''); setReplyToId(null); setShowEmoji(false)
+    const savedDraft = readAdminMessageDraft(activeId)
+    setDraft(savedDraft)
+    setDraftRecoveryVisible(Boolean(savedDraft))
+    setReplyToId(null); setShowEmoji(false)
     clearTimeout(adminTypingTimer.current)
     isAdminTypingRef.current = false
   }, [activeId])
@@ -1563,6 +1580,8 @@ export default function Messages() {
   const handleDraftChange = useCallback((val) => {
     setDraft(val)
     const convId = activeIdRef.current
+    saveAdminMessageDraft(convId, val)
+    if (val) setDraftRecoveryVisible(false)
     if (!convId) return
     const typing = val.length > 0
     if (typing !== isAdminTypingRef.current) {
@@ -1603,7 +1622,7 @@ export default function Messages() {
     setMessages(prev => [...prev, optimistic])
     setAtBottom(true)
     const outDraft = draft, outReply = replyToId
-    setDraft(''); setReplyToId(null)
+    setDraft(''); saveAdminMessageDraft(convId, ''); setDraftRecoveryVisible(false); setReplyToId(null)
 
     if (connected && emit) {
       let ackHandled = false
@@ -2899,6 +2918,17 @@ export default function Messages() {
                       )}
                     </div>
 
+                    {draftRecoveryVisible && draft && (
+                      <div role="status" className="mb-2 flex min-w-0 items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950 shadow-sm">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700"><FileText size={18}/></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold">Unsent message recovered</p>
+                          <p className="mt-0.5 text-xs leading-5 text-emerald-800">Your message was saved before you left this conversation. Continue editing it below.</p>
+                          <button type="button" onClick={() => { saveAdminMessageDraft(activeIdRef.current, ''); setDraft(''); setDraftRecoveryVisible(false) }} className="mt-2 text-xs font-bold text-emerald-800 underline underline-offset-2">Discard draft</button>
+                        </div>
+                        <button type="button" aria-label="Dismiss draft notice" onClick={() => setDraftRecoveryVisible(false)} className="shrink-0 rounded-full p-1 hover:bg-emerald-100"><X size={16}/></button>
+                      </div>
+                    )}
                     {/* Textarea */}
                     <textarea
                       ref={textareaRef}
