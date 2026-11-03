@@ -1002,25 +1002,6 @@ export default function Packages() {
     window.location.assign('/bookings?' + params.toString())
   }
 
-  const handleBookingUpdate = async (booking, changes) => {
-    try {
-      await packagesAPI.updateBooking(viewModal.data.id, booking.id, {
-        ...changes,
-        source_table: booking.source_table || 'bookings',
-      })
-      toast.success('Booking updated')
-      loadSubData(viewModal.data, 'bookings')
-    } catch (e) { toast.error(getErrorMessage(e)) }
-  }
-
-  const handleBookingConfirm = async (booking) => {
-    await handleBookingUpdate(booking, { status: 'confirmed' })
-  }
-
-  const handleBookingCancel = async (booking) => {
-    await handleBookingUpdate(booking, { status: 'cancelled' })
-  }
-
   // ── Info requests ──────────────────────────────────────────────────────────
 
   const openInfoRequest = useCallback((context = null) => {
