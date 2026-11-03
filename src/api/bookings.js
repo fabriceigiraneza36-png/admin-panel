@@ -7,6 +7,7 @@ export const bookingsAPI = {
   ...base,
 
   // ── Existing methods ──────────────────────────────────────────────────────
+  getOne:        (id)        => apiClient.get(`${BASE}/${encodeURIComponent(id)}`),
   track:        (num)       => apiClient.get(`${BASE}/track/${num}`),
   mostBooked:   ()          => apiClient.get(`${BASE}/most-booked`),
   byDestination:(id)        => apiClient.get(`${BASE}/by-destination/${id}`),
