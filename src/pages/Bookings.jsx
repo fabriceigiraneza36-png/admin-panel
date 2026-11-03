@@ -1656,13 +1656,14 @@ export default function Bookings() {
                     <span className="text-xs text-slate-500 font-medium">Current Status</span>
                     <Badge status={selected.status} label={selected.status} />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-medium">Email Verified</span>
-                    <span className={`text-xs font-bold
-                      ${selected.email_verified ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {selected.email_verified ? '✓ Yes' : '⏳ No'}
-                    </span>
-                  </div>
+                  {typeof selected.email_verified === 'boolean' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500 font-medium">Email Verified</span>
+                      <span className={`text-xs font-bold ${selected.email_verified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {selected.email_verified ? '✓ Yes' : 'Not verified'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Traveller identity verification */}
@@ -1744,13 +1745,15 @@ export default function Bookings() {
                 </div>
               </SectionCard>
 
-              {selected.user_name && (
+              {(hasBookingValue(selected.user_name) || hasBookingValue(selected.user_email)) && (
                 <SectionCard title="Linked Account">
                   <div className="flex items-center gap-3">
-                    <Avatar src={selected.user_avatar_url || selected.user_avatar || selected.avatar_url} name={selected.user_name} size="sm" rounded="lg" />
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{selected.user_name}</p>
-                      <p className="text-xs text-slate-500">{selected.user_email}</p>
+                    {(selected.user_avatar_url || selected.user_avatar || selected.avatar_url) && (
+                      <Avatar src={selected.user_avatar_url || selected.user_avatar || selected.avatar_url} name={selected.user_name || selected.user_email} size="sm" rounded="lg" />
+                    )}
+                    <div className="min-w-0">
+                      {hasBookingValue(selected.user_name) && <p className="text-sm font-bold text-slate-800">{selected.user_name}</p>}
+                      {hasBookingValue(selected.user_email) && <p className="break-words text-xs text-slate-500">{selected.user_email}</p>}
                     </div>
                   </div>
                 </SectionCard>
