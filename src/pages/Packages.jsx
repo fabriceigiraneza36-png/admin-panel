@@ -829,6 +829,13 @@ export default function Packages() {
 
   const dSearch = useDebounce(search, 400)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    const pageTitle = viewModal.isOpen && viewModal.data?.title
+      ? `${viewModal.data.title} | Package Preview | Altuvera Admin`
+      : 'Packages | Altuvera Admin';
+    document.title = pageTitle;
+  }, [viewModal.isOpen, viewModal.data?.title])
   const deepLinkHandled = useRef(false)
   const [focusedBookingId, setFocusedBookingId] = useState(null)
 
