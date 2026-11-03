@@ -49,7 +49,7 @@ const PACKAGE_VIEW_HIDDEN_FIELDS = new Set([
   'card_theme', 'accent_color', 'sort_order', 'meta_title', 'meta_description',
   'is_published', 'is_featured', 'is_sold_out', 'booking_count', 'view_count',
   'badge_label', 'badge_color', 'is_price_visible', 'title',
-  'destination_name', 'destination', 'country_name', 'country',
+  'destination_name', 'destination',
   'description', 'short_description', 'price', 'currency',
   'duration_days', 'duration_nights', 'category', 'min_travelers', 'max_travelers',
 ]);
