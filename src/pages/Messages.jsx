@@ -1575,7 +1575,7 @@ export default function Messages() {
           clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
-            toast.success('Message sent to end user')
+            toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
             toast.error(ack?.error || 'The message could not be sent. Please try again.')
@@ -1602,7 +1602,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
-          toast.success('Message sent to end user')
+          toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
         }
       } else {
         const payload = await res.json().catch(() => ({}))
