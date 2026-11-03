@@ -291,6 +291,8 @@ export default function Bookings() {
   // ── View state ────────────────────────────────────────────────────────────
   const [view,        setView]        = useState(VIEWS.LIST)
   const [selected,    setSelected]    = useState(null)   // booking being viewed/edited
+  const [detailLoading, setDetailLoading] = useState(false)
+  const detailRequestRef = useRef(0)
 
   // ── List state ────────────────────────────────────────────────────────────
   const [items,       setItems]       = useState([])
@@ -348,15 +350,52 @@ export default function Bookings() {
   // ── Navigation helpers ────────────────────────────────────────────────────
 
   const goList = () => {
+    detailRequestRef.current += 1
+    setDetailLoading(false)
     setView(VIEWS.LIST)
     setSelected(null)
   }
 
-  const goView = (b) => {
-    setSelected(b)
+  const goView = async (booking) => {
+    if (!booking?.id) {
+      toast.error('This booking does not have a valid reference.')
+      return
+    }
+    const requestId = ++detailRequestRef.current
+    setSelected(booking)
     setReview({ decision: null, response: '' })
     setView(VIEWS.VIEW)
+    setDetailLoading(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    try {
+      const isPackageBooking = booking.booking_type === 'package'
+        || booking.source_table === 'package_bookings'
+        || Boolean(booking.package_id)
+      let response
+      if (isPackageBooking && booking.package_id) {
+        try {
+          response = await bookingsAPI.getPackageBooking(booking.package_id, booking.id, booking.source_table)
+        } catch {
+          response = await bookingsAPI.getOne(booking.id)
+        }
+      } else {
+        response = await bookingsAPI.getOne(booking.id)
+      }
+      const body = response?.data ?? response
+      const fullBooking = body?.data?.booking ?? body?.data?.data ?? body?.data ?? body?.booking ?? body
+      if (requestId === detailRequestRef.current && fullBooking && typeof fullBooking === 'object') {
+        setSelected(current => current && String(current.id) === String(booking.id)
+          ? { ...booking, ...fullBooking }
+          : current)
+      }
+    } catch (error) {
+      if (requestId === detailRequestRef.current) {
+        toast.error('Could not load the complete booking details: ' + getErrorMessage(error))
+      }
+    } finally {
+      if (requestId === detailRequestRef.current) setDetailLoading(false)
+    }
   }
 
   const goEdit = (b) => {
@@ -991,7 +1030,7 @@ export default function Bookings() {
         <TableActions>
           <TableAction icon={MessageSquare} label="Message"
             onClick={(e) => { e.stopPropagation(); openMsgModal(r) }} />
-          <TableAction icon={Eye}    label="View"    onClick={() => goView(r)} />
+          <TableAction icon={Eye} label="View" onClick={(event) => { event?.stopPropagation?.(); goView(r) }} />
           {r.status === 'pending' && (
             <TableAction icon={CheckCircle} label="Confirm"
               onClick={() => handleQuickStatus(r, 'confirmed')} variant="success" />
@@ -1424,7 +1463,7 @@ export default function Bookings() {
                   {formatBookingNumber(selected.booking_number) || 'Booking details'}
                 </h1>
                 <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                  {selected.created_at ? 'Submitted ' + formatTimeAgo(selected.created_at) : 'Booking information'}
+                  {detailLoading ? 'Loading complete booking details…' : selected.created_at ? 'Submitted ' + formatTimeAgo(selected.created_at) : 'Booking information'}
                   {selected.email_verified === true ? ' · Email verified' : selected.email_verified === false ? ' · Email not verified' : ''}
                 </p>
               </div>
