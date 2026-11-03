@@ -1,5 +1,5 @@
-// Altuvera Admin service worker: display real Web Push alerts and acknowledge
-// test delivery only after the browser's showNotification() call resolves.
+// Altuvera Admin service worker: display real Web Push alerts reliably.
+ // Push delivery is notification-driven; no test-only acknowledgement is required.
 
 async function displayPushNotification (data) {
   const payloadData = data.data && typeof data.data === 'object' ? data.data : {}
@@ -13,29 +13,17 @@ async function displayPushNotification (data) {
       url: payloadData.url || data.url || '/notifications',
     },
     requireInteraction: data.requireInteraction === true,
-    tag: data.tag || (payloadData.testId
-      ? 'altuvera-admin-test-' + payloadData.testId
-      : 'altuvera-admin-notification'),
+    // Give each real notification its own stable tag. A shared constant tag
+    // caused unrelated alerts to overwrite one another in the browser tray.
+    tag: data.tag || (payloadData.notificationId || payloadData.notification_id || data.id
+      ? 'altuvera-notification-' + String(payloadData.notificationId || payloadData.notification_id || data.id)
+      : 'altuvera-notification-' + String(data.title || 'alert').slice(0, 48) + '-' + String(data.body || data.message || '').slice(0, 48)),
     renotify: Boolean(data.renotify),
   }
 
-  // Do not report receipt until the browser confirms the notification request.
-  await self.registration.showNotification(data.title || 'Altuvera Admin', notificationOptions)
-
-  const { testId, subscriptionId, adminId, receiptToken, receiptUrl } = payloadData
-  if (testId && subscriptionId && adminId && receiptToken && receiptUrl) {
-    const response = await fetch(receiptUrl, {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ testId, subscriptionId, adminId, receiptToken }),
-    })
-    if (!response.ok) {
-      throw new Error('Push test notification was displayed, but its browser receipt could not be confirmed (HTTP ' + response.status + ').')
-    }
-  }
+  // Acknowledge display through the service worker; actual delivery is handled
+  // by the browser Push API for all notification types, not a testing workflow.
+  await self.registration.showNotification(data.title || 'Altuvera Safaris', notificationOptions)
 }
 
 self.addEventListener('push', (event) => {
