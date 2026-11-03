@@ -514,8 +514,9 @@ function BookingRow({ booking, onOpen }) {
   const name = booking.full_name || booking.user_name || booking.user_full_name || booking.guest_name || 'Traveller';
   const email = booking.email || booking.user_email || booking.guest_email || '';
   const bookingNumber = booking.booking_number || booking.booking_ref || '';
-  const price = hasPackageValue(booking.total_price)
-    ? fmtPrice(booking.total_price, booking.currency)
+  const bookingAmount = booking.total_price ?? booking.package_price;
+  const price = hasPackageValue(bookingAmount)
+    ? fmtPrice(bookingAmount, booking.currency)
     : null;
 
   return (
@@ -1503,6 +1504,7 @@ export default function Packages() {
                        ? [hasPackageValue(pkg.min_travelers) ? 'Min ' + pkg.min_travelers : null, hasPackageValue(pkg.max_travelers) ? 'Max ' + pkg.max_travelers : null].filter(Boolean).join(' · ')
                        : null],
                      ['Availability', CheckCircle, typeof pkg.is_sold_out === 'boolean' ? (pkg.is_sold_out ? 'Sold out' : 'Available') : null],
+                     ['Publication', CheckCircle, typeof pkg.is_published === 'boolean' ? (pkg.is_published ? 'Published' : 'Unpublished') : null],
                    ].filter(([, , value]) => hasPackageValue(value));
                    return (
                      <>
