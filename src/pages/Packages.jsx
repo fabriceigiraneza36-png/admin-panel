@@ -514,20 +514,13 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest, onO
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden
       hover:border-slate-300 transition-colors">
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open full booking for ${booking.full_name || booking.user_name || booking.user_full_name || booking.booking_number || booking.id}`}
-        className="flex items-center gap-3 p-3 cursor-pointer
-          hover:bg-slate-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-        onClick={() => onOpenBooking?.(booking)}
-        onKeyDown={event => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            onOpenBooking?.(booking)
-          }
-        }}
-      >
+      <div className="flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors">
+        <button
+          type="button"
+          aria-label={`Open full booking for ${booking.full_name || booking.user_name || booking.user_full_name || booking.booking_number || booking.id}`}
+          onClick={() => onOpenBooking?.(booking)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        >
         <StatusIcon status={booking.status} size={16} />
         <Avatar src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url} name={booking.full_name || booking.user_name || booking.user_full_name} size="sm" rounded="full" />
         <div className="flex-1 min-w-0">
@@ -548,6 +541,7 @@ function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest, onO
           capitalize shrink-0 ${statusColors[booking.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
           {booking.status}
         </span>
+        </button>
         <button
           type="button"
           aria-label={expanded ? 'Collapse booking summary' : 'Expand booking summary'}
@@ -1552,9 +1546,9 @@ export default function Packages() {
         {viewModal.data && (
           <div className="space-y-4">
             {/* Cover image */}
-            {viewModal.data.cover_image_url && (
+            {(viewModal.data.cover_image_url || viewModal.data.thumbnail_url) && (
               <img
-                src={viewModal.data.cover_image_url}
+                src={viewModal.data.cover_image_url || viewModal.data.thumbnail_url}
                 alt={viewModal.data.title}
                 className="w-full h-48 object-cover rounded-2xl"
               />
@@ -1617,6 +1611,7 @@ export default function Packages() {
                      },
                      { label: 'Image format', icon: Image, value: viewModal.data.poster_mode },
                      { label: 'Publication', icon: CheckCircle, value: typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null },
+                     { label: 'Featured', icon: Star, value: typeof viewModal.data.is_featured === 'boolean' ? (viewModal.data.is_featured ? 'Featured' : 'Standard') : null },
                    ].filter(field => hasPackageValue(field.value))
                    const details = Object.entries(viewModal.data || {}).filter(([key, value]) =>
                      !PACKAGE_TECHNICAL_FIELDS.has(key) && hasPackageValue(value)
@@ -1694,7 +1689,7 @@ export default function Packages() {
                            </div>
                          </section>
                        )}
-                       {!destinationName && !summary.length && !details.length && (
+                       {!destinationName && !hasPackageValue(description) && !summary.length && !details.length && (
                          <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
                            <Package size={22} className="mx-auto text-slate-300" />
                            <p className="mt-2 text-sm font-semibold text-slate-600">No additional package details available</p>
