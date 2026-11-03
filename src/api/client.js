@@ -32,7 +32,9 @@ const getCache = new Map()
 const isCacheableGet = (config) => {
   const method = String(config?.method || 'get').toLowerCase()
   const url = String(config?.url || '')
-  return method === 'get' && !url.includes('/notifications')
+  // Admin counters must reflect current database rows, not the short-lived GET cache.
+  const liveCounter = /\/packages\/(?:stats|bookings\/stats)(?:\?|$)/i.test(url)
+  return method === 'get' && !url.includes('/notifications') && !liveCounter
 }
 
 const cacheKeyFor = (config) => {
