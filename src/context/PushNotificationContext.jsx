@@ -123,7 +123,7 @@ export function PushProvider ({ children }) {
 
         // Browsers only permit silent setup after the user has already granted
         // permission. Never trigger a permission prompt without a user gesture.
-        if (!subscription && Notification.permission === 'granted') {
+        if (!subscription && 'Notification' in window && Notification.permission === 'granted') {
           const keyResponse = await fetch(API_BASE + '/push/vapid-public-key', { cache: 'no-store' })
           const keyData = await readJsonResponse(keyResponse, 'Could not load push configuration')
           if (keyData.publicKey) {
