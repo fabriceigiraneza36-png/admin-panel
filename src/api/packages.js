@@ -67,11 +67,17 @@ export const packagesAPI = {
   markRead:        (id)                => apiClient.post(`${BASE}/${id}/messages/mark-read`),
 
   // Bookings
-  getBookings:     (id, params)        => apiClient.get(`${BASE}/${id}/bookings`, { params }),
+  getBookings:     (id, params = {})  => apiClient.get(`${BASE}/${id}/bookings`, { params: { limit: 100, ...params } }),
+  getPackageBooking:(id, bId, source)  => apiClient.get(`${BASE}/${id}/bookings/${bId}`, { params: source ? { source } : {} }),
   getAllBookings:   (params)            => apiClient.get(`${BASE}/bookings/all`, { params }),
-  updateBooking:   (id, bId, data)     => apiClient.patch(`${BASE}/${id}/bookings/${bId}`, data),
-  confirmBooking:  (id, bId)           => apiClient.post(`${BASE}/${id}/bookings/${bId}/confirm`),
-  cancelBooking:   (id, bId, data)     => apiClient.post(`${BASE}/${id}/bookings/${bId}/cancel`, data),
+  updateBooking:   (id, bId, data = {}) => {
+    const { source_table, ...payload } = data || {}
+    return apiClient.patch(`${BASE}/${id}/bookings/${bId}`, payload, {
+      params: source_table ? { source: source_table } : {},
+    })
+  },
+  confirmBooking:  (id, bId)           => apiClient.patch(`${BASE}/${id}/bookings/${bId}`, { status: 'confirmed' }),
+  cancelBooking:   (id, bId, data = {}) => apiClient.patch(`${BASE}/${id}/bookings/${bId}`, { ...data, status: 'cancelled' }),
 
   // Info Requests
   getInfoRequests:    (id)             => apiClient.get(`${BASE}/${id}/info-requests`),
