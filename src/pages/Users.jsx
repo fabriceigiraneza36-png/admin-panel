@@ -16,7 +16,7 @@
 //  ✓ Loading states on all async buttons
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import {
   Users as UsersIcon, Eye, UserX, UserCheck, Trash2, RefreshCw,
   Download, Shield, Mail, Phone, Globe, Calendar, Clock,
@@ -233,6 +233,31 @@ export default function UsersPage() {
   }, [pag.page, pag.limit, sortBy, sortOrder, dSearch, statusFilter])
 
   useEffect(() => { load() }, [load])
+
+  // Notifications deep-link to /users?userId=<id>. Resolve that exact user
+  // through the protected single-user endpoint instead of relying on the
+  // currently paginated table rows.
+  const handledDeepLinkRef = useRef(null)
+  useEffect(() => {
+    const targetUserId = new URLSearchParams(window.location.search).get('userId')
+    if (!targetUserId || handledDeepLinkRef.current === targetUserId) return
+    handledDeepLinkRef.current = targetUserId
+    let cancelled = false
+
+    apiClient.get('/users/' + encodeURIComponent(targetUserId))
+      .then(({ data }) => {
+        const selectedUser = data?.data || data?.user || null
+        if (!cancelled && selectedUser) viewModal.open(selectedUser)
+        else if (!cancelled) toast.error('The traveller linked to this notification could not be found.')
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(getErrorMessage(error) || 'Could not load the traveller profile.')
+      })
+
+    return () => { cancelled = true }
+    // The URL target is intentionally resolved once per mounted Users page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ── Derived stats ─────────────────────────────────────────────────────── */
 

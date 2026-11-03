@@ -24,6 +24,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "@context/NotificationContext";
 import { usePush } from "@context/PushNotificationContext";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
+import Avatar                from "@components/common/Avatar";
 import { getNotificationTarget } from "@utils/notificationTarget";
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
@@ -74,6 +75,37 @@ const formatRemaining = (expiry, now) => {
 
 /* ─── Sub-components ───────────────────────────────────────────────────────── */
 
+const getNotificationMetadata = (notification) => {
+  const raw = notification?.metadata ?? notification?.metadata_json ?? {};
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) || {}; } catch { return {}; }
+  }
+  return raw && typeof raw === "object" ? raw : {};
+};
+
+const getNotificationUsers = (notification) => {
+  const metadata = getNotificationMetadata(notification);
+  const rawUsers = Array.isArray(metadata.users) ? metadata.users : [];
+  const oneUser = metadata.user || metadata.actor || metadata.profile || null;
+  const values = rawUsers.length ? rawUsers : (oneUser ? [oneUser] : []);
+  const users = values.map((user) => ({
+    id: user?.id ?? user?.userId ?? user?.user_id ?? null,
+    name: user?.name || user?.full_name || user?.fullName || user?.email || "Traveller",
+    email: user?.email || "",
+    avatarUrl: user?.avatarUrl || user?.avatar_url || user?.profile_image_url || user?.picture || null,
+  })).filter((user) => user.id || user.email || user.avatarUrl);
+  if (users.length) return users;
+
+  const userId = metadata.userId || metadata.user_id || notification?.user_id;
+  const avatarUrl = notification?.image_url || notification?.imageUrl;
+  if (userId && avatarUrl) {
+    return [{ id: userId, name: notification?.user_name || notification?.user_email || "Traveller", email: notification?.user_email || "", avatarUrl }];
+  }
+  return [];
+};
+
+
+
 function TypePill({ type }) {
   const { color, icon: Icon } = typeMeta(type);
   return (
@@ -86,12 +118,21 @@ function TypePill({ type }) {
 }
 
 const NotificationRow = React.memo(function NotificationRow({
-  notif, busy, onMarkRead, onDelete, clockNow,
+  notif, busy, onMarkRead, onDelete, clockNow, onOpenUser,
 }) {
   const target = getNotificationTarget(notif);
+  const notificationUsers = getNotificationUsers(notif);
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const firstUser = notificationUsers[0] || null;
+  const groupedUsers = notificationUsers.length > 1;
+  const openUser = (user) => {
+    if (!user?.id || !onOpenUser) return;
+    onOpenUser(user.id);
+  };
   const openTarget = () => {
     if (!notif.is_read) onMarkRead(notif.id)
     if (target) window.location.href = target;
+    else if (firstUser?.id) openUser(firstUser);
   };
   return (
     <div
@@ -105,10 +146,18 @@ const NotificationRow = React.memo(function NotificationRow({
           : "bg-blue-50/60 border-blue-200"
         } ${target ? "cursor-pointer hover:shadow-sm" : ""}`}
     >
-      {/* Read/unread dot */}
-      <div className="mt-1.5 flex-shrink-0">
+      {/* Read/unread state and user identity */}
+      <div className="mt-1.5 flex flex-col items-center gap-2 flex-shrink-0">
         <span className={`block h-2.5 w-2.5 rounded-full
           ${!notif.is_read ? "bg-blue-500" : "bg-slate-300"}`} />
+        {firstUser && (
+          <Avatar
+            src={firstUser.avatarUrl}
+            name={firstUser.name || firstUser.email}
+            size="md"
+            rounded="full"
+          />
+        )}
       </div>
 
       {/* Content */}
@@ -126,6 +175,66 @@ const NotificationRow = React.memo(function NotificationRow({
                         line-clamp-3 sm:line-clamp-2">
             {notif.message}
           </p>
+        )}
+
+        {groupedUsers && (
+          <div className="mt-2">
+            <button
+              type="button"
+              aria-expanded={showAllUsers}
+              onClick={(event) => {
+                event.stopPropagation();
+                setShowAllUsers((value) => !value);
+              }}
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+            >
+              {showAllUsers ? "Less" : "More"}
+              <span className="text-slate-400 font-medium">({notificationUsers.length} travellers)</span>
+            </button>
+            {showAllUsers && (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+                {notificationUsers.map((user, index) => (
+                  <div key={String(user.id || user.email || index)} className="flex items-center gap-3 px-3 py-2.5">
+                    <Avatar
+                      src={user.avatarUrl}
+                      name={user.name || user.email}
+                      size="sm"
+                      rounded="full"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
+                      {user.email && <p className="text-xs text-slate-500 truncate">{user.email}</p>}
+                    </div>
+                    {user.id && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openUser(user);
+                        }}
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 whitespace-nowrap"
+                      >
+                        View profile
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {firstUser?.id && !groupedUsers && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openUser(firstUser);
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            View traveller
+          </button>
         )}
         {readSessionExpiry(notif) && (
           <p role="status" className="mt-2 inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
@@ -247,6 +356,11 @@ export default function Notifications() {
   const [busyId, setBusyId] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
+
+  const openUserProfile = useCallback((userId) => {
+    if (!userId) return;
+    window.location.href = "/users?userId=" + encodeURIComponent(userId);
+  }, []);
 
   /* ── Filtering ─────────────────────────────────────────────────────────── */
 
@@ -433,6 +547,7 @@ export default function Notifications() {
               onMarkRead={handleMarkRead}
               onDelete={askDelete}
               clockNow={clockNow}
+              onOpenUser={openUserProfile}
             />
           ))}
         </div>
