@@ -329,6 +329,7 @@ export default function Bookings() {
   const dSearch = useDebounce(search, 400)
   const [searchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
+  const deepLinkRequest = useRef(null)
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
@@ -406,30 +407,54 @@ export default function Bookings() {
     }
   }, [load])
 
-  // Deep links from admin notifications open the matching booking immediately.
-  // If it is outside the current page, search by its id/reference and open it
-  // after the filtered results load.
+  // Deep links from admin notifications open the exact booking record.
+  // A direct lookup is used when the record is outside the current paginated list.
   useEffect(() => {
-    const bookingId = searchParams.get('bookingId')
-    if (!bookingId || deepLinkHandled.current || loading) return
+    const bookingId = searchParams.get('bookingId');
+    if (!bookingId || deepLinkHandled.current || loading) return;
 
     const match = items.find((booking) =>
       String(booking.id) === String(bookingId) ||
       String(booking.booking_id || '') === String(bookingId) ||
       String(booking.booking_number || '') === String(bookingId)
-    )
+    );
 
     if (match) {
-      deepLinkHandled.current = true
-      setSelected(match)
-      setReview({ decision: null, response: '' })
-      setView(VIEWS.VIEW)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
+      deepLinkHandled.current = true;
+      setSelected(match);
+      setReview({ decision: null, response: '' });
+      setView(VIEWS.VIEW);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
 
-    if (search !== bookingId) setSearch(bookingId)
-  }, [items, loading, searchParams, search])
+    if (deepLinkRequest.current === String(bookingId)) return;
+    deepLinkRequest.current = String(bookingId);
+    let cancelled = false;
+
+    const openBookingFromLink = async () => {
+      try {
+        const response = await bookingsAPI.getOne(bookingId);
+        const body = response?.data || response;
+        const booking = body?.data || body?.booking || body;
+        if (!booking?.id) throw new Error('Booking could not be found.');
+
+        if (cancelled) return;
+        deepLinkHandled.current = true;
+        setSelected(booking);
+        setReview({ decision: null, response: '' });
+        setView(VIEWS.VIEW);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (error) {
+        if (cancelled) return;
+        // Keep the existing server-side search fallback for legacy identifiers.
+        if (search !== bookingId) setSearch(bookingId);
+      }
+    };
+
+    void openBookingFromLink();
+    return () => { cancelled = true; };
+  }, [items, loading, searchParams, search]);
 
   // ── Update status quick-action ─────────────────────────────────────────
 
