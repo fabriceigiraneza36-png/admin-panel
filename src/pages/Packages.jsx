@@ -6,7 +6,7 @@ import {
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
-  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag,
+  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ArrowUpRight,
 } from 'lucide-react'
 
 // ── API — both named exports come from the same file ─────────────────────────
@@ -38,20 +38,21 @@ import { formatNumber, formatTimeAgo, formatDate } from '@utils/formatters'
 const hasPackageValue = (value) => {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'boolean') return true;
   if (Array.isArray(value)) return value.some(hasPackageValue);
   if (typeof value === 'object') return Object.values(value).some(hasPackageValue);
-  return true;
+  return false;
 };
 
 const PACKAGE_VIEW_HIDDEN_FIELDS = new Set([
-  'id', 'slug', 'destination_id', 'created_at', 'updated_at',
-  'poster_mode', 'cover_image_url', 'thumbnail_url', 'card_bg_image',
+  'id', 'slug', 'destination_id', 'created_at', 'updated_at', 'created_by', 'updated_by',
+  'poster_mode', 'cover_image_url', 'thumbnail_url', 'poster_image_url', 'card_bg_image',
   'card_theme', 'accent_color', 'sort_order', 'meta_title', 'meta_description',
   'is_published', 'is_featured', 'is_sold_out', 'booking_count', 'view_count',
-  'badge_label', 'badge_color', 'is_price_visible', 'title',
-  'destination_name', 'destination',
-  'description', 'short_description', 'price', 'currency',
-  'duration_days', 'duration_nights', 'category', 'min_travelers', 'max_travelers',
+  'badge_label', 'badge_color', 'is_price_visible', 'title', 'destination_name', 'destination',
+  'description', 'short_description', 'price', 'currency', 'duration_days', 'duration_nights',
+  'category', 'min_travelers', 'max_travelers', 'images', 'gallery', 'image_gallery',
 ]);
 
 const isVisiblePackageDetail = ([key, value]) =>
@@ -59,16 +60,21 @@ const isVisiblePackageDetail = ([key, value]) =>
 
 const formatPackageDetailValue = (value, depth = 0) => {
   if (Array.isArray(value)) {
-    return value.filter(hasPackageValue).map((item) => formatPackageDetailValue(item, depth + 1)).filter(Boolean).join(' · ');
+    return value.filter(hasPackageValue)
+      .map((item) => formatPackageDetailValue(item, depth + 1))
+      .filter(Boolean).join(' · ');
   }
   if (value && typeof value === 'object') {
-    if (depth >= 2) return Object.values(value).filter(hasPackageValue).map(String).join(' · ');
-    return Object.entries(value).filter(([, item]) => hasPackageValue(item))
-      .map(([key, item]) => key.replace(/_/g, ' ') + ': ' + formatPackageDetailValue(item, depth + 1))
-      .join(' · ');
+    return Object.entries(value)
+      .filter(([, item]) => hasPackageValue(item))
+      .map(([key, item]) => {
+        const label = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ');
+        return label.charAt(0).toUpperCase() + label.slice(1) + ': ' + formatPackageDetailValue(item, depth + 1);
+      })
+      .filter(Boolean).join(' · ');
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  return value === null || value === undefined ? '' : String(value);
+  return value === null || value === undefined ? '' : String(value).trim();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -497,114 +503,51 @@ function InfoFieldBuilder({ value = [], onChange }) {
 
 // ── BookingRow ────────────────────────────────────────────────────────────────
 
-function BookingRow({ booking, onUpdate, onConfirm, onCancel, onInfoRequest }) {
-  const [expanded, setExpanded] = useState(false)
-
+function BookingRow({ booking, onOpen }) {
   const statusColors = {
-    pending:    'bg-amber-50 border-amber-200 text-amber-700',
-    confirmed:  'bg-emerald-50 border-emerald-200 text-emerald-700',
-    cancelled:  'bg-red-50 border-red-200 text-red-700',
-    completed:  'bg-blue-50 border-blue-200 text-blue-700',
-    needs_info: 'bg-orange-50 border-orange-200 text-orange-700',
-  }
+    pending: 'border-amber-200 bg-amber-50 text-amber-800',
+    confirmed: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    cancelled: 'border-rose-200 bg-rose-50 text-rose-700',
+    completed: 'border-sky-200 bg-sky-50 text-sky-800',
+    needs_info: 'border-orange-200 bg-orange-50 text-orange-800',
+  };
+  const name = booking.full_name || booking.user_name || booking.user_full_name || booking.guest_name || 'Traveller';
+  const email = booking.email || booking.user_email || booking.guest_email || '';
+  const bookingNumber = booking.booking_number || booking.booking_ref || '';
+  const price = hasPackageValue(booking.total_price)
+    ? fmtPrice(booking.total_price, booking.currency)
+    : null;
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden
-      hover:border-slate-300 transition-colors">
-      <div
-        className="flex items-center gap-3 p-3 cursor-pointer
-          hover:bg-slate-50 transition-colors"
-        onClick={() => setExpanded(v => !v)}
-      >
-        <StatusIcon status={booking.status} size={16} />
-        <Avatar src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url} name={booking.full_name || booking.user_name || booking.user_full_name} size="sm" rounded="full" />
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-800 text-sm truncate">
-            {booking.full_name || booking.user_name || booking.user_full_name || '—'}
-          </p>
-          <p className="text-xs text-slate-400 truncate">
-            {booking.email || '—'}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-emerald-600">
-            {fmtPrice(booking.total_price, booking.currency)}
-          </p>
-          <p className="text-xs text-slate-400">{booking.booking_number || '—'}</p>
-        </div>
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border
-          capitalize shrink-0 ${statusColors[booking.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-          {booking.status}
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={"Open booking details for " + name}
+      className="group flex w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50/30 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:p-4"
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+        <StatusIcon status={booking.status} size={18} />
+      </span>
+      <Avatar
+        src={booking.user_avatar_url || booking.user_avatar || booking.avatar_url}
+        name={name}
+        size="sm"
+        rounded="full"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-extrabold text-slate-900">{name}</span>
+        {email && <span className="mt-0.5 block truncate text-xs text-slate-500">{email}</span>}
+        {bookingNumber && <span className="mt-1 block truncate text-[10px] font-semibold tracking-wide text-slate-400">{bookingNumber}</span>}
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        {price && <span className="text-sm font-extrabold tabular-nums text-emerald-700">{price}</span>}
+        <span className={"rounded-full border px-2.5 py-1 text-[10px] font-extrabold capitalize " + (statusColors[booking.status] || 'border-slate-200 bg-slate-50 text-slate-600')}>
+          {booking.status || 'pending'}
         </span>
-        {expanded
-          ? <ChevronUp size={14} className="text-slate-400 shrink-0" />
-          : <ChevronDown size={14} className="text-slate-400 shrink-0" />
-        }
-      </div>
-
-      {expanded && (
-        <div className="border-t border-slate-100 p-4 bg-slate-50 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Travel Date', value: booking.travel_date   || '—' },
-              { label: 'Return Date', value: booking.return_date   || '—' },
-              { label: 'Travelers',   value: booking.number_of_travelers || booking.number_of_adults || '—' },
-              { label: 'Phone',       value: booking.phone   || '—' },
-              { label: 'Priority',    value: booking.priority      || 'normal' },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-white rounded-lg p-2.5 border border-slate-100">
-                <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-                <p className="text-sm font-semibold text-slate-700 capitalize">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {booking.special_requests && (
-            <div className="bg-white rounded-lg p-3 border border-slate-100">
-              <p className="text-xs text-slate-400 mb-1">Special Requests</p>
-              <p className="text-sm text-slate-600">{booking.special_requests}</p>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-1">
-            {booking.status === 'pending' && (
-              <button onClick={() => onConfirm(booking)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold
-                  bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl
-                  transition-colors shadow-sm">
-                <CheckCircle size={13} /> Confirm Booking
-              </button>
-            )}
-            {['pending', 'needs_info', 'confirmed'].includes(booking.status) && (
-              <button onClick={() => onCancel(booking)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold
-                  bg-red-500 hover:bg-red-600 text-white rounded-xl
-                  transition-colors shadow-sm">
-                <XCircle size={13} /> Cancel
-              </button>
-            )}
-            <button onClick={() => onInfoRequest(booking)}
-              className="btn-secondary btn-sm text-xs flex items-center gap-1.5">
-              <FileText size={13} /> Request Info
-            </button>
-            <div className="ml-auto">
-              <select
-                className="text-xs border border-slate-200 rounded-xl
-                  px-3 py-2 bg-white cursor-pointer font-medium
-                  focus:ring-2 focus:ring-primary-300 outline-none"
-                value={booking.status}
-                onChange={e => onUpdate(booking, { status: e.target.value })}
-              >
-                {BOOKING_STATUSES.map(s => (
-                  <option key={s} value={s} className="capitalize">{s}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+      </span>
+      <ArrowUpRight size={17} className="shrink-0 text-slate-300 transition-colors group-hover:text-emerald-700" />
+    </button>
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -784,14 +727,14 @@ export default function Packages() {
         setPkgMessages(res.data?.data || [])
       } else if (tab === 'bookings') {
         const res = await packagesAPI.getBookings(pkg.id)
-        const body = res?.data ?? res
-        // API responses may be wrapped more than once by the backend/client.
-        // Unwrap known envelopes without treating a single booking object as a list.
-        let rows = body
-        for (let depth = 0; depth < 4 && rows && !Array.isArray(rows); depth += 1) {
+        let rows = res?.data ?? res
+        for (let depth = 0; depth < 5 && rows && !Array.isArray(rows); depth += 1) {
           rows = rows.data ?? rows.bookings ?? rows.rows ?? rows.results ?? rows.result ?? rows.items
         }
-        setPkgBookings(Array.isArray(rows) ? rows : [])
+        if (!Array.isArray(rows)) {
+          throw new Error('The package booking list returned an unexpected response. Please refresh and try again.')
+        }
+        setPkgBookings(rows)
       } else if (tab === 'info') {
         const res = await packagesAPI.getInfoRequests(pkg.id)
         setPkgInfoReqs(res.data?.data || [])
@@ -1276,66 +1219,41 @@ export default function Packages() {
 
   const TabBookings = () => (
     <div className="space-y-3">
-      <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-        <BookOpen size={16} className="text-blue-500" />
-        Bookings ({pkgBookings.length})
-      </h4>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-sky-50 text-sky-700">
+            <BookOpen size={16} />
+          </span>
+          <div>
+            <h4 className="text-sm font-extrabold text-slate-900">Package bookings</h4>
+            <p className="text-[11px] text-slate-500">Select a request to open its complete booking record.</p>
+          </div>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold tabular-nums text-slate-600">
+          {pkgBookings.length} {pkgBookings.length === 1 ? 'booking' : 'bookings'}
+        </span>
+      </div>
       {subLoading
         ? <SubLoader />
         : !pkgBookings.length
         ? <EmptyTab message="No bookings yet for this package." />
         : (
-          <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
-            {pkgBookings.map(bk => (
+          <div className="max-h-[480px] space-y-2 overflow-y-auto p-0.5">
+            {pkgBookings.map((booking) => (
               <div
-                key={String(bk.source_table || 'bookings') + ':' + bk.id}
-                role="button"
-                tabIndex={0}
-                onClick={(event) => {
-                  if (event.target.closest('button, a, input, select, textarea')) return
-                  openBookingInBookings(bk)
-                }}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    openBookingInBookings(bk)
-                  }
-                }}
-                className={'rounded-2xl p-1 cursor-pointer transition-colors hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ' + (
-                  String(bk.id) === String(focusedBookingId)
-                    ? 'ring-2 ring-emerald-400 ring-offset-2 bg-emerald-50/40'
-                    : ''
-                )}
+                key={String(booking.source_table || 'bookings') + ':' + booking.id}
+                className={String(booking.id) === String(focusedBookingId)
+                  ? 'rounded-2xl ring-2 ring-emerald-400 ring-offset-2'
+                  : ''}
               >
-              <BookingRow
-                booking={bk}
-                onUpdate={handleBookingUpdate}
-                onConfirm={handleBookingConfirm}
-                onCancel={handleBookingCancel}
-                onInfoRequest={(b) => openInfoRequest({
-                  booking_id:  b.id,
-                  user_id:     b.user_id,
-                  guest_email: b.email,
-                  guest_name:  b.full_name,
-                })}
-              />
-              <div className="flex justify-end px-1 pt-2">
-                <button
-                  type="button"
-                  onClick={(event) => { event.stopPropagation(); openBookingInBookings(bk) }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                >
-                  <Eye size={13} /> Open in Bookings
-                </button>
-              </div>
+                <BookingRow booking={booking} onOpen={() => openBookingInBookings(booking)} />
               </div>
             ))}
           </div>
         )
       }
     </div>
-  )
+  );
 
   const TabInfoRequests = () => (
     <div className="space-y-3">
@@ -1580,63 +1498,116 @@ export default function Packages() {
             </div>
 
              {activeTab === 'details' && (
-               <div className="space-y-4">
+               <div className="space-y-5">
                  {(() => {
-                   const raw = viewModal.data.destination_name || viewModal.data.destination;
-                   const destinationName = typeof raw === 'string'
-                     ? raw.trim()
-                     : String(raw?.name || raw?.title || raw?.slug || '').trim();
-                   const description = String(viewModal.data.short_description || viewModal.data.description || '').trim();
-                   if (!destinationName && !description) return null;
+                   const pkg = viewModal.data || {};
+                   const destinationValue = pkg.destination_name || pkg.destination;
+                   const destinationName = typeof destinationValue === 'string'
+                     ? destinationValue.trim()
+                     : String(destinationValue?.name || destinationValue?.title || '').trim();
+                   const countryValue = pkg.country_name || pkg.country;
+                   const countryName = typeof countryValue === 'string'
+                     ? countryValue.trim()
+                     : String(countryValue?.name || countryValue?.title || '').trim();
+                   const description = String(pkg.short_description || pkg.description || '').trim();
+                   const cover = pkg.cover_image_url || pkg.poster_image_url || pkg.thumbnail_url || pkg.card_bg_image;
+                   const extras = Object.entries(pkg).filter(isVisiblePackageDetail);
+                   const summary = [
+                     ['Price', DollarSign, hasPackageValue(pkg.price) ? fmtPrice(pkg.price, pkg.currency || 'USD') : null],
+                     ['Duration', Calendar, (hasPackageValue(pkg.duration_days) || hasPackageValue(pkg.duration_nights))
+                       ? [hasPackageValue(pkg.duration_days) ? String(pkg.duration_days) + ' days' : null, hasPackageValue(pkg.duration_nights) ? String(pkg.duration_nights) + ' nights' : null].filter(Boolean).join(' · ')
+                       : null],
+                     ['Category', Tag, hasPackageValue(pkg.category) ? pkg.category : null],
+                     ['Travellers', Users, (hasPackageValue(pkg.min_travelers) || hasPackageValue(pkg.max_travelers))
+                       ? [hasPackageValue(pkg.min_travelers) ? 'Min ' + pkg.min_travelers : null, hasPackageValue(pkg.max_travelers) ? 'Max ' + pkg.max_travelers : null].filter(Boolean).join(' · ')
+                       : null],
+                     ['Availability', CheckCircle, typeof pkg.is_sold_out === 'boolean' ? (pkg.is_sold_out ? 'Sold out' : 'Available') : null],
+                   ].filter(([, , value]) => hasPackageValue(value));
                    return (
-                     <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-white p-5 shadow-sm">
-                       {destinationName && (
-                         <div className="flex items-center gap-3">
-                           <span className="grid h-11 w-11 place-items-center rounded-xl bg-white border border-emerald-100 text-emerald-600 shadow-sm"><MapPin size={19}/></span>
-                           <div className="min-w-0">
-                             <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-600">Linked destination</p>
-                             <p className="text-base font-bold text-slate-800 break-words">{destinationName}</p>
-                           </div>
+                     <>
+                       <section className="relative isolate min-h-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-emerald-950 via-emerald-800 to-teal-700 shadow-sm">
+                         {cover && <img src={cover} alt={pkg.title || 'Package cover'} className="absolute inset-0 -z-10 h-full w-full object-cover opacity-70" />}
+                         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-transparent" />
+                         <div className="flex min-h-[190px] flex-col justify-end p-5 sm:p-7">
+                           <span className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[.14em] text-white backdrop-blur">
+                             <Package size={12} /> Altuvera package
+                           </span>
+                           <h3 className="max-w-2xl break-words text-xl font-extrabold leading-tight text-white sm:text-2xl">{pkg.title || 'Package details'}</h3>
+                           {(destinationName || countryName) && (
+                             <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-white/85">
+                               <MapPin size={13} /> {[destinationName, countryName].filter(Boolean).join(', ')}
+                             </p>
+                           )}
                          </div>
+                       </section>
+
+                       {description && (
+                         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                           <div className="mb-2 flex items-center gap-2">
+                             <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><FileText size={15} /></span>
+                             <h4 className="text-sm font-extrabold text-slate-900">Package overview</h4>
+                           </div>
+                           <p className="text-sm leading-6 text-slate-600">{description}</p>
+                         </section>
                        )}
-                       {description && <p className={destinationName ? "mt-4 text-sm leading-6 text-slate-600" : "text-sm leading-6 text-slate-600"}>{description}</p>}
-                     </div>
+
+                       {summary.length > 0 && (
+                         <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                           {summary.map(([label, Icon, value]) => (
+                             <article key={label} className="flex min-w-0 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon size={16} /></span>
+                               <div className="min-w-0">
+                                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{label}</p>
+                                 <p className="mt-1 break-words text-sm font-bold text-slate-800">{String(value)}</p>
+                               </div>
+                             </article>
+                           ))}
+                         </section>
+                       )}
+
+                       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                         <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3.5">
+                           <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200"><BookOpen size={16} /></span>
+                           <div className="min-w-0">
+                             <h4 className="text-sm font-extrabold text-slate-900">Additional package information</h4>
+                             <p className="text-[11px] text-slate-500">Only fields with saved values are displayed.</p>
+                           </div>
+                           <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">{extras.length} fields</span>
+                         </div>
+                         {extras.length ? (
+                           <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2">
+                             {extras.map(([key, value], index) => {
+                               const Icon = /price|cost|currency|discount/i.test(key) ? DollarSign
+                                 : /date|duration|month|time|season/i.test(key) ? Calendar
+                                 : /destination|country|location|region|address/i.test(key) ? MapPin
+                                 : /traveler|group|people|booking|capacity/i.test(key) ? Users
+                                 : /image|photo|gallery|poster|cover/i.test(key) ? Image
+                                 : /highlight|inclusion|exclusion|itinerary|feature|activity|experience/i.test(key) ? BookOpen
+                                 : /sold_out|available|featured|active/i.test(key) ? CheckCircle
+                                 : /category|type|tag|style/i.test(key) ? Tag : FileText;
+                               const valueText = formatPackageDetailValue(value);
+                               if (!valueText) return null;
+                               return (
+                                 <motion.article key={key} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .2, delay: Math.min(index * .012, .18) }} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3.5 transition-colors hover:border-emerald-200 hover:bg-emerald-50/30">
+                                   <div className="mb-2 flex items-center gap-2">
+                                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-700"><Icon size={15} /></span>
+                                     <span className="break-words text-[11px] font-extrabold uppercase tracking-wide text-slate-500">{key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')}</span>
+                                   </div>
+                                   <div className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">{valueText}</div>
+                                 </motion.article>
+                               );
+                             })}
+                           </div>
+                         ) : (
+                           <div className="px-4 py-8 text-center">
+                             <FileText size={23} className="mx-auto mb-2 text-slate-300" />
+                             <p className="text-xs font-medium text-slate-500">No additional package information has been provided.</p>
+                           </div>
+                         )}
+                       </section>
+                     </>
                    );
                  })()}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   {[
-                     ['Price', DollarSign, viewModal.data.price !== null && viewModal.data.price !== undefined && viewModal.data.price !== '' ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null],
-                     ['Duration', Calendar, (viewModal.data.duration_days || viewModal.data.duration_nights) ? [viewModal.data.duration_days ? String(viewModal.data.duration_days) + ' days' : null, viewModal.data.duration_nights ? String(viewModal.data.duration_nights) + ' nights' : null].filter(Boolean).join(' / ') : null],
-                     ['Category', Tag, viewModal.data.category || null],
-                     ['Travelers', Users, (viewModal.data.min_travelers || viewModal.data.max_travelers) ? [viewModal.data.min_travelers ? 'Min ' + viewModal.data.min_travelers : null, viewModal.data.max_travelers ? 'Max ' + viewModal.data.max_travelers : null].filter(Boolean).join(' · ') : null],
-                     ['Image mode', Image, viewModal.data.poster_mode || null],
-                     ['Publication', CheckCircle, typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null],
-                   ].filter(([, , value]) => value !== null && value !== undefined && value !== '').map(([label, Icon, value]) => (
-                     <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-                       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
-                       <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
-                     </div>
-                   ))}
-                 </div>
-                 <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                   <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
-                     <FileText size={16} className="text-emerald-600"/>
-                     <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).length} details</span>
-                   </div>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                     {Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).map(([key, value], index) => {
-                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight|feature|tag/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
-                       const textValue = formatPackageDetailValue(value);
-                       return (
-                         <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
-                           <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
-                           <div className="text-xs leading-5 text-slate-700 break-words whitespace-pre-wrap">{textValue}</div>
-                         </motion.div>
-                       );
-                     })}
-                   </div>
-                 </div>
                </div>
              )}
              {activeTab === 'bookings' && <TabBookings />}
