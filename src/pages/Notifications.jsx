@@ -17,12 +17,11 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
-  Settings, ShieldCheck, Loader2,
+  Settings, ShieldCheck, Loader2, Globe2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useNotifications } from "@context/NotificationContext";
-import { usePush } from "@context/PushNotificationContext";
 import apiClient from "@api/client";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
 import Avatar                from "@components/common/Avatar";
@@ -370,17 +369,6 @@ export default function Notifications() {
   const [pushSettingsLoading, setPushSettingsLoading] = useState(false);
   const [pushSettingsSaving, setPushSettingsSaving] = useState(false);
   const [pushSettingsError, setPushSettingsError] = useState("");
-  const {
-    supported: adminPushSupported,
-    permission: adminPushPermission,
-    subscribed: adminPushSubscribed,
-    serverSynced: adminPushSynced,
-    loading: adminPushBusy,
-    subscribeUser: subscribeAdminBrowser,
-    requestPermission: requestAdminPushPermission,
-    syncSubscription: syncAdminBrowser,
-  } = usePush();
-
   const loadPushSettings = useCallback(async () => {
     setPushSettingsLoading(true);
     setPushSettingsError("");
@@ -414,27 +402,6 @@ export default function Notifications() {
       setPushSettingsSaving(false);
     }
   }, [allowUserPush]);
-
-  const enableAdminBrowserPush = useCallback(async () => {
-    setPushSettingsError("");
-    if (!adminPushSupported) {
-      setPushSettingsError("This browser does not support web push notifications.");
-      return;
-    }
-    let permission = adminPushPermission;
-    if (permission !== "granted") permission = await requestAdminPushPermission();
-    if (permission !== "granted") {
-      setPushSettingsError(permission === "denied"
-        ? "Notifications are blocked for this site. Allow them in your browser or device site settings, then return here."
-        : "Browser notification permission was not granted.");
-      return;
-    }
-    if (adminPushSubscribed) {
-      await syncAdminBrowser();
-    } else {
-      await subscribeAdminBrowser();
-    }
-  }, [adminPushSupported, adminPushPermission, requestAdminPushPermission, adminPushSubscribed, syncAdminBrowser, subscribeAdminBrowser]);
 
   const openUserProfile = useCallback((userId) => {
     if (!userId) return;
@@ -547,12 +514,12 @@ export default function Notifications() {
       <section className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700">
-            <Settings size={18} />
+            <Globe2 size={18} />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-extrabold text-slate-900">External browser notifications</h2>
+            <h2 className="text-sm font-extrabold text-slate-900">Traveller browser notifications</h2>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
-              Manage browser push delivery for subscribed travellers. Administrator and manager alerts remain enabled independently.
+              Control whether subscribed travellers receive Altuvera alerts when away from the website. Administrator and manager alerts stay enabled independently.
             </p>
           </div>
         </div>
@@ -685,8 +652,8 @@ export default function Notifications() {
                 <Settings size={20} />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 id="push-settings-title" className="text-lg font-extrabold text-slate-900">Browser push settings</h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">Manage traveller push delivery while keeping administrator alerts available.</p>
+                <h2 id="push-settings-title" className="text-lg font-extrabold text-slate-900">Traveller browser notifications</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">Manage external browser delivery for regular Altuvera traveller accounts.</p>
               </div>
               <button type="button" onClick={() => setPushSettingsOpen(false)} aria-label="Close push settings" className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700">
                 <X size={18} />
@@ -694,43 +661,20 @@ export default function Notifications() {
             </div>
 
             <div className="space-y-5 p-5 sm:p-6">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-emerald-700 border border-emerald-100">
-                    <ShieldCheck size={19} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-extrabold text-slate-900">Administrator browser alerts</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-600">Admin and manager push delivery is not controlled by the traveller setting. This browser still needs notification permission and an active subscription.</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${adminPushSubscribed && adminPushSynced ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                        {adminPushSubscribed && adminPushSynced ? "This browser is registered" : adminPushPermission === "denied" ? "Permission blocked" : "Setup needed"}
-                      </span>
-                      {adminPushSupported && !(adminPushSubscribed && adminPushSynced) && (
-                        <button
-                          type="button"
-                          onClick={enableAdminBrowserPush}
-                          disabled={adminPushBusy || adminPushPermission === "unsupported"}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {adminPushBusy ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
-                          {adminPushBusy ? "Enabling…" : adminPushSubscribed ? "Sync browser" : "Enable on this browser"}
-                        </button>
-                      )}
-                    </div>
-                    {adminPushPermission === "denied" && (
-                      <p className="mt-2 text-xs leading-relaxed text-amber-800">Allow notifications for this site in your browser or device settings, then return and sync this browser.</p>
-                    )}
-                    {!adminPushSupported && <p className="mt-2 text-xs text-slate-500">Web push is not supported in this browser.</p>}
-                  </div>
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700">
+                  <ShieldCheck size={18} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-extrabold text-slate-900">Admin and manager notifications are always enabled</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">This control only affects regular traveller accounts. Admin and manager notifications remain eligible independently and cannot be switched off here. Each browser must still have notification permission and an active subscription.</p>
                 </div>
               </div>
-
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-extrabold text-slate-900">Allow browser push to travellers</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-600">When enabled, subscribed Altuvera users can receive eligible booking, message, account, and other dashboard notifications while away from the website. Turning this off does not disable admin or manager push alerts.</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">When enabled, subscribed travellers can receive eligible booking, message, account, and system alerts even when they are away from the website. Each traveller must still allow browser notifications and subscribe on their device.</p>
                   </div>
                   <button
                     type="button"
@@ -739,7 +683,7 @@ export default function Notifications() {
                     aria-label="Allow browser push notifications to travellers"
                     onClick={saveUserPushSetting}
                     disabled={pushSettingsLoading || pushSettingsSaving}
-                    className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${allowUserPush ? "bg-emerald-600" : "bg-slate-300"}`}
+                    className={`relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${allowUserPush ? "bg-emerald-600" : "bg-slate-300"}`}
                   >
                     <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowUserPush ? "translate-x-6" : "translate-x-1"}`} />
                   </button>
