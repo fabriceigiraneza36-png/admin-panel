@@ -54,7 +54,7 @@ import AccountActivityReview from '@pages/AccountActivityReview'
 
 // ── App name ──────────────────────────────────────────────────────────────────
 
-const APP_NAME = 'Travel Admin'
+const APP_NAME = 'Altuvera Admin'
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
