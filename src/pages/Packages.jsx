@@ -545,7 +545,7 @@ function InfoFieldBuilder({ value = [], onChange }) {
                 </button>
               </div>
             </div>
-            {['select', 'radio'].includes(field.type) && (
+            {['select', 'radio', 'checkbox'].includes(field.type) && (
               <div>
                 <label className="text-xs text-slate-500 mb-1 block font-medium">
                   Options (comma-separated)
