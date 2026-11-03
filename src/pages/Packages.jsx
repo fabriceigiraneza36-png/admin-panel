@@ -59,13 +59,13 @@ const isVisiblePackageDetail = ([key, value]) =>
 
 const formatPackageDetailValue = (value, depth = 0) => {
   if (Array.isArray(value)) {
-    return value.filter(hasPackageValue).map((item) => formatPackageDetailValue(item, depth + 1)).filter(Boolean).join('\\n');
+    return value.filter(hasPackageValue).map((item) => formatPackageDetailValue(item, depth + 1)).filter(Boolean).join(' · ');
   }
   if (value && typeof value === 'object') {
     if (depth >= 2) return Object.values(value).filter(hasPackageValue).map(String).join(' · ');
     return Object.entries(value).filter(([, item]) => hasPackageValue(item))
       .map(([key, item]) => key.replace(/_/g, ' ') + ': ' + formatPackageDetailValue(item, depth + 1))
-      .join('\\n');
+      .join(' · ');
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return value === null || value === undefined ? '' : String(value);
