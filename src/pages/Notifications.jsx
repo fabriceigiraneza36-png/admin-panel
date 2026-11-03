@@ -242,16 +242,6 @@ export default function Notifications() {
     clearAll,
   } = useNotifications();
 
-  const {
-    supported,
-    permission,
-    subscribed,
-    loading: pushLoading,
-    subscribeUser,
-    unsubscribeUser,
-    requestPermission,
-  } = usePush()
-
   const [tab, setTab]       = useState("all");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState(null);
@@ -489,36 +479,130 @@ export default function Notifications() {
 /* ── Push Notification Bar ─────────────────────────────────────────── */
 
 function PushNotificationBar () {
-  const { supported, permission, subscribed, loading, subscribeUser, unsubscribeUser, requestPermission } = usePush()
+  const {
+    supported,
+    permission,
+    subscribed,
+    serverSynced,
+    loading,
+    subscribeUser,
+    unsubscribeUser,
+    requestPermission,
+    syncSubscription,
+  } = usePush()
   const [showDetails, setShowDetails] = useState(false)
   const [testSending, setTestSending] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
   const handleTest = async () => {
     setTestSending(true)
-    setTestResult(null)
+    setTestResult({ tone: 'pending', message: 'Sending a real push to this admin’s registered browsers…' })
+
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
-      const token = localStorage.getItem('altuvera_admin_token') || sessionStorage.getItem('altuvera_admin_token') || ''
-      const res = await fetch(`${apiBase}/push/test`, {
+      const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\/+$/, '')
+      const token = localStorage.getItem('altuvera_admin_token') ||
+        localStorage.getItem('adminToken') ||
+        localStorage.getItem('token') ||
+        sessionStorage.getItem('altuvera_admin_token') ||
+        sessionStorage.getItem('adminToken') || ''
+      if (!token) throw new Error('Your admin session token is missing. Sign in again before testing push notifications.')
+
+      const headers = { Authorization: 'Bearer ' + token }
+      const sendResponse = await fetch(apiBase + '/push/test', {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include',
+        headers,
+        cache: 'no-store',
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || data.success === false || data.error) {
-        throw new Error(data.message || data.error || `Test push failed (HTTP ${res.status}).`)
+      const sendData = await sendResponse.json().catch(() => ({}))
+      if (!sendResponse.ok || sendData.success === false || !sendData.testId) {
+        throw new Error(sendData.message || 'The backend could not send the browser push test (HTTP ' + sendResponse.status + ').')
       }
-      setTestResult(data.message || 'Test push request accepted by the server. Check your device notification settings and subscription status if nothing appears.')
+
+      const testId = sendData.testId
+      const total = Number(sendData.total || 0)
+      const accepted = Number(sendData.providerAccepted || 0)
+      setTestResult({
+        tone: accepted > 0 ? 'pending' : 'error',
+        message: accepted + ' of ' + total + ' push request(s) were accepted by the push service. Waiting for browser confirmation…',
+      })
+
+      const deadline = Date.now() + 25000
+      let latest = null
+
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500))
+        const statusResponse = await fetch(apiBase + '/push/test/' + encodeURIComponent(testId), {
+          method: 'GET',
+          credentials: 'include',
+          headers,
+          cache: 'no-store',
+        })
+        const statusData = await statusResponse.json().catch(() => ({}))
+        if (!statusResponse.ok || statusData.success === false) {
+          throw new Error(statusData.message || 'Could not verify whether a browser received the test notification.')
+        }
+
+        latest = statusData
+        const received = Number(statusData.browserReceived || 0)
+        const awaiting = Number(statusData.awaitingBrowserReceipt || 0)
+        const failed = Number(statusData.providerFailed || 0)
+        const allConfirmed = received === Number(statusData.total || 0) && Number(statusData.total || 0) > 0
+
+        if (allConfirmed) {
+          setTestResult({
+            tone: 'success',
+            message: 'Confirmed: ' + received + ' of ' + statusData.total + ' browser(s) received the push and completed the notification display request.',
+          })
+          return
+        }
+
+        if (received > 0) {
+          setTestResult({
+            tone: 'partial',
+            message: 'Browser confirmation: ' + received + ' of ' + statusData.total + '. Still waiting for ' + awaiting + ' browser(s); ' + failed + ' push request(s) failed.',
+          })
+        } else if (Number(statusData.providerAccepted || 0) > 0) {
+          setTestResult({
+            tone: 'pending',
+            message: 'The push service accepted ' + statusData.providerAccepted + ' request(s), but no browser receipt has arrived yet. Waiting…',
+          })
+        } else {
+          setTestResult({
+            tone: 'error',
+            message: 'No browser push was accepted. Check the browser subscription and backend push configuration.',
+          })
+          return
+        }
+      }
+
+      if (latest) {
+        const received = Number(latest.browserReceived || 0)
+        const awaiting = Number(latest.awaitingBrowserReceipt || 0)
+        setTestResult({
+          tone: received > 0 ? 'partial' : 'pending',
+          message: 'Final check: ' + received + ' of ' + latest.total + ' browser(s) confirmed receipt; ' + awaiting + ' are still awaiting confirmation. Provider acceptance alone is not counted as browser delivery. Check the browser’s notification permission, device connection, and notification/Do Not Disturb settings.',
+        })
+      }
     } catch (error) {
-      setTestResult(error?.message || 'Test notification request failed. Check the admin API and push configuration.')
+      setTestResult({
+        tone: 'error',
+        message: error?.message || 'Test notification failed. The browser receipt was not confirmed.',
+      })
     } finally {
       setTestSending(false)
     }
   }
 
   if (!supported) return null
+
+  const resultColor = testResult?.tone === 'success'
+    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+    : testResult?.tone === 'error'
+      ? 'text-red-700 bg-red-50 border-red-200'
+      : testResult?.tone === 'partial'
+        ? 'text-amber-800 bg-amber-50 border-amber-200'
+        : 'text-slate-700 bg-slate-50 border-slate-200'
 
   return (
     <div className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 sm:p-5">
@@ -528,12 +612,13 @@ function PushNotificationBar () {
             <Smartphone className="text-purple-600" size={18} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-800 truncate">Desktop Push Notifications</h3>
+            <h3 className="text-sm font-bold text-slate-800 truncate">Browser Push Notifications</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               {subscribed
-                ? 'You will receive alerts even when the panel is closed.'
-                : 'Enable push to receive alerts even when offline.'
-              }
+                ? serverSynced
+                  ? 'This browser is registered to the signed-in admin account.'
+                  : 'A browser subscription exists but needs to sync with the admin account.'
+                : 'Enable push to receive admin alerts when the panel is not open.'}
             </p>
           </div>
         </div>
@@ -549,15 +634,11 @@ function PushNotificationBar () {
             </button>
           ) : (
             <button
-              onClick={
-                permission === 'granted'
-                  ? subscribeUser
-                  : requestPermission
-              }
-              disabled={loading}
+              onClick={permission === 'granted' ? subscribeUser : requestPermission}
+              disabled={loading || permission === 'denied' || permission === 'unsupported'}
               className="px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Working…' : permission === 'granted' ? 'Enable' : 'Allow'}
+              {loading ? 'Working…' : permission === 'granted' ? 'Enable' : permission === 'denied' ? 'Blocked' : 'Allow'}
             </button>
           )}
           <button
@@ -570,31 +651,53 @@ function PushNotificationBar () {
       </div>
 
       {showDetails && (
-        <div className="mt-3 pt-3 border-t border-purple-100 space-y-2">
-          <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="mt-3 pt-3 border-t border-purple-100 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
             <div>
               <span className="text-slate-500">Permission:</span>
               <span className="ml-1 font-semibold text-slate-800">{permission}</span>
             </div>
             <div>
-              <span className="text-slate-500">Status:</span>
-              <span className={`ml-1 font-bold ${subscribed ? 'text-purple-700' : 'text-slate-600'}`}>
+              <span className="text-slate-500">Browser:</span>
+              <span className={'ml-1 font-bold ' + (subscribed ? 'text-purple-700' : 'text-slate-600')}>
                 {subscribed ? 'Subscribed' : 'Not subscribed'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500">Server sync:</span>
+              <span className={'ml-1 font-bold ' + (serverSynced ? 'text-emerald-700' : 'text-amber-700')}>
+                {serverSynced ? 'Confirmed' : 'Not synced'}
               </span>
             </div>
           </div>
 
+          {subscribed && !serverSynced && (
+            <button
+              onClick={syncSubscription}
+              disabled={loading}
+              className="btn-secondary btn-sm disabled:opacity-50"
+            >
+              {loading ? 'Syncing…' : 'Sync this browser'}
+            </button>
+          )}
+
           <button
             onClick={handleTest}
-            disabled={!subscribed || testSending}
+            disabled={!subscribed || !serverSynced || testSending}
             className="btn-secondary btn-sm disabled:opacity-50"
           >
             <Send size={14} className={testSending ? 'animate-spin' : ''} />
-            Send Test Notification
+            {testSending ? 'Verifying browser receipt…' : 'Send real browser test'}
           </button>
 
           {testResult && (
-            <p className="text-xs text-slate-600 mt-1">{testResult}</p>
+            <p
+              role="status"
+              aria-live="polite"
+              className={'text-xs leading-relaxed border rounded-xl px-3 py-2 ' + resultColor}
+            >
+              {testResult.message}
+            </p>
           )}
         </div>
       )}
