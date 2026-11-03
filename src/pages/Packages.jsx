@@ -1745,84 +1745,44 @@ export default function Packages() {
 
           return (
             <div className="space-y-5 pb-1">
-              <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
-                <section className="relative isolate min-h-[390px] h-[min(66vh,680px)] overflow-hidden rounded-[26px] bg-[#064e3b] shadow-[0_22px_60px_rgba(2,44,34,.18)] sm:min-h-[470px] lg:sticky lg:top-2">
-                  {activeHeroImage ? (
-                    <img
-                      key={activeHeroImage}
-                      src={activeHeroImage}
-                      alt={pkg.title || 'Package experience'}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      loading="eager"
-                      onError={() => setFailedPreviewImages((current) => current.includes(activeHeroImage) ? current : [...current, activeHeroImage])}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-emerald-950 via-emerald-800 to-slate-900 text-emerald-100">
-                      <div className="text-center"><Image size={42} className="mx-auto mb-3 opacity-70"/><p className="text-xs font-semibold">No usable package image available</p></div>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/10 via-emerald-950/15 to-[#022c22]/95" />
-                  <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-200">Altuvera experience</span>
-                    <h2 className="mt-3 max-w-3xl break-words font-serif text-3xl font-normal leading-[1.08] tracking-tight text-white sm:text-4xl lg:text-[clamp(2rem,3vw,3.4rem)]">
+              <section className="relative isolate min-h-[220px] overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-slate-900 shadow-lg sm:min-h-[270px]">
+                {coverImage && (
+                  <img
+                    src={coverImage}
+                    alt={pkg.title || 'Package cover'}
+                    className="absolute inset-0 -z-20 h-full w-full object-cover"
+                    loading="eager"
+                  />
+                )}
+                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/90 via-emerald-950/60 to-slate-950/20" />
+                <div className="relative flex min-h-[220px] flex-col justify-end gap-3 p-5 sm:min-h-[270px] sm:p-7">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-white backdrop-blur-sm">
+                      <Package size={12} /> Safari package
+                    </span>
+                    {statusLabels.map((label) => (
+                      <span key={label} className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-semibold text-white/95 backdrop-blur-sm">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="max-w-3xl">
+                    <h2 className="break-words text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
                       {pkg.title || 'Package overview'}
                     </h2>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {(destinationName || durationParts.length > 0) && (
-                        <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
-                          <MapPin size={14} className="shrink-0"/> <span className="break-words">{destinationName || 'East Africa'}</span>
-                        </span>
-                      )}
-                      {hasPackageValue(pkg.duration_days) && (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
-                          <Calendar size={14}/> {pkg.duration_days} days
-                        </span>
-                      )}
-                      {countryNameForPreview && (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
-                          <Globe2 size={14}/> {countryNameForPreview}
-                        </span>
-                      )}
-                    </div>
+                    {destinationName && (
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-emerald-100">
+                        <MapPin size={15} /> {destinationName}
+                      </p>
+                    )}
+                    {shortDescription && (
+                      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
+                        {shortDescription}
+                      </p>
+                    )}
                   </div>
-                  {heroImages.length > 1 && (
-                    <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-3 sm:bottom-4 sm:left-4 sm:right-4" aria-label="Package photo gallery">
-                      <button type="button" aria-label="Previous photo" onClick={() => setPreviewGalleryIndex((index) => (index - 1 + heroImages.length) % heroImages.length)}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-slate-950/35 text-white shadow-lg backdrop-blur-md hover:bg-slate-950/60">
-                        <ChevronLeft size={18}/>
-                      </button>
-                      <div className="flex min-w-0 items-center justify-center gap-1.5">
-                        {heroImages.map((url,index) => (
-                          <button key={url} type="button" aria-label={`Show photo ${index + 1}`} aria-current={index === safeHeroIndex ? 'true' : undefined}
-                            onClick={() => setPreviewGalleryIndex(index)}
-                            className={index === safeHeroIndex ? 'h-2 w-6 rounded-full bg-white shadow' : 'h-2 w-2 rounded-full bg-white/55 hover:bg-white/90'}/>
-                        ))}
-                      </div>
-                      <button type="button" aria-label="Next photo" onClick={() => setPreviewGalleryIndex((index) => (index + 1) % heroImages.length)}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-slate-950/35 text-white shadow-lg backdrop-blur-md hover:bg-slate-950/60">
-                        <ChevronRight size={18}/>
-                      </button>
-                    </div>
-                  )}
-                </section>
-
-                <section className="min-w-0 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm sm:p-5">
-                  {shortDescription && <p className="mb-4 text-base font-semibold leading-7 text-emerald-900">{shortDescription}</p>}
-                  {fullDescription && fullDescription !== shortDescription && (
-                    <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">{fullDescription}</p>
-                  )}
-                  {!shortDescription && !fullDescription && (
-                    <div className="flex min-h-32 items-center gap-3 text-sm text-slate-400"><FileText size={20}/> No package description has been added yet.</div>
-                  )}
-                  {statusLabels.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                      {statusLabels.map((label) => (
-                        <span key={label} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800">{label}</span>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
+                </div>
+              </section>
 
               <div className="flex gap-1 overflow-x-auto border-b border-slate-200 -mx-1 px-1" role="tablist" aria-label="Package workspace">
                 {[
