@@ -1538,6 +1538,23 @@ export default function Messages() {
     isAdminTypingRef.current = false
     emitAdminTyping(convId, false)
 
+    const listedConversation = conversations.find(item => String(item.id) === String(convId))
+    const recipientConversation = activeConv || listedConversation
+    const recipientName = recipientConversation?.groupName || recipientConversation?.group_name
+      || firstRealSenderName(
+        recipientConversation?.user?.fullName,
+        recipientConversation?.user?.full_name,
+        recipientConversation?.user_full_name,
+        recipientConversation?.guestName,
+        recipientConversation?.guest_name,
+        recipientConversation?.user?.username,
+        recipientConversation?.user_username,
+        recipientConversation?.username,
+        recipientConversation?.name,
+      )
+      || String(recipientConversation?.user?.email || recipientConversation?.user_email || recipientConversation?.guest_email || '').split('@')[0]
+      || 'traveller'
+
     setSending(true)
     const optimistic = {
       id: `tmp-${Date.now()}`,
@@ -1575,7 +1592,7 @@ export default function Messages() {
           clearTimeout(ackTimer)
           if (ack?.success && ack.message) {
             setMessages(prev => prev.map(m => m.id === optimistic.id ? ack.message : m))
-            toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
+            toast.success('Message sent to ' + recipientName)
           } else {
             setMessages(prev => prev.filter(m => m.id !== optimistic.id))
             toast.error(ack?.error || 'The message could not be sent. Please try again.')
@@ -1602,7 +1619,7 @@ export default function Messages() {
         const data = await res.json()
         if (data?.data) {
           setMessages(prev => prev.map(m => m.id === optimistic.id ? data.data : m))
-          toast.success('Message sent to ' + (activeConv?.groupName || safeEndUserName(activeConv?.guestName || activeConv?.guest_name || activeConv?.userName || activeConv?.user_name)))
+          toast.success('Message sent to ' + recipientName)
         }
       } else {
         const payload = await res.json().catch(() => ({}))
@@ -1616,7 +1633,7 @@ export default function Messages() {
       setSending(false)
       loadConversations()
     }
-  }, [draft, sending, connected, emit, user, loadConversations, replyToId, emitAdminTyping, toast])
+  }, [draft, sending, connected, emit, user, activeConv, conversations, loadConversations, replyToId, emitAdminTyping, toast])
 
   const copyMessageText = useCallback(async (body) => {
     try {
