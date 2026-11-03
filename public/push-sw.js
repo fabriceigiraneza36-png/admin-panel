@@ -21,8 +21,7 @@ async function displayPushNotification (data) {
     renotify: Boolean(data.renotify),
   }
 
-  // Acknowledge display through the service worker; actual delivery is handled
-  // by the browser Push API for all notification types, not a testing workflow.
+  // Display each eligible notification through the browser's native notification tray.
   await self.registration.showNotification(data.title || 'Altuvera Safaris', notificationOptions)
 }
 
@@ -36,9 +35,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     displayPushNotification(data).catch((error) => {
-      // The notification may already be visible. Log the acknowledgement failure
-      // so the admin panel correctly leaves the test unconfirmed instead of faking success.
-      console.error('[Altuvera push] Notification display/receipt failed:', error)
+      // Keep the service worker resilient when a device cannot display a notification.
+      console.error('[Altuvera push] Notification display failed:', error)
     })
   )
 })
