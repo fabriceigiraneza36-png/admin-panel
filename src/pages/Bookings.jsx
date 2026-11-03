@@ -332,6 +332,7 @@ export default function Bookings() {
   const [view,        setView]        = useState(VIEWS.LIST)
   const [selected,    setSelected]    = useState(null)   // booking being viewed/edited
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
   const detailRequestRef = useRef(0)
 
   // ── List state ────────────────────────────────────────────────────────────
@@ -394,6 +395,7 @@ export default function Bookings() {
   const goList = () => {
     detailRequestRef.current += 1
     setDetailLoading(false)
+    setDetailError('')
     setView(VIEWS.LIST)
     setSelected(null)
   }
@@ -406,6 +408,7 @@ export default function Bookings() {
     const requestId = ++detailRequestRef.current
     setSelected(booking)
     setReview({ decision: null, response: '' })
+    setDetailError('')
     setView(VIEWS.VIEW)
     setDetailLoading(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -433,7 +436,9 @@ export default function Bookings() {
       }
     } catch (error) {
       if (requestId === detailRequestRef.current) {
-        toast.error('Could not load the complete booking details: ' + getErrorMessage(error))
+        const message = 'Could not load the complete booking details: ' + getErrorMessage(error)
+        setDetailError(message)
+        toast.error(message)
       }
     } finally {
       if (requestId === detailRequestRef.current) setDetailLoading(false)
@@ -1553,6 +1558,18 @@ export default function Bookings() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
+            {detailLoading && (
+              <div role="status" className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-700" />
+                Loading booking details…
+              </div>
+            )}
+            {detailError && (
+              <div role="alert" className="mb-4 flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+                <span className="min-w-0 break-words">{detailError}</span>
+                <button type="button" onClick={() => goView(selected)} className="shrink-0 rounded-lg bg-rose-700 px-3 py-2 font-semibold text-white hover:bg-rose-800">Retry loading</button>
+              </div>
+            )}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(260px,.8fr)]">
 
             {/* Left / main */}
