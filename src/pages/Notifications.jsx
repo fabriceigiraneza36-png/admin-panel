@@ -17,7 +17,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
-  Send, Smartphone,
+  Send, Smartphone, Settings, ShieldCheck,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -599,231 +599,157 @@ export default function Notifications() {
   );
 }
 
-/* ── Push Notification Bar ─────────────────────────────────────────── */
+/* ── Browser push and user-delivery settings ─────────────────────────────── */
 
 function PushNotificationBar () {
   const {
-    supported,
-    permission,
-    subscribed,
-    serverSynced,
-    loading,
-    subscribeUser,
-    unsubscribeUser,
-    requestPermission,
-    syncSubscription,
+    supported, permission, subscribed, serverSynced, loading,
+    subscribeUser, requestPermission, syncSubscription,
   } = usePush()
-  const [showDetails, setShowDetails] = useState(false)
-  const [testSending, setTestSending] = useState(false)
-  const [testResult, setTestResult] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [usersEnabled, setUsersEnabled] = useState(true)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsReady, setSettingsReady] = useState(false)
 
-  const handleTest = async () => {
-    setTestSending(true)
-    setTestResult({ tone: 'pending', message: 'Sending a real push to this admin’s registered browsers…' })
-
+  const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\\/+$/, '')
+  const getToken = () => {
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\/+$/, '')
-      const token = localStorage.getItem('altuvera_admin_token') ||
+      return localStorage.getItem('altuvera_admin_token') ||
         localStorage.getItem('adminToken') ||
         localStorage.getItem('token') ||
         sessionStorage.getItem('altuvera_admin_token') ||
         sessionStorage.getItem('adminToken') || ''
-      if (!token) throw new Error('Your admin session token is missing. Sign in again before testing push notifications.')
-
-      const headers = { Authorization: 'Bearer ' + token }
-      const sendResponse = await fetch(apiBase + '/push/test', {
-        method: 'POST',
-        credentials: 'include',
-        headers,
-        cache: 'no-store',
-      })
-      const sendData = await sendResponse.json().catch(() => ({}))
-      if (!sendResponse.ok || sendData.success === false || !sendData.testId) {
-        throw new Error(sendData.message || 'The backend could not send the browser push test (HTTP ' + sendResponse.status + ').')
-      }
-
-      const testId = sendData.testId
-      const total = Number(sendData.total || 0)
-      const accepted = Number(sendData.providerAccepted || 0)
-      setTestResult({
-        tone: accepted > 0 ? 'pending' : 'error',
-        message: accepted + ' of ' + total + ' push request(s) were accepted by the push service. Waiting for browser confirmation…',
-      })
-
-      const deadline = Date.now() + 25000
-      let latest = null
-
-      while (Date.now() < deadline) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1500))
-        const statusResponse = await fetch(apiBase + '/push/test/' + encodeURIComponent(testId), {
-          method: 'GET',
-          credentials: 'include',
-          headers,
-          cache: 'no-store',
-        })
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!statusResponse.ok || statusData.success === false) {
-          throw new Error(statusData.message || 'Could not verify whether a browser received the test notification.')
-        }
-
-        latest = statusData
-        const received = Number(statusData.browserReceived || 0)
-        const awaiting = Number(statusData.awaitingBrowserReceipt || 0)
-        const failed = Number(statusData.providerFailed || 0)
-        const allConfirmed = received === Number(statusData.total || 0) && Number(statusData.total || 0) > 0
-
-        if (allConfirmed) {
-          setTestResult({
-            tone: 'success',
-            message: 'Confirmed: ' + received + ' of ' + statusData.total + ' browser(s) received the push and completed the notification display request.',
-          })
-          return
-        }
-
-        if (received > 0) {
-          setTestResult({
-            tone: 'partial',
-            message: 'Browser confirmation: ' + received + ' of ' + statusData.total + '. Still waiting for ' + awaiting + ' browser(s); ' + failed + ' push request(s) failed.',
-          })
-        } else if (Number(statusData.providerAccepted || 0) > 0) {
-          setTestResult({
-            tone: 'pending',
-            message: 'The push service accepted ' + statusData.providerAccepted + ' request(s), but no browser receipt has arrived yet. Waiting…',
-          })
-        } else {
-          setTestResult({
-            tone: 'error',
-            message: 'No browser push was accepted. Check the browser subscription and backend push configuration.',
-          })
-          return
-        }
-      }
-
-      if (latest) {
-        const received = Number(latest.browserReceived || 0)
-        const awaiting = Number(latest.awaitingBrowserReceipt || 0)
-        setTestResult({
-          tone: received > 0 ? 'partial' : 'pending',
-          message: 'Final check: ' + received + ' of ' + latest.total + ' browser(s) confirmed receipt; ' + awaiting + ' are still awaiting confirmation. Provider acceptance alone is not counted as browser delivery. Check the browser’s notification permission, device connection, and notification/Do Not Disturb settings.',
-        })
-      }
-    } catch (error) {
-      setTestResult({
-        tone: 'error',
-        message: error?.message || 'Test notification failed. The browser receipt was not confirmed.',
-      })
-    } finally {
-      setTestSending(false)
-    }
+    } catch { return '' }
   }
 
-  if (!supported) return null
+  const loadSettings = async () => {
+    setSettingsLoading(true)
+    setSettingsError('')
+    try {
+      const token = getToken()
+      if (!token) throw new Error('Your admin session has expired. Sign in again.')
+      const response = await fetch(apiBase + '/push/user-delivery-settings', {
+        credentials: 'include', cache: 'no-store',
+        headers: { Authorization: 'Bearer ' + token },
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.success === false) throw new Error(data.message || 'Could not load browser push settings.')
+      setUsersEnabled(data.enabled !== false)
+      setSettingsReady(true)
+    } catch (error) {
+      setSettingsError(error.message || 'Could not load browser push settings.')
+    } finally { setSettingsLoading(false) }
+  }
 
-  const resultColor = testResult?.tone === 'success'
-    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-    : testResult?.tone === 'error'
-      ? 'text-red-700 bg-red-50 border-red-200'
-      : testResult?.tone === 'partial'
-        ? 'text-amber-800 bg-amber-50 border-amber-200'
-        : 'text-slate-700 bg-slate-50 border-slate-200'
+  useEffect(() => { loadSettings() }, [])
+
+  const updateUserDelivery = async (enabled) => {
+    setSettingsSaving(true)
+    setSettingsError('')
+    try {
+      const token = getToken()
+      if (!token) throw new Error('Your admin session has expired. Sign in again.')
+      const response = await fetch(apiBase + '/push/user-delivery-settings', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ enabled }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.success === false) throw new Error(data.message || 'Could not update browser push settings.')
+      setUsersEnabled(data.enabled !== false)
+      setSettingsReady(true)
+    } catch (error) {
+      setSettingsError(error.message || 'Could not update browser push settings.')
+      await loadSettings()
+    } finally { setSettingsSaving(false) }
+  }
+
+  const enableAdminPush = async () => {
+    if (!supported || loading) return
+    if (subscribed && !serverSynced) { await syncSubscription(); return }
+    const result = permission === 'granted' ? 'granted' : await requestPermission()
+    if (result === 'granted') await subscribeUser()
+  }
 
   return (
-    <div className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Smartphone className="text-purple-600" size={18} />
+    <>
+      <div className="mb-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-white p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><Smartphone size={19}/></div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-slate-800">Admin browser notifications</h3>
+              <p className="mt-0.5 text-xs leading-5 text-slate-600">
+                {!supported
+                  ? 'This browser does not support web push. Admin notifications remain available in the panel.'
+                  : subscribed && serverSynced
+                    ? 'This browser is registered. Admin push delivery is always enabled.'
+                    : permission === 'denied'
+                      ? 'Notifications are blocked by this browser. Allow them in the site settings, then return here.'
+                      : subscribed
+                        ? 'A browser subscription exists and needs account synchronisation.'
+                        : 'Enable this browser to receive admin alerts when the panel is closed.'}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-800 truncate">Browser Push Notifications</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {subscribed
-                ? serverSynced
-                  ? 'This browser is registered to the signed-in admin account.'
-                  : 'A browser subscription exists but needs to sync with the admin account.'
-                : 'Enable push to receive admin alerts when the panel is not open.'}
-            </p>
+          <div className="flex items-center gap-2 shrink-0">
+            {supported && !(subscribed && serverSynced) && permission !== 'denied' && (
+              <button type="button" onClick={enableAdminPush} disabled={loading}
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50">
+                {loading ? 'Working…' : subscribed ? 'Sync browser' : 'Enable admin push'}
+              </button>
+            )}
+            {supported && subscribed && serverSynced && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-700"><ShieldCheck size={15}/> Always on</span>
+            )}
+            <button type="button" onClick={() => { setSettingsOpen(true); if (!settingsReady) loadSettings() }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:text-emerald-700">
+              <Settings size={15}/> Settings
+            </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {subscribed ? (
-            <button
-              onClick={unsubscribeUser}
-              disabled={loading}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
-            >
-              Disable
-            </button>
-          ) : (
-            <button
-              onClick={permission === 'granted' ? subscribeUser : requestPermission}
-              disabled={loading || permission === 'denied' || permission === 'unsupported'}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Working…' : permission === 'granted' ? 'Enable' : permission === 'denied' ? 'Blocked' : 'Allow'}
-            </button>
-          )}
-          <button
-            onClick={() => setShowDetails((v) => !v)}
-            className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            {showDetails ? 'Hide' : 'Details'}
-          </button>
         </div>
       </div>
 
-      {showDetails && (
-        <div className="mt-3 pt-3 border-t border-purple-100 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-            <div>
-              <span className="text-slate-500">Permission:</span>
-              <span className="ml-1 font-semibold text-slate-800">{permission}</span>
+      {settingsOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-3 sm:p-5"
+          role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false) }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="push-settings-title"
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-emerald-50/70 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl border border-emerald-100 bg-white text-emerald-700"><Settings size={18}/></span>
+                <div><h3 id="push-settings-title" className="text-base font-extrabold text-slate-900">Browser push settings</h3><p className="mt-0.5 text-xs text-slate-500">Manage delivery to Altuvera user accounts.</p></div>
+              </div>
+              <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700"><X size={18}/></button>
             </div>
-            <div>
-              <span className="text-slate-500">Browser:</span>
-              <span className={'ml-1 font-bold ' + (subscribed ? 'text-purple-700' : 'text-slate-600')}>
-                {subscribed ? 'Subscribed' : 'Not subscribed'}
-              </span>
+            <div className="space-y-4 p-5">
+              <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5">
+                <ShieldCheck size={19} className="mt-0.5 shrink-0 text-emerald-700"/>
+                <div><p className="text-sm font-bold text-emerald-900">Admin push is always enabled</p><p className="mt-1 text-xs leading-5 text-emerald-800">This control never disables admin browser alerts. Each admin browser must allow notifications and register once.</p></div>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
+                <div className="min-w-0"><p className="text-sm font-bold text-slate-800">Allow push to users</p><p className="mt-1 text-xs leading-5 text-slate-500">Subscribed travellers can receive eligible notifications while away from the website.</p></div>
+                <button type="button" role="switch" aria-checked={usersEnabled}
+                  disabled={settingsLoading || settingsSaving || !settingsReady}
+                  onClick={() => updateUserDelivery(!usersEnabled)}
+                  className={'relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ' + (usersEnabled ? 'bg-emerald-600' : 'bg-slate-300')}
+                  aria-label="Allow browser push notifications to users">
+                  <span className={'absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ' + (usersEnabled ? 'translate-x-6' : 'translate-x-1')}/>
+                </button>
+              </div>
+              {settingsLoading && <p className="text-xs text-slate-500">Loading settings…</p>}
+              {settingsSaving && <p className="text-xs text-slate-500">Saving setting…</p>}
+              {settingsError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{settingsError}</p>}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={loadSettings} disabled={settingsLoading || settingsSaving} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Refresh</button>
+                <button type="button" onClick={() => setSettingsOpen(false)} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800">Done</button>
+              </div>
             </div>
-            <div>
-              <span className="text-slate-500">Server sync:</span>
-              <span className={'ml-1 font-bold ' + (serverSynced ? 'text-emerald-700' : 'text-amber-700')}>
-                {serverSynced ? 'Confirmed' : 'Not synced'}
-              </span>
-            </div>
-          </div>
-
-          {subscribed && !serverSynced && (
-            <button
-              onClick={syncSubscription}
-              disabled={loading}
-              className="btn-secondary btn-sm disabled:opacity-50"
-            >
-              {loading ? 'Syncing…' : 'Sync this browser'}
-            </button>
-          )}
-
-          <button
-            onClick={handleTest}
-            disabled={!subscribed || !serverSynced || testSending}
-            className="btn-secondary btn-sm disabled:opacity-50"
-          >
-            <Send size={14} className={testSending ? 'animate-spin' : ''} />
-            {testSending ? 'Verifying browser receipt…' : 'Send real browser test'}
-          </button>
-
-          {testResult && (
-            <p
-              role="status"
-              aria-live="polite"
-              className={'text-xs leading-relaxed border rounded-xl px-3 py-2 ' + resultColor}
-            >
-              {testResult.message}
-            </p>
-          )}
+          </section>
         </div>
       )}
-    </div>
+    </>
   )
 }

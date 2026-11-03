@@ -138,6 +138,9 @@ function InfoGrid({ children }) {
 }
 
 function InfoItem({ label, value, full = false }) {
+  const empty = value === null || value === undefined ||
+    (typeof value === 'string' && !value.trim())
+  if (empty) return null
   return (
     <div className={full ? 'sm:col-span-2 lg:col-span-3' : ''}>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
