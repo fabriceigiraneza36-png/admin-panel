@@ -6,7 +6,7 @@ import {
   Users, MessageSquare, BookOpen, CheckCircle,
   XCircle, X, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
-  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList,
+  TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 // ── API — both named exports come from the same file ─────────────────────────
@@ -116,10 +116,28 @@ const getPackageItemLabel = (item) => {
   return formatPackageDetailValue(value);
 };
 
+const isPackageImageUrl = (rawValue) => {
+  const value = String(rawValue || '').trim();
+  if (!value) return false;
+  if (/^data:image\//i.test(value)) return true;
+  try {
+    const parsed = new URL(value, 'https://altuverasafaris.com');
+    const pathname = decodeURIComponent(parsed.pathname).toLowerCase();
+    const imageExtension = /\.(?:avif|gif|jpe?g|png|webp|svg)$/i.test(pathname);
+    const imageHost = /(^|\.)((res\.)?cloudinary\.com|images\.unsplash\.com|images\.pexels\.com|images\.ctfassets\.net|lh3\.googleusercontent\.com|storage\.googleapis\.com)$/i.test(parsed.hostname);
+    return imageExtension || imageHost || pathname.includes('/image/upload/');
+  } catch {
+    return false;
+  }
+};
+
 const getPackageImageUrl = (item) => {
-  if (typeof item === 'string') return item.trim();
-  if (!item || typeof item !== 'object') return '';
-  return String(item.url || item.image_url || item.imageUrl || item.src || '').trim();
+  const candidate = typeof item === 'string'
+    ? item.trim()
+    : item && typeof item === 'object'
+      ? String(item.url || item.image_url || item.imageUrl || item.src || '').trim()
+      : '';
+  return isPackageImageUrl(candidate) ? candidate : '';
 };
 
 function PackageDetailSection ({ title, icon: Icon, items }) {
@@ -784,6 +802,9 @@ export default function Packages() {
 
   // ── Detail tab state ───────────────────────────────────────────────────────
   const [activeTab,   setActiveTab]   = useState('details')
+  const [previewGalleryIndex, setPreviewGalleryIndex] = useState(0)
+  const [failedPreviewImages, setFailedPreviewImages] = useState([])
+  const [viewActionsExpanded, setViewActionsExpanded] = useState(true)
   const [pkgMessages, setPkgMessages] = useState([])
   const [pkgBookings, setPkgBookings] = useState([])
   const [pkgInfoReqs, setPkgInfoReqs] = useState([])
@@ -844,14 +865,26 @@ export default function Packages() {
   const loadStats = useCallback(async () => {
     try {
       const res = await packagesAPI.getStats()
-      setStats(res.data)
-    } catch {
-      // Stats are non-critical — fail silently
+      // The API responds with { success, data: { packages, bookings, messages } }.
+      // Axios adds its own response.data layer around that JSON body.
+      const payload = res?.data?.data || res?.data || res
+      setStats(payload?.data || payload)
+    } catch (error) {
+      console.warn('[Packages] Live statistics could not be refreshed:', getErrorMessage(error))
     }
   }, [])
 
-  useEffect(() => { load() },      [load])
-  useEffect(() => { loadStats() }, [loadStats])
+  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    loadStats()
+    const interval = window.setInterval(loadStats, 30000)
+    const onFocus = () => loadStats()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [loadStats])
 
   // ── Load sub-data ──────────────────────────────────────────────────────────
 
@@ -888,6 +921,9 @@ export default function Packages() {
   const openView = useCallback((pkg) => {
     viewModal.open(pkg)
     setActiveTab('details')
+    setPreviewGalleryIndex(0)
+    setFailedPreviewImages([])
+    setViewActionsExpanded(true)
     setPkgMessages([])
     setPkgBookings([])
     setPkgInfoReqs([])
@@ -1119,6 +1155,7 @@ export default function Packages() {
       replyModal.close()
       setReplyBody('')
       loadSubData(viewModal.data, 'messages')
+      loadStats()
     } catch (e) {
       toast.error(getErrorMessage(e))
     } finally {
@@ -1147,6 +1184,7 @@ export default function Packages() {
       })
       toast.success('Booking updated')
       loadSubData(viewModal.data, 'bookings')
+      loadStats()
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
@@ -1588,13 +1626,27 @@ export default function Packages() {
       <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
-        title={viewModal.data?.title || 'Package overview'}
+        title="Package preview"
         size="2xl"
         icon={<Package size={19} strokeWidth={2.1} />}
         footer={
-          <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,.06)] backdrop-blur sm:px-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,.06)] backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Package size={16}/></span>
+                <div className="min-w-0"><p className="truncate text-xs font-extrabold text-slate-800">Package actions</p><p className="text-[10px] text-slate-400">{viewActionsExpanded ? 'Choose an action' : 'Actions are hidden'}</p></div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button type="button" aria-expanded={viewActionsExpanded} onClick={() => setViewActionsExpanded((expanded) => !expanded)}
+                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
+                  {viewActionsExpanded ? <><ChevronDown size={15}/> Hide actions</> : <><ChevronUp size={15}/> Show actions</>}
+                </button>
+                <button type="button" onClick={viewModal.close} aria-label="Close package preview"
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><X size={16}/></button>
+              </div>
+            </div>
+            {viewActionsExpanded && (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <button type="button" onClick={() => handleTogglePublish(viewModal.data)}
                   className={viewModal.data?.is_published
                     ? 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
@@ -1614,8 +1666,6 @@ export default function Packages() {
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 hover:bg-teal-100">
                   <ClipboardList size={15}/> Request info
                 </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-800">
                   <Pencil size={15}/> Edit package
@@ -1624,12 +1674,8 @@ export default function Packages() {
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
                   <Trash2 size={15}/> Delete
                 </button>
-                <button type="button" onClick={viewModal.close}
-                  className="col-span-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:col-span-1">
-                  <X size={15}/> Close
-                </button>
               </div>
-            </div>
+            )}
           </div>
         }
       >
@@ -1674,11 +1720,15 @@ export default function Packages() {
           ].map((section) => ({ ...section, items: getPackageCollection(section.value) }))
             .filter((section) => section.items.length > 0);
 
-          const galleryUrls = [...new Set([
+          const heroImages = [...new Set([
+            coverImage,
             ...getPackageCollection(pkg.images),
             ...getPackageCollection(pkg.gallery),
             ...getPackageCollection(pkg.image_gallery),
-          ].map(getPackageImageUrl).filter((url) => url && url !== coverImage))];
+          ].map(getPackageImageUrl).filter((url) => url && !failedPreviewImages.includes(url)))];
+          const safeHeroIndex = Math.min(previewGalleryIndex, Math.max(0, heroImages.length - 1));
+          const activeHeroImage = heroImages[safeHeroIndex] || '';
+          const galleryUrls = heroImages.filter((url) => url !== coverImage);
 
           const additionalDetails = Object.entries(pkg).filter(isVisiblePackageDetail);
           const statusLabels = [
@@ -1689,44 +1739,84 @@ export default function Packages() {
 
           return (
             <div className="space-y-5 pb-1">
-              <section className="relative isolate min-h-[220px] overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-800 to-slate-900 shadow-lg sm:min-h-[270px]">
-                {coverImage && (
-                  <img
-                    src={coverImage}
-                    alt={pkg.title || 'Package cover'}
-                    className="absolute inset-0 -z-20 h-full w-full object-cover"
-                    loading="eager"
-                  />
-                )}
-                <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-950/90 via-emerald-950/60 to-slate-950/20" />
-                <div className="relative flex min-h-[220px] flex-col justify-end gap-3 p-5 sm:min-h-[270px] sm:p-7">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.14em] text-white backdrop-blur-sm">
-                      <Package size={12} /> Safari package
-                    </span>
-                    {statusLabels.map((label) => (
-                      <span key={label} className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-semibold text-white/95 backdrop-blur-sm">
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="max-w-3xl">
-                    <h2 className="break-words text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
+              <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
+                <section className="relative isolate min-h-[390px] h-[min(66vh,680px)] overflow-hidden rounded-[26px] bg-[#064e3b] shadow-[0_22px_60px_rgba(2,44,34,.18)] sm:min-h-[470px] lg:sticky lg:top-2">
+                  {activeHeroImage ? (
+                    <img
+                      key={activeHeroImage}
+                      src={activeHeroImage}
+                      alt={pkg.title || 'Package experience'}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      loading="eager"
+                      onError={() => setFailedPreviewImages((current) => current.includes(activeHeroImage) ? current : [...current, activeHeroImage])}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-emerald-950 via-emerald-800 to-slate-900 text-emerald-100">
+                      <div className="text-center"><Image size={42} className="mx-auto mb-3 opacity-70"/><p className="text-xs font-semibold">No usable package image available</p></div>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/10 via-emerald-950/15 to-[#022c22]/95" />
+                  <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[.16em] text-emerald-200">Altuvera experience</span>
+                    <h2 className="mt-3 max-w-3xl break-words font-serif text-3xl font-normal leading-[1.08] tracking-tight text-white sm:text-4xl lg:text-[clamp(2rem,3vw,3.4rem)]">
                       {pkg.title || 'Package overview'}
                     </h2>
-                    {destinationName && (
-                      <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-emerald-100">
-                        <MapPin size={15} /> {destinationName}
-                      </p>
-                    )}
-                    {shortDescription && (
-                      <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
-                        {shortDescription}
-                      </p>
-                    )}
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {(destinationName || durationParts.length > 0) && (
+                        <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+                          <MapPin size={14} className="shrink-0"/> <span className="break-words">{destinationName || 'East Africa'}</span>
+                        </span>
+                      )}
+                      {hasPackageValue(pkg.duration_days) && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+                          <Calendar size={14}/> {pkg.duration_days} days
+                        </span>
+                      )}
+                      {countryNameForPreview && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/15 px-3.5 py-2 text-xs font-semibold text-white shadow-sm backdrop-blur-md">
+                          <Globe2 size={14}/> {countryNameForPreview}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </section>
+                  {heroImages.length > 1 && (
+                    <div className="absolute bottom-3 left-3 right-3 z-20 flex items-center justify-between gap-3 sm:bottom-4 sm:left-4 sm:right-4" aria-label="Package photo gallery">
+                      <button type="button" aria-label="Previous photo" onClick={() => setPreviewGalleryIndex((index) => (index - 1 + heroImages.length) % heroImages.length)}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-slate-950/35 text-white shadow-lg backdrop-blur-md hover:bg-slate-950/60">
+                        <ChevronLeft size={18}/>
+                      </button>
+                      <div className="flex min-w-0 items-center justify-center gap-1.5">
+                        {heroImages.map((url,index) => (
+                          <button key={url} type="button" aria-label={`Show photo ${index + 1}`} aria-current={index === safeHeroIndex ? 'true' : undefined}
+                            onClick={() => setPreviewGalleryIndex(index)}
+                            className={index === safeHeroIndex ? 'h-2 w-6 rounded-full bg-white shadow' : 'h-2 w-2 rounded-full bg-white/55 hover:bg-white/90'}/>
+                        ))}
+                      </div>
+                      <button type="button" aria-label="Next photo" onClick={() => setPreviewGalleryIndex((index) => (index + 1) % heroImages.length)}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/35 bg-slate-950/35 text-white shadow-lg backdrop-blur-md hover:bg-slate-950/60">
+                        <ChevronRight size={18}/>
+                      </button>
+                    </div>
+                  )}
+                </section>
+
+                <section className="min-w-0 rounded-2xl border border-emerald-900/10 bg-white p-4 shadow-sm sm:p-5">
+                  {shortDescription && <p className="mb-4 text-base font-semibold leading-7 text-emerald-900">{shortDescription}</p>}
+                  {fullDescription && fullDescription !== shortDescription && (
+                    <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">{fullDescription}</p>
+                  )}
+                  {!shortDescription && !fullDescription && (
+                    <div className="flex min-h-32 items-center gap-3 text-sm text-slate-400"><FileText size={20}/> No package description has been added yet.</div>
+                  )}
+                  {statusLabels.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+                      {statusLabels.map((label) => (
+                        <span key={label} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800">{label}</span>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
 
               <div className="flex gap-1 overflow-x-auto border-b border-slate-200 -mx-1 px-1" role="tablist" aria-label="Package workspace">
                 {[
@@ -1812,9 +1902,13 @@ export default function Packages() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3">
                         {galleryUrls.map((url, index) => (
-                          <div key={url} className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
-                            <img src={url} alt={(pkg.title || 'Package') + ' gallery image ' + (index + 1)} loading="lazy" className="h-28 w-full object-cover transition-transform duration-300 hover:scale-105 sm:h-36" />
-                          </div>
+                          <button type="button" key={url} onClick={() => setPreviewGalleryIndex(heroImages.indexOf(url))}
+                            className="group relative overflow-hidden rounded-xl border border-slate-100 bg-slate-50 text-left shadow-sm transition hover:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                            <img src={url} alt={(pkg.title || 'Package') + ' gallery image ' + (index + 1)} loading="lazy"
+                              onError={() => setFailedPreviewImages((current) => current.includes(url) ? current : [...current, url])}
+                              className="h-28 w-full object-cover transition-transform duration-300 group-hover:scale-105 sm:h-36" />
+                            <span className="absolute bottom-2 right-2 rounded-lg bg-slate-950/65 px-2 py-1 text-[10px] font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">View photo</span>
+                          </button>
                         ))}
                       </div>
                     </section>
