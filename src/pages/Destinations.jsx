@@ -1,5 +1,6 @@
 // admin/src/pages/Destinations.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   MapPin, Plus, Eye, Pencil, Trash2, RefreshCw, Star,
   DollarSign, Image, Info, Check, ChevronRight, ChevronLeft,
@@ -1310,6 +1311,8 @@ export default function Destinations() {
   const toast     = useToast()
   const pag       = usePagination()
   const viewModal = useModal()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const resourceDeepLinkHandled = useRef(false)
   const formModal = useModal()
 
   const [destinations, setDestinations]         = useState([])
@@ -1386,6 +1389,32 @@ export default function Destinations() {
       filterCountry, filterCategory, filterDifficulty, filterFeatured])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (loading || resourceDeepLinkHandled.current) return
+    const resourceId = searchParams.get('resourceId')
+    const resourceType = (searchParams.get('resourceType') || '').toLowerCase()
+    if (!resourceId || (resourceType && !resourceType.includes('destination'))) return
+    let cancelled = false
+    const openResource = async () => {
+      try {
+        let destination = destinations.find(item => String(item.id) === String(resourceId))
+        if (!destination) {
+          const response = await destinationsAPI.getOne(resourceId, 'all')
+          const body = response?.data ?? response
+          destination = body?.data?.destination ?? body?.data ?? body?.destination ?? body
+        }
+        if (cancelled || !destination?.id) return
+        resourceDeepLinkHandled.current = true
+        viewModal.open(destination)
+        setSearchParams({}, { replace: true })
+      } catch (error) {
+        if (!cancelled) toast.error(getErrorMessage(error))
+      }
+    }
+    openResource()
+    return () => { cancelled = true }
+  }, [destinations, loading, searchParams, setSearchParams, toast, viewModal])
 
   /* ── Normalise gallery from API — split gallery vs library ───────── */
 const normaliseGalleries = (dest) => {
