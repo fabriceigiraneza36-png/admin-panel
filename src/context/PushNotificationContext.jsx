@@ -38,7 +38,7 @@ async function readJsonResponse (response, fallbackMessage) {
 
 async function sendSubscriptionToBackend (subscription) {
   const token = getStoredToken()
-  if (!token) throw new Error('Sign in to the admin panel before syncing this browser subscription.')
+  if (!token) throw new Error('Sign in to Altuvera before syncing this browser subscription.')
   const json = subscription.toJSON()
   if (!subscription.endpoint || !json?.keys?.p256dh || !json?.keys?.auth) {
     throw new Error('The browser returned an incomplete push subscription. Re-enable browser notifications.')
@@ -113,7 +113,22 @@ export function PushProvider ({ children }) {
 
     const inspectAndSync = async () => {
       try {
-        const subscription = await registration.pushManager.getSubscription()
+        let subscription = await registration.pushManager.getSubscription()
+        if (!active) return
+
+        // Re-register automatically when this account has already granted
+        // browser permission. Initial permission remains an explicit browser action.
+        if (!subscription && isLoggedIn && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          const keyResponse = await fetch(API_BASE + '/push/vapid-public-key', { cache: 'no-store' })
+          const keyData = await readJsonResponse(keyResponse, 'Could not load push configuration')
+          if (!keyData.publicKey) throw new Error('VAPID public key is not configured on the backend.')
+          if (!active) return
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+          })
+        }
+
         if (!active) return
         setSubscribed(Boolean(subscription))
 
