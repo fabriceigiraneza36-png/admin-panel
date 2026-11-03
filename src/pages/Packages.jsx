@@ -893,8 +893,50 @@ export default function Packages() {
     setSubLoading(true)
     try {
       if (tab === 'messages') {
-        const res = await packagesAPI.getMessages(pkg.id)
-        setPkgMessages(res.data?.data || [])
+        // Use the same registered-user resource-support conversations as the
+        // Messages portal. Package-only legacy endpoints are not part of the
+        // live messaging system and caused the old "Resource not found" error.
+        const bookingResponse = await packagesAPI.getBookings(pkg.id)
+        const bookingBody = bookingResponse?.data ?? bookingResponse
+        let bookingRows = bookingBody
+        for (let depth = 0; depth < 4 && bookingRows && !Array.isArray(bookingRows); depth += 1) {
+          bookingRows = bookingRows.data ?? bookingRows.bookings ?? bookingRows.rows ?? bookingRows.results ?? bookingRows.result ?? bookingRows.items
+        }
+        const bookings = Array.isArray(bookingRows) ? bookingRows : []
+        const userIds = [...new Set(bookings.map(row => row.user_id).filter(Boolean).map(String))]
+        if (!userIds.length) {
+          setPkgMessages([])
+        } else {
+          const listResponse = await apiClient.get('/messages/conversations', {
+            params: { active: 'all', limit: 500, adminView: true },
+          })
+          const listBody = listResponse?.data ?? listResponse
+          const conversations = Array.isArray(listBody?.data) ? listBody.data : []
+          const relevant = conversations.filter(conversation =>
+            userIds.includes(String(conversation.user_id || conversation.userId || conversation.u_id || '')) &&
+            !conversation.group_id &&
+            (!conversation.conversation_type || ['resource_support', 'booking_support'].includes(String(conversation.conversation_type).toLowerCase()))
+          )
+          const details = await Promise.all(relevant.map(async conversation => {
+            const conversationId = conversation.id || conversation.conversation_id
+            if (!conversationId) return null
+            const response = await apiClient.get('/messages/conversations/' + encodeURIComponent(conversationId), { params: { limit: 100 } })
+            const payload = response?.data ?? response
+            return payload?.data ? { ...payload.data, id: conversationId } : null
+          }))
+          const rows = details.filter(Boolean).flatMap(conversation =>
+            (conversation.messages || []).map(message => ({
+              ...message,
+              conversation_id: conversation.id,
+              user_id: conversation.user_id,
+              sender_type: message.sender_type || message.senderType,
+              sender_name: message.sender_name || message.senderName,
+              body: message.body || message.content || '',
+              message_type: message.message_type || message.msg_type || 'message',
+            }))
+          )
+          setPkgMessages(rows.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)))
+        }
       } else if (tab === 'bookings') {
         const res = await packagesAPI.getBookings(pkg.id)
         const body = res?.data ?? res
@@ -1135,26 +1177,30 @@ export default function Packages() {
   // ── Reply ──────────────────────────────────────────────────────────────────
 
   const openReply = useCallback((msg = null) => {
+    const conversationId = msg?.conversation_id || pkgMessages.find(item => item.conversation_id)?.conversation_id
+    if (!conversationId) {
+      toast.error('This traveller does not have an active Messages portal conversation yet.')
+      return
+    }
     setReplyBody('')
     setReplyType('reply')
-    setReplyTarget(msg ? { user_id: msg.sender_id, parent_id: msg.id } : null)
+    setReplyTarget({ conversation_id: conversationId, parent_id: msg?.id || null })
     replyModal.open(viewModal.data)
-  }, [replyModal, viewModal.data])
+  }, [replyModal, viewModal.data, pkgMessages, toast])
 
   const handleSendReply = async () => {
     if (!replyBody.trim()) { toast.error('Message is required'); return }
+    if (!replyTarget?.conversation_id) { toast.error('No Messages portal conversation is assigned to this traveller.'); return }
     setReplySending(true)
     try {
-      await packagesAPI.adminReply(viewModal.data.id, {
-        body:           replyBody.trim(),
-        message_type:   replyType,
-        parent_id:      replyTarget?.parent_id || null,
-        target_user_id: replyTarget?.user_id   || null,
+      await apiClient.post('/messages/conversations/' + encodeURIComponent(replyTarget.conversation_id) + '/messages', {
+        body: replyBody.trim(),
+        replyToId: replyTarget.parent_id || null,
       })
-      toast.success('Reply sent successfully')
+      toast.success('Reply delivered to the traveller Messages portal')
       replyModal.close()
       setReplyBody('')
-      loadSubData(viewModal.data, 'messages')
+      await loadSubData(viewModal.data, 'messages')
       loadStats()
     } catch (e) {
       toast.error(getErrorMessage(e))
@@ -1629,55 +1675,7 @@ export default function Packages() {
         title="Package preview"
         size="2xl"
         icon={<Package size={19} strokeWidth={2.1} />}
-        footer={
-          <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_rgba(15,23,42,.06)] backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Package size={16}/></span>
-                <div className="min-w-0"><p className="truncate text-xs font-extrabold text-slate-800">Package actions</p><p className="text-[10px] text-slate-400">{viewActionsExpanded ? 'Choose an action' : 'Actions are hidden'}</p></div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button type="button" aria-expanded={viewActionsExpanded} onClick={() => setViewActionsExpanded((expanded) => !expanded)}
-                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
-                  {viewActionsExpanded ? <><ChevronDown size={15}/> Hide actions</> : <><ChevronUp size={15}/> Show actions</>}
-                </button>
-                <button type="button" onClick={viewModal.close} aria-label="Close package preview"
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><X size={16}/></button>
-              </div>
-            </div>
-            {viewActionsExpanded && (
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <button type="button" onClick={() => handleTogglePublish(viewModal.data)}
-                  className={viewModal.data?.is_published
-                    ? 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
-                    : 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'}>
-                  {viewModal.data?.is_published ? <EyeOff size={15}/> : <Globe2 size={15}/>}
-                  {viewModal.data?.is_published ? 'Unpublish' : 'Publish'}
-                </button>
-                <button type="button" onClick={() => { setActiveTab('messages'); loadSubData(viewModal.data, 'messages') }}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800 hover:bg-violet-100">
-                  <MessageSquare size={15}/> Messages
-                </button>
-                <button type="button" onClick={() => { setActiveTab('bookings'); loadSubData(viewModal.data, 'bookings') }}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100">
-                  <Calendar size={15}/> Bookings
-                </button>
-                <button type="button" onClick={() => openInfoRequest()}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 hover:bg-teal-100">
-                  <ClipboardList size={15}/> Request info
-                </button>
-                <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data) }}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-800">
-                  <Pencil size={15}/> Edit package
-                </button>
-                <button type="button" onClick={() => { viewModal.close(); deleteModal.open(viewModal.data) }}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
-                  <Trash2 size={15}/> Delete
-                </button>
-              </div>
-            )}
-          </div>
-        }
+
       >
         {viewModal.data && (() => {
           const pkg = viewModal.data;
