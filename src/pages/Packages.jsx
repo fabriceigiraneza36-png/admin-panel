@@ -65,7 +65,7 @@ const PACKAGE_VIEW_HIDDEN_FIELDS = new Set([
   'poster_mode', 'cover_image_url', 'poster_image_url', 'thumbnail_url',
   'card_bg_image', 'card_theme', 'accent_color', 'sort_order',
   'meta_title', 'meta_description', 'booking_count', 'view_count',
-  'inquiry_count', 'author_id', 'author_name', 'published_at',
+  'booking_count', 'view_count', 'inquiry_count', 'author_id', 'author_name', 'published_at',
   'badge_label', 'badge_color', 'is_price_visible',
   'title', 'destination_name', 'destination', 'country_name', 'country',
   'description', 'short_description', 'price', 'currency',
@@ -1647,6 +1647,7 @@ export default function Packages() {
             { label: 'Duration', icon: Calendar, value: durationParts.length ? durationParts.join(' / ') : null },
             { label: 'Category', icon: Tag, value: hasPackageValue(pkg.category) ? formatPackageDetailValue(pkg.category) : null },
             { label: 'Travellers', icon: Users, value: travelerParts.length ? travelerParts.join(' · ') : null },
+            { label: 'Country', icon: Globe2, value: hasPackageValue(pkg.country_name || pkg.country) ? formatPackageDetailValue(pkg.country_name || pkg.country) : null },
             { label: 'Publication', icon: CheckCircle, value: typeof pkg.is_published === 'boolean' ? (pkg.is_published ? 'Published' : 'Draft / unpublished') : null },
             { label: 'Sales status', icon: AlertCircle, value: pkg.is_sold_out === true ? 'Sold out' : null },
           ].filter((item) => hasPackageValue(item.value));
@@ -1710,9 +1711,9 @@ export default function Packages() {
                         <MapPin size={15} /> {destinationName}
                       </p>
                     )}
-                    {(shortDescription || (!shortDescription && fullDescription)) && (
+                    {shortDescription && (
                       <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85">
-                        {shortDescription || fullDescription}
+                        {shortDescription}
                       </p>
                     )}
                   </div>
@@ -1809,9 +1810,9 @@ export default function Packages() {
                     </section>
                   )}
 
-                  {hasPackageValue(pkg.is_featured) && (
+                  {pkg.is_featured === true && (
                     <div className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-xs font-semibold text-amber-800">
-                      <Star size={15} /> {pkg.is_featured ? 'Featured package' : 'Not featured'}
+                      <Star size={15} /> Featured package
                     </div>
                   )}
 
