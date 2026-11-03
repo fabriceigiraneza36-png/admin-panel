@@ -342,10 +342,12 @@ export default function Bookings() {
   const deepLinkRequest = useRef(null)
 
   useEffect(() => {
-    document.title = selected
-      ? `${formatBookingNumber(selected.booking_number) || 'Booking details'} | Bookings | Altuvera Admin`
-      : 'Bookings | Altuvera Admin';
-  }, [selected])
+    const bookingNumber = formatBookingNumber(selected?.booking_number) || 'Booking';
+    if (view === VIEWS.VIEW && selected) document.title = `${bookingNumber} | Booking Details | Altuvera Admin`;
+    else if (view === VIEWS.EDIT && selected) document.title = `Edit ${bookingNumber} | Bookings | Altuvera Admin`;
+    else if (view === VIEWS.CREATE) document.title = 'New Booking | Bookings | Altuvera Admin';
+    else document.title = 'Bookings | Altuvera Admin';
+  }, [selected, view])
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 
