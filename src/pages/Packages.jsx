@@ -1691,7 +1691,9 @@ export default function Packages() {
             : String(rawCountry?.name || rawCountry?.title || rawCountry?.slug || '').trim();
           const shortDescription = String(pkg.short_description || '').trim();
           const fullDescription = String(pkg.description || '').trim();
-          const coverImage = getPackageImageUrl(pkg.cover_image_url || pkg.poster_image_url || pkg.thumbnail_url || pkg.image_url);
+          const coverImage = [
+            pkg.cover_image_url, pkg.poster_image_url, pkg.thumbnail_url, pkg.image_url,
+          ].map(getPackageImageUrl).find(Boolean) || '';
           const durationParts = [
             hasPackageValue(pkg.duration_days) ? String(pkg.duration_days) + ' days' : '',
             hasPackageValue(pkg.duration_nights) ? String(pkg.duration_nights) + ' nights' : '',
