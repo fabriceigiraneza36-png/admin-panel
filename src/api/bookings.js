@@ -8,6 +8,10 @@ export const bookingsAPI = {
 
   // ── Existing methods ──────────────────────────────────────────────────────
   getOne:        (id)        => apiClient.get(`${BASE}/${encodeURIComponent(id)}`),
+  getPackageBooking: (packageId, bookingId, source) => apiClient.get(
+    `/packages/${encodeURIComponent(packageId)}/bookings/${encodeURIComponent(bookingId)}`,
+    { params: source ? { source } : {} },
+  ),
   track:        (num)       => apiClient.get(`${BASE}/track/${num}`),
   mostBooked:   ()          => apiClient.get(`${BASE}/most-booked`),
   byDestination:(id)        => apiClient.get(`${BASE}/by-destination/${id}`),
