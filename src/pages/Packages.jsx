@@ -2274,14 +2274,14 @@ export default function Packages() {
                 <label className="input-label">User ID</label>
                 <input className="input" value={infoForm.user_id}
                   onChange={e => infoUpd('user_id', e.target.value)}
-                  placeholder="Optional — leave blank for guest" />
+                  placeholder="Optional if email matches an account" />
               </div>
               <div className="input-group">
                 <label className="input-label">Email *</label>
                 <input className="input" type="email"
                   value={infoForm.target_email}
                   onChange={e => infoUpd('target_email', e.target.value)}
-                  placeholder="user@example.com" />
+                  placeholder="Traveller account email" />
               </div>
               <div className="input-group">
                 <label className="input-label">Name</label>
