@@ -1,70 +1,56 @@
-// Altuvera Admin service worker: display real Web Push alerts reliably.
- // Push delivery is notification-driven; no test-only acknowledgement is required.
-
-async function displayPushNotification (data) {
-  const payloadData = data.data && typeof data.data === 'object' ? data.data : {}
-  const { receiptToken: _receiptToken, receiptUrl: _receiptUrl, ...notificationData } = payloadData
+// Altuvera Admin service worker: display production Web Push alerts.
+function displayPushNotification(payload) {
+  const payloadData = payload && payload.data && typeof payload.data === 'object'
+    ? payload.data
+    : {};
   const notificationOptions = {
-    body: data.body || data.message || 'You have a new admin alert.',
-    icon: data.icon || '/favicon.ico',
-    badge: data.badge || '/favicon.ico',
+    body: payload.body || payload.message || 'You have a new update from Altuvera.',
+    icon: payload.icon || '/favicon.ico',
+    badge: payload.badge || '/favicon.ico',
     data: {
-      ...notificationData,
-      url: payloadData.url || data.url || '/notifications',
+      ...payloadData,
+      url: payloadData.url || payload.url || '/notifications',
     },
-    requireInteraction: data.requireInteraction === true,
-    // Give each real notification its own stable tag. A shared constant tag
-    // caused unrelated alerts to overwrite one another in the browser tray.
-    tag: data.tag || (payloadData.notificationId || payloadData.notification_id || data.id
-      ? 'altuvera-notification-' + String(payloadData.notificationId || payloadData.notification_id || data.id)
-      : 'altuvera-notification-' + String(data.title || 'alert').slice(0, 48) + '-' + String(data.body || data.message || '').slice(0, 48)),
-    renotify: Boolean(data.renotify),
-  }
+    requireInteraction: payload.requireInteraction === true,
+    tag: payload.tag || ('altuvera-notification-' + (payloadData.id || 'general')),
+    renotify: Boolean(payload.renotify),
+  };
 
-  // Acknowledge display through the service worker; actual delivery is handled
-  // by the browser Push API for all notification types, not a testing workflow.
-  await self.registration.showNotification(data.title || 'Altuvera Safaris', notificationOptions)
+  return self.registration.showNotification(payload.title || 'Altuvera Admin', notificationOptions);
 }
 
 self.addEventListener('push', (event) => {
-  let data = {}
+  let payload = {};
   try {
-    data = event.data ? event.data.json() : {}
+    payload = event.data ? event.data.json() : {};
   } catch {
-    data = { body: event.data ? event.data.text() : '' }
+    payload = { body: event.data ? event.data.text() : '' };
   }
 
   event.waitUntil(
-    displayPushNotification(data).catch((error) => {
-      // The notification may already be visible. Log the acknowledgement failure
-      // so the admin panel correctly leaves the test unconfirmed instead of faking success.
-      console.error('[Altuvera push] Notification display/receipt failed:', error)
+    displayPushNotification(payload).catch((error) => {
+      console.error('[Altuvera push] Could not display browser notification:', error);
     })
-  )
-})
+  );
+});
 
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  const target = new URL(event.notification.data?.url || '/notifications', self.location.origin)
-  if (target.origin !== self.location.origin) target.href = self.location.origin + '/notifications'
+  event.notification.close();
+  const requestedUrl = event.notification.data && event.notification.data.url;
+  const target = new URL(requestedUrl || '/notifications', self.location.origin);
+  if (target.origin !== self.location.origin) target.href = self.location.origin + '/notifications';
 
   event.waitUntil((async () => {
-    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of windows) {
       if ('focus' in client) {
         if ('navigate' in client) {
-          const current = new URL(client.url)
-          if (
-            current.origin !== target.origin ||
-            current.pathname !== target.pathname ||
-            current.search !== target.search
-          ) {
-            await client.navigate(target.href)
-          }
+          const current = new URL(client.url);
+          if (current.href !== target.href) await client.navigate(target.href);
         }
-        return client.focus()
+        return client.focus();
       }
     }
-    return clients.openWindow ? clients.openWindow(target.href) : undefined
-  })())
-})
+    return clients.openWindow ? clients.openWindow(target.href) : undefined;
+  })());
+});
