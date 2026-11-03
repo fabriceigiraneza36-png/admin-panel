@@ -1622,12 +1622,12 @@ export default function Packages() {
                    <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
                      <FileText size={16} className="text-emerald-600"/>
                      <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(([, value]) => hasPackageValue(value)).length} fields</span>
+                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).length} details</span>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                     {Object.entries(viewModal.data || {}).filter(([, value]) => hasPackageValue(value)).map(([key, value], index) => {
-                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
-                       const textValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+                     {Object.entries(viewModal.data || {}).filter(isVisiblePackageDetail).map(([key, value], index) => {
+                       const Icon = /image|photo|gallery|poster|cover/i.test(key) ? Image : /price|cost|currency|discount/i.test(key) ? DollarSign : /date|duration|month|time/i.test(key) ? Calendar : /destination|country|location|region|address/i.test(key) ? MapPin : /traveler|group|people|booking/i.test(key) ? Users : /description|content|itinerary|inclusion|exclusion|faq|highlight|feature|tag/i.test(key) ? BookOpen : /published|active|sold_out|featured/i.test(key) ? CheckCircle : FileText;
+                       const textValue = formatPackageDetailValue(value);
                        return (
                          <motion.div key={key} initial={{opacity:0,y:7}} animate={{opacity:1,y:0}} transition={{duration:.22,delay:Math.min(index*.012,.24)}} className="min-w-0 rounded-xl border border-slate-100 bg-white p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
                            <div className="flex items-center gap-2 mb-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-50 text-emerald-600"><Icon size={14}/></span><span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 break-words">{key.replace(/_/g,' ')}</span></div>
