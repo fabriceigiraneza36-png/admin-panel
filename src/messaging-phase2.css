@@ -1125,3 +1125,53 @@
 /* Show 20 compact, tappable reactions without enlarging the page overlay. */
 .message-actions-modal .grid.grid-cols-4 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 .message-actions-modal .grid.grid-cols-4 button { height: 36px !important; font-size: 20px !important; }
+
+
+/* Responsive message body and imported-resource cards. */
+.messages-admin-shell,
+.messages-admin-shell > main,
+.messages-admin-shell > main > section,
+.messages-admin-shell > main > section [role="log"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+.messages-admin-shell [role="log"] > * { min-width: 0; max-width: 100%; }
+.messages-admin-shell [role="log"] img { max-width: 100%; }
+.messages-admin-shell [role="log"] .break-words,
+.messages-admin-shell [role="log"] [style*="wordBreak"] {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+.messages-admin-shell [role="log"] .truncate { min-width: 0; max-width: 100%; }
+.messages-admin-shell [role="log"] .rounded-2xl,
+.messages-admin-shell [role="log"] .rounded-xl {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.messages-admin-shell [role="log"] .flex { min-width: 0; }
+.messages-admin-shell [role="log"] .flex > .min-w-0 { overflow-wrap: anywhere; }
+.messages-admin-shell .messages-chat-composer,
+.messages-admin-shell .messages-chat-composer > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+.messages-admin-shell .messages-chat-composer textarea {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  resize: none !important;
+}
+@media (max-width: 420px) {
+  .messages-admin-shell [role="log"] { padding-inline: 8px !important; }
+  .messages-admin-shell [role="log"] .rounded-2xl {
+    max-width: calc(100vw - 76px) !important;
+  }
+  .messages-admin-shell [role="log"] .rounded-xl { max-width: 100% !important; }
+  .messages-admin-shell > main > section > header {
+    gap: 8px !important;
+    padding-inline: 10px !important;
+  }
+  .messages-admin-shell .messages-chat-composer > div:last-of-type {
+    gap: 6px !important;
+    padding-inline: 8px !important;
+  }
+}
