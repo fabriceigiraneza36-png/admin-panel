@@ -2174,6 +2174,12 @@ export default function Messages() {
       || resolveConversationPersonName(activeConv)
       || 'Conversation')
 
+  useEffect(() => {
+    document.title = activeConv
+      ? `${convTitle} | Messages | Altuvera Admin`
+      : 'Messages | Altuvera Admin';
+  }, [activeConv, convTitle])
+
   const lastBookingMessage = [...messages].reverse().find(message =>
     message?.metadata?.bookingId != null || message?.metadata?.booking?.id != null
   )
