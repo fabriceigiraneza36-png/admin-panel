@@ -64,8 +64,15 @@ self.addEventListener('notificationclick', (event) => {
     const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const client of windows) {
       if ('focus' in client) {
-        if ('navigate' in client && new URL(client.url).pathname !== target.pathname) {
-          await client.navigate(target.href)
+        if ('navigate' in client) {
+          const current = new URL(client.url)
+          if (
+            current.origin !== target.origin ||
+            current.pathname !== target.pathname ||
+            current.search !== target.search
+          ) {
+            await client.navigate(target.href)
+          }
         }
         return client.focus()
       }

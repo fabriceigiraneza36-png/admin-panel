@@ -96,10 +96,18 @@ const getNotificationUsers = (notification) => {
   })).filter((user) => user.id || user.email || user.avatarUrl);
   if (users.length) return users;
 
-  const userId = metadata.userId || metadata.user_id || notification?.user_id;
-  const avatarUrl = notification?.image_url || notification?.imageUrl;
-  if (userId && avatarUrl) {
-    return [{ id: userId, name: notification?.user_name || notification?.user_email || "Traveller", email: notification?.user_email || "", avatarUrl }];
+  const userId = metadata.userId || metadata.user_id || notification?.user_id
+    || metadata.senderId || metadata.sender_id || notification?.senderId || notification?.sender_id;
+  const avatarUrl = notification?.image_url || notification?.imageUrl
+    || notification?.senderAvatar || notification?.sender_avatar || notification?.senderAvatarUrl
+    || notification?.sender_avatar_url || metadata.senderAvatar || metadata.sender_avatar
+    || metadata.senderAvatarUrl || metadata.sender_avatar_url;
+  const name = metadata.userName || metadata.user_name || metadata.travellerName
+    || notification?.user_name || notification?.senderName || notification?.sender_name
+    || notification?.user_email || metadata.email || "";
+  const email = notification?.user_email || metadata.userEmail || metadata.user_email || metadata.email || "";
+  if (userId || avatarUrl || name || email) {
+    return [{ id: userId || null, name: name || email || "Traveller", email, avatarUrl: avatarUrl || null }];
   }
   return [];
 };
