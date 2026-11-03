@@ -1817,6 +1817,28 @@ export default function Packages() {
                 ))}
               </div>
 
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
+                <button type="button" onClick={() => handleTogglePublish(pkg)}
+                  className={pkg.is_published
+                    ? 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100'
+                    : 'inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100'}>
+                  {pkg.is_published ? <EyeOff size={14}/> : <Globe2 size={14}/>}
+                  {pkg.is_published ? 'Unpublish' : 'Publish'}
+                </button>
+                <button type="button" onClick={() => { viewModal.close(); openEdit(pkg) }}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50">
+                  <Pencil size={14}/> Edit package
+                </button>
+                <button type="button" onClick={() => { viewModal.close(); deleteModal.open(pkg) }}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
+                  <Trash2 size={14}/> Delete
+                </button>
+                <button type="button" onClick={() => openInfoRequest()}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 hover:bg-teal-100">
+                  <ClipboardList size={14}/> Request information
+                </button>
+              </div>
+
               {activeTab === 'details' && (
                 <div className="space-y-5">
                   {stats.length > 0 && (
