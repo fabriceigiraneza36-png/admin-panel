@@ -528,7 +528,6 @@ const MsgBubble = React.memo(function MsgBubble({
                     <div className="text-[9px] font-extrabold uppercase tracking-wider opacity-80">Imported {message.metadata.relatedResource.type || "resource"} · View details</div>
                     <div className="text-[11px] font-bold whitespace-normal break-words [overflow-wrap:anywhere]">{message.metadata.relatedResource.title}</div>
                   </div>
-                  <ChevronRight size={15} className="shrink-0 opacity-70"/>
                 </button>
               )}
               {resourceModalOpen && message.metadata?.relatedResource && (
