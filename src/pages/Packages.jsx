@@ -756,7 +756,9 @@ export default function Packages() {
         setPkgMessages(res.data?.data || [])
       } else if (tab === 'bookings') {
         const res = await packagesAPI.getBookings(pkg.id)
-        setPkgBookings(res.data?.data || [])
+        const body = res?.data ?? res
+        const rows = Array.isArray(body) ? body : (body?.data || body?.bookings || body?.rows || body?.result?.data || [])
+        setPkgBookings(Array.isArray(rows) ? rows : [])
       } else if (tab === 'info') {
         const res = await packagesAPI.getInfoRequests(pkg.id)
         setPkgInfoReqs(res.data?.data || [])
@@ -1548,13 +1550,13 @@ export default function Packages() {
                  })()}
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                    {[
-                     ['Price', DollarSign, hasPackageValue(viewModal.data.price) ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null],
-                     ['Duration', Calendar, hasPackageValue(viewModal.data.duration_days) || hasPackageValue(viewModal.data.duration_nights) ? [viewModal.data.duration_days ? String(viewModal.data.duration_days) + ' days' : '', viewModal.data.duration_nights != null ? String(viewModal.data.duration_nights) + ' nights' : ''].filter(Boolean).join(' / ') : null],
-                     ['Category', Tag, hasPackageValue(viewModal.data.category) ? viewModal.data.category : null],
-                     ['Travelers', Users, hasPackageValue(viewModal.data.min_travelers) || hasPackageValue(viewModal.data.max_travelers) ? [viewModal.data.min_travelers ? 'Min ' + viewModal.data.min_travelers : '', viewModal.data.max_travelers ? 'Max ' + viewModal.data.max_travelers : ''].filter(Boolean).join(' · ') : null],
-                     ['Image mode', Image, hasPackageValue(viewModal.data.poster_mode) ? viewModal.data.poster_mode : null],
+                     ['Price', DollarSign, viewModal.data.price !== null && viewModal.data.price !== undefined && viewModal.data.price !== '' ? fmtPrice(viewModal.data.price, viewModal.data.currency || 'USD') : null],
+                     ['Duration', Calendar, (viewModal.data.duration_days || viewModal.data.duration_nights) ? [viewModal.data.duration_days ? String(viewModal.data.duration_days) + ' days' : null, viewModal.data.duration_nights ? String(viewModal.data.duration_nights) + ' nights' : null].filter(Boolean).join(' / ') : null],
+                     ['Category', Tag, viewModal.data.category || null],
+                     ['Travelers', Users, (viewModal.data.min_travelers || viewModal.data.max_travelers) ? [viewModal.data.min_travelers ? 'Min ' + viewModal.data.min_travelers : null, viewModal.data.max_travelers ? 'Max ' + viewModal.data.max_travelers : null].filter(Boolean).join(' · ') : null],
+                     ['Image mode', Image, viewModal.data.poster_mode || null],
                      ['Publication', CheckCircle, typeof viewModal.data.is_published === 'boolean' ? (viewModal.data.is_published ? 'Published' : 'Unpublished') : null],
-                   ].filter(([, , value]) => hasPackageValue(value)).map(([label, Icon, value]) => (
+                   ].filter(([, , value]) => value !== null && value !== undefined && value !== '').map(([label, Icon, value]) => (
                      <div key={label} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600"><Icon size={16}/></span>
                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-semibold text-slate-700 break-words">{String(value)}</p></div>
