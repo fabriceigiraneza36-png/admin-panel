@@ -451,6 +451,7 @@ const MsgBubble = React.memo(function MsgBubble({
   onUnsend, onPin, onHighlight, onForward, onCopy, canModerate, showSenderIdentity = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [resourceModalOpen, setResourceModalOpen] = useState(false)
   // Keep a single message-actions modal open across every message bubble.
   // Opening another message's menu tells all other bubbles to close theirs.
   useEffect(() => {
@@ -519,12 +520,38 @@ const MsgBubble = React.memo(function MsgBubble({
                 </div>
               )}
               {!isDeleted && message.metadata?.relatedResource?.title && (
-                <div className={"mb-2 flex items-center gap-2 rounded-xl border px-2.5 py-2 " + (mine ? "border-white/20 bg-white/10 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-900")}>
+                <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setResourceModalOpen(true) }}
+                  aria-label={`View imported ${message.metadata.relatedResource.type || 'resource'} details`}
+                  className={"mb-2 flex w-full min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 " + (mine ? "border-white/20 bg-white/10 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-900")}>
                   {message.metadata.relatedResource.image && <img src={message.metadata.relatedResource.image} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />}
-                  <div className="min-w-0">
-                    <div className="text-[9px] font-extrabold uppercase tracking-wider opacity-80">Imported {message.metadata.relatedResource.type || "resource"}</div>
-                    <div className="truncate text-[11px] font-bold">{message.metadata.relatedResource.title}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[9px] font-extrabold uppercase tracking-wider opacity-80">Imported {message.metadata.relatedResource.type || "resource"} · View details</div>
+                    <div className="text-[11px] font-bold whitespace-normal break-words [overflow-wrap:anywhere]">{message.metadata.relatedResource.title}</div>
                   </div>
+                  <ChevronRight size={15} className="shrink-0 opacity-70"/>
+                </button>
+              )}
+              {resourceModalOpen && message.metadata?.relatedResource && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" role="presentation" onClick={() => setResourceModalOpen(false)}>
+                  <section role="dialog" aria-modal="true" aria-label="Imported resource details"
+                    onClick={event => event.stopPropagation()}
+                    className="relative max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+                    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-5">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Shared {message.metadata.relatedResource.type || 'resource'}</p>
+                        <h3 className="break-words text-base font-bold text-slate-900">{message.metadata.relatedResource.title}</h3>
+                      </div>
+                      <button type="button" onClick={() => setResourceModalOpen(false)} aria-label="Close resource details" className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100"><X size={18}/></button>
+                    </div>
+                    {message.metadata.relatedResource.image && <img src={message.metadata.relatedResource.image} alt={message.metadata.relatedResource.title || ''} className="max-h-64 w-full object-cover"/>}
+                    <div className="space-y-3 p-4 sm:p-5">
+                      {message.metadata.relatedResource.description && <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{message.metadata.relatedResource.description}</p>}
+                      {message.metadata.relatedResource.location && <p className="text-sm text-slate-600"><strong>Location:</strong> {message.metadata.relatedResource.location}</p>}
+                      {message.metadata.relatedResource.country && <p className="text-sm text-slate-600"><strong>Country:</strong> {message.metadata.relatedResource.country}</p>}
+                      {message.metadata.relatedResource.duration && <p className="text-sm text-slate-600"><strong>Duration:</strong> {message.metadata.relatedResource.duration}</p>}
+                      {!message.metadata.relatedResource.description && !message.metadata.relatedResource.location && !message.metadata.relatedResource.country && !message.metadata.relatedResource.duration && <p className="text-sm text-slate-500">This message contains a shared item reference, but no additional detail fields were attached. Close this view to continue the conversation.</p>}
+                    </div>
+                  </section>
                 </div>
               )}
               {!isDeleted && message.metadata?.resource?.name && (
