@@ -34,13 +34,19 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' }
   }
 
-  event.waitUntil(
-    displayPushNotification(data).catch((error) => {
-      // The notification may already be visible. Log the acknowledgement failure
-      // so the admin panel correctly leaves the test unconfirmed instead of faking success.
-      console.error('[Altuvera push] Notification display/receipt failed:', error)
-    })
-  )
+  event.waitUntil((async () => {
+    // Keep browser-tray alerts out of the way while an admin is actively using
+    // the panel. The in-app notification centre/socket remains the live surface.
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const panelIsActive = windows.some((client) =>
+      client.visibilityState === 'visible' && (client.focused === true || client.focused == null)
+    )
+    if (panelIsActive) return
+
+    await displayPushNotification(data)
+  })().catch((error) => {
+    console.error('[Altuvera push] Notification display failed:', error)
+  }))
 })
 
 self.addEventListener('notificationclick', (event) => {
