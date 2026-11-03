@@ -1558,7 +1558,7 @@ export default function Packages() {
                    <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 border-b border-slate-200">
                      <FileText size={16} className="text-emerald-600"/>
                      <h4 className="text-sm font-bold text-slate-700">Complete saved package information</h4>
-                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.keys(viewModal.data || {}).length} fields</span>
+                     <span className="ml-auto text-[10px] font-semibold text-slate-400">{Object.entries(viewModal.data || {}).filter(([, value]) => value !== null && value !== undefined && !(typeof value === 'string' && !value.trim()) && !(Array.isArray(value) && value.length === 0) && !(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)).length} fields</span>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                      {Object.entries(viewModal.data || {}).filter(([, value]) => {

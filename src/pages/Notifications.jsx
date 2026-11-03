@@ -613,7 +613,7 @@ function PushNotificationBar () {
   const [settingsError, setSettingsError] = useState('')
   const [settingsReady, setSettingsReady] = useState(false)
 
-  const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\\/+$/, '')
+  const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\/+$/, '')
   const getToken = () => {
     try {
       return localStorage.getItem('altuvera_admin_token') ||
