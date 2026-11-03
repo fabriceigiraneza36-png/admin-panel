@@ -757,7 +757,12 @@ export default function Packages() {
       } else if (tab === 'bookings') {
         const res = await packagesAPI.getBookings(pkg.id)
         const body = res?.data ?? res
-        const rows = Array.isArray(body) ? body : (body?.data || body?.bookings || body?.rows || body?.result?.data || [])
+        // API responses may be wrapped more than once by the backend/client.
+        // Unwrap known envelopes without treating a single booking object as a list.
+        let rows = body
+        for (let depth = 0; depth < 4 && rows && !Array.isArray(rows); depth += 1) {
+          rows = rows.data ?? rows.bookings ?? rows.rows ?? rows.results ?? rows.result ?? rows.items
+        }
         setPkgBookings(Array.isArray(rows) ? rows : [])
       } else if (tab === 'info') {
         const res = await packagesAPI.getInfoRequests(pkg.id)
@@ -792,7 +797,7 @@ export default function Packages() {
   useEffect(() => {
     if (loading || deepLinkHandled.current) return
     const packageId = searchParams.get('packageId')
-    const requestId = searchParams.get('requestId')
+    const requestId = searchParams.get('requestId') || searchParams.get('bookingId')
     if (!packageId) return
 
     let cancelled = false
@@ -803,7 +808,8 @@ export default function Packages() {
 
         if (!pkg) {
           const res = await packagesAPI.getById(packageId)
-          pkg = res?.data || res
+          const payload = res?.data ?? res
+          pkg = payload?.data?.package ?? payload?.data ?? payload?.package ?? payload
         }
 
         if (!pkg?.id || cancelled) return
