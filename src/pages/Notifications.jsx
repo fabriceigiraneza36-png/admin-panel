@@ -17,13 +17,14 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
-  Send, Smartphone,
+  BellRing, SlidersHorizontal, ShieldCheck, Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useNotifications } from "@context/NotificationContext";
-import { usePush } from "@context/PushNotificationContext";
 import ConfirmDialog        from "@components/common/ConfirmDialog";
+import Modal                from "@components/common/Modal";
+import apiClient            from "@api/client";
 import Avatar                from "@components/common/Avatar";
 import { getNotificationTarget } from "@utils/notificationTarget";
 
@@ -364,6 +365,7 @@ export default function Notifications() {
   const [busyId, setBusyId] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null });
+  const [userPushSettingsOpen, setUserPushSettingsOpen] = useState(false);
 
   const openUserProfile = useCallback((userId) => {
     if (!userId) return;
@@ -473,8 +475,28 @@ export default function Notifications() {
         </div>
       </div>
 
-      {/* ── Push Notifications ── */}
-      <PushNotificationBar />
+      {/* Browser push delivery is managed centrally for travellers; admin alerts stay enabled. */}
+      <section className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+            <BellRing size={20} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-900">Traveller browser notifications</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
+              Manage whether Altuvera sends browser alerts to travellers when they are away from the website. Admin and manager alerts remain enabled.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setUserPushSettingsOpen(true)}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+        >
+          <SlidersHorizontal size={15} />
+          Delivery settings
+        </button>
+      </section>
 
       {/* Search */}
       <div className="mb-4 relative">
@@ -586,6 +608,11 @@ export default function Notifications() {
         description="This will permanently delete every notification. This action cannot be undone."
       />
 
+      <UserBrowserPushSettingsModal
+        isOpen={userPushSettingsOpen}
+        onClose={() => setUserPushSettingsOpen(false)}
+      />
+
       <ConfirmDialog
         isOpen={confirmDelete.open}
         onClose={() => setConfirmDelete({ open: false, id: null })}
@@ -599,231 +626,102 @@ export default function Notifications() {
   );
 }
 
-/* ── Push Notification Bar ─────────────────────────────────────────── */
+function UserBrowserPushSettingsModal({ isOpen, onClose }) {
+  const [enabled, setEnabled] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
 
-function PushNotificationBar () {
-  const {
-    supported,
-    permission,
-    subscribed,
-    serverSynced,
-    loading,
-    subscribeUser,
-    unsubscribeUser,
-    requestPermission,
-    syncSubscription,
-  } = usePush()
-  const [showDetails, setShowDetails] = useState(false)
-  const [testSending, setTestSending] = useState(false)
-  const [testResult, setTestResult] = useState(null)
+  useEffect(() => {
+    if (!isOpen) return undefined
+    let active = true
+    setLoading(true)
+    setError('')
+    setSaved(false)
+    apiClient.get('/push/user-delivery-settings')
+      .then(response => {
+        if (!active) return
+        const data = response?.data?.data ?? response?.data ?? {}
+        setEnabled(data.enabled !== false)
+      })
+      .catch(requestError => {
+        if (!active) return
+        setError(requestError?.response?.data?.message || requestError?.message || 'Could not load browser notification settings.')
+      })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [isOpen])
 
-  const handleTest = async () => {
-    setTestSending(true)
-    setTestResult({ tone: 'pending', message: 'Sending a real push to this admin’s registered browsers…' })
-
+  const updateEnabled = async (nextValue) => {
+    if (saving || loading) return
+    setSaving(true)
+    setError('')
+    setSaved(false)
     try {
-      const apiBase = (import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api').replace(/\/+$/, '')
-      const token = localStorage.getItem('altuvera_admin_token') ||
-        localStorage.getItem('adminToken') ||
-        localStorage.getItem('token') ||
-        sessionStorage.getItem('altuvera_admin_token') ||
-        sessionStorage.getItem('adminToken') || ''
-      if (!token) throw new Error('Your admin session token is missing. Sign in again before testing push notifications.')
-
-      const headers = { Authorization: 'Bearer ' + token }
-      const sendResponse = await fetch(apiBase + '/push/test', {
-        method: 'POST',
-        credentials: 'include',
-        headers,
-        cache: 'no-store',
-      })
-      const sendData = await sendResponse.json().catch(() => ({}))
-      if (!sendResponse.ok || sendData.success === false || !sendData.testId) {
-        throw new Error(sendData.message || 'The backend could not send the browser push test (HTTP ' + sendResponse.status + ').')
-      }
-
-      const testId = sendData.testId
-      const total = Number(sendData.total || 0)
-      const accepted = Number(sendData.providerAccepted || 0)
-      setTestResult({
-        tone: accepted > 0 ? 'pending' : 'error',
-        message: accepted + ' of ' + total + ' push request(s) were accepted by the push service. Waiting for browser confirmation…',
-      })
-
-      const deadline = Date.now() + 25000
-      let latest = null
-
-      while (Date.now() < deadline) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1500))
-        const statusResponse = await fetch(apiBase + '/push/test/' + encodeURIComponent(testId), {
-          method: 'GET',
-          credentials: 'include',
-          headers,
-          cache: 'no-store',
-        })
-        const statusData = await statusResponse.json().catch(() => ({}))
-        if (!statusResponse.ok || statusData.success === false) {
-          throw new Error(statusData.message || 'Could not verify whether a browser received the test notification.')
-        }
-
-        latest = statusData
-        const received = Number(statusData.browserReceived || 0)
-        const awaiting = Number(statusData.awaitingBrowserReceipt || 0)
-        const failed = Number(statusData.providerFailed || 0)
-        const allConfirmed = received === Number(statusData.total || 0) && Number(statusData.total || 0) > 0
-
-        if (allConfirmed) {
-          setTestResult({
-            tone: 'success',
-            message: 'Confirmed: ' + received + ' of ' + statusData.total + ' browser(s) received the push and completed the notification display request.',
-          })
-          return
-        }
-
-        if (received > 0) {
-          setTestResult({
-            tone: 'partial',
-            message: 'Browser confirmation: ' + received + ' of ' + statusData.total + '. Still waiting for ' + awaiting + ' browser(s); ' + failed + ' push request(s) failed.',
-          })
-        } else if (Number(statusData.providerAccepted || 0) > 0) {
-          setTestResult({
-            tone: 'pending',
-            message: 'The push service accepted ' + statusData.providerAccepted + ' request(s), but no browser receipt has arrived yet. Waiting…',
-          })
-        } else {
-          setTestResult({
-            tone: 'error',
-            message: 'No browser push was accepted. Check the browser subscription and backend push configuration.',
-          })
-          return
-        }
-      }
-
-      if (latest) {
-        const received = Number(latest.browserReceived || 0)
-        const awaiting = Number(latest.awaitingBrowserReceipt || 0)
-        setTestResult({
-          tone: received > 0 ? 'partial' : 'pending',
-          message: 'Final check: ' + received + ' of ' + latest.total + ' browser(s) confirmed receipt; ' + awaiting + ' are still awaiting confirmation. Provider acceptance alone is not counted as browser delivery. Check the browser’s notification permission, device connection, and notification/Do Not Disturb settings.',
-        })
-      }
-    } catch (error) {
-      setTestResult({
-        tone: 'error',
-        message: error?.message || 'Test notification failed. The browser receipt was not confirmed.',
-      })
+      const response = await apiClient.patch('/push/user-delivery-settings', { enabled: nextValue })
+      const data = response?.data?.data ?? response?.data ?? {}
+      setEnabled(data.enabled !== false)
+      setSaved(true)
+    } catch (requestError) {
+      setError(requestError?.response?.data?.message || requestError?.message || 'Could not save browser notification settings.')
     } finally {
-      setTestSending(false)
+      setSaving(false)
     }
   }
 
-  if (!supported) return null
-
-  const resultColor = testResult?.tone === 'success'
-    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-    : testResult?.tone === 'error'
-      ? 'text-red-700 bg-red-50 border-red-200'
-      : testResult?.tone === 'partial'
-        ? 'text-amber-800 bg-amber-50 border-amber-200'
-        : 'text-slate-700 bg-slate-50 border-slate-200'
-
   return (
-    <div className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Smartphone className="text-purple-600" size={18} />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Traveller browser notifications"
+      subtitle="Control external browser push delivery for regular Altuvera users."
+      size="md"
+      icon={<BellRing size={19} />}
+      footer={
+        <div className="flex justify-end">
+          <button type="button" onClick={onClose} className="btn-secondary">Close</button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 shadow-sm">
+            <ShieldCheck size={17} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Admin delivery is always on</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">This setting only controls browser push notifications sent to end-users. It never disables admin or manager alerts.</p>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-800 truncate">Browser Push Notifications</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {subscribed
-                ? serverSynced
-                  ? 'This browser is registered to the signed-in admin account.'
-                  : 'A browser subscription exists but needs to sync with the admin account.'
-                : 'Enable push to receive admin alerts when the panel is not open.'}
+            <p className="text-sm font-bold text-slate-900">Send browser notifications to travellers</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {enabled ? 'Enabled — user-targeted notifications are sent to subscribed browsers.' : 'Paused — user-targeted notifications remain in the in-app inbox, but external browser push is not sent.'}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {subscribed ? (
-            <button
-              onClick={unsubscribeUser}
-              disabled={loading}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
-            >
-              Disable
-            </button>
-          ) : (
-            <button
-              onClick={permission === 'granted' ? subscribeUser : requestPermission}
-              disabled={loading || permission === 'denied' || permission === 'unsupported'}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Working…' : permission === 'granted' ? 'Enable' : permission === 'denied' ? 'Blocked' : 'Allow'}
-            </button>
-          )}
           <button
-            onClick={() => setShowDetails((v) => !v)}
-            className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Allow browser push notifications to end-users"
+            disabled={loading || saving}
+            onClick={() => updateEnabled(!enabled)}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 ${enabled ? 'bg-emerald-600' : 'bg-slate-300'}`}
           >
-            {showDetails ? 'Hide' : 'Details'}
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
+
+        {loading && <p className="flex items-center gap-2 text-xs text-slate-500"><Loader2 size={14} className="animate-spin" /> Loading saved setting…</p>}
+        {saving && <p className="flex items-center gap-2 text-xs text-slate-500"><Loader2 size={14} className="animate-spin" /> Saving setting…</p>}
+        {saved && !saving && <p role="status" className="flex items-center gap-2 text-xs font-medium text-emerald-700"><ShieldCheck size={14} /> Setting saved successfully.</p>}
+        {error && <p role="alert" className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">{error}</p>}
+
+        <p className="text-[11px] leading-5 text-slate-400">Travellers must have granted notification permission and registered their browser on Altuvera before they can receive push alerts on that device.</p>
       </div>
-
-      {showDetails && (
-        <div className="mt-3 pt-3 border-t border-purple-100 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-            <div>
-              <span className="text-slate-500">Permission:</span>
-              <span className="ml-1 font-semibold text-slate-800">{permission}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">Browser:</span>
-              <span className={'ml-1 font-bold ' + (subscribed ? 'text-purple-700' : 'text-slate-600')}>
-                {subscribed ? 'Subscribed' : 'Not subscribed'}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500">Server sync:</span>
-              <span className={'ml-1 font-bold ' + (serverSynced ? 'text-emerald-700' : 'text-amber-700')}>
-                {serverSynced ? 'Confirmed' : 'Not synced'}
-              </span>
-            </div>
-          </div>
-
-          {subscribed && !serverSynced && (
-            <button
-              onClick={syncSubscription}
-              disabled={loading}
-              className="btn-secondary btn-sm disabled:opacity-50"
-            >
-              {loading ? 'Syncing…' : 'Sync this browser'}
-            </button>
-          )}
-
-          <button
-            onClick={handleTest}
-            disabled={!subscribed || !serverSynced || testSending}
-            className="btn-secondary btn-sm disabled:opacity-50"
-          >
-            <Send size={14} className={testSending ? 'animate-spin' : ''} />
-            {testSending ? 'Verifying browser receipt…' : 'Send real browser test'}
-          </button>
-
-          {testResult && (
-            <p
-              role="status"
-              aria-live="polite"
-              className={'text-xs leading-relaxed border rounded-xl px-3 py-2 ' + resultColor}
-            >
-              {testResult.message}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+    </Modal>
   )
 }
