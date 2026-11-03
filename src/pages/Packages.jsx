@@ -4,7 +4,7 @@ import {
   Package, Plus, Eye, Pencil, Trash2, RefreshCw,
   Globe2, EyeOff, Star, DollarSign, Calendar, MapPin,
   Users, MessageSquare, BookOpen, CheckCircle,
-  XCircle, Clock, AlertCircle, Send, FileText,
+  XCircle, X, Clock, AlertCircle, Send, FileText,
   Palette, ChevronDown, ChevronUp, Image, Search,
   TrendingUp, BarChart3, ShoppingBag, Filter, Database, Tag, ClipboardList,
 } from 'lucide-react'
