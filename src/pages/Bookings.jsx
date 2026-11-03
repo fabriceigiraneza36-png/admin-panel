@@ -407,44 +407,66 @@ export default function Bookings() {
     }
   }, [load])
 
-  // Deep links from admin notifications open the exact booking record.
-  // A direct lookup is used when the record is outside the current paginated list.
+  // Deep links from package and standard booking notifications open the exact record.
+  // Package requests are looked up through their package-specific endpoint so
+  // both current bookings and historical package_bookings records are supported.
   useEffect(() => {
     const bookingId = searchParams.get('bookingId');
+    const bookingType = searchParams.get('bookingType');
+    const packageId = searchParams.get('packageId');
+    const bookingSource = searchParams.get('bookingSource');
+    const isPackageBooking = bookingType === 'package' && Boolean(packageId);
     if (!bookingId || deepLinkHandled.current || loading) return;
 
-    const match = items.find((booking) =>
+    const match = isPackageBooking ? null : items.find((booking) =>
       String(booking.id) === String(bookingId) ||
       String(booking.booking_id || '') === String(bookingId) ||
       String(booking.booking_number || '') === String(bookingId)
     );
 
-    if (match) {
+    const displayBooking = (booking) => {
+      if (!booking || !booking.id) throw new Error('Booking could not be found.');
       deepLinkHandled.current = true;
-      setSelected(match);
+      setSelected({
+        ...booking,
+        booking_type: booking.booking_type || (isPackageBooking ? 'package' : booking.booking_type),
+        package_id: booking.package_id || (isPackageBooking ? packageId : booking.package_id),
+        source_table: booking.source_table || (isPackageBooking ? bookingSource : booking.source_table),
+      });
       setReview({ decision: null, response: '' });
       setView(VIEWS.VIEW);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    if (match) {
+      displayBooking(match);
       return;
     }
 
-    if (deepLinkRequest.current === String(bookingId)) return;
-    deepLinkRequest.current = String(bookingId);
+    const requestKey = [bookingType || 'booking', packageId || '', bookingId, bookingSource || ''].join(':');
+    if (deepLinkRequest.current === requestKey) return;
+    deepLinkRequest.current = requestKey;
     let cancelled = false;
 
     const openBookingFromLink = async () => {
       try {
-        const response = await bookingsAPI.getOne(bookingId);
+        let response;
+        if (isPackageBooking) {
+          try {
+            response = await bookingsAPI.getPackageBooking(packageId, bookingId, bookingSource);
+          } catch (packageLookupError) {
+            // Current unified bookings are also indexed by the standard endpoint;
+            // keep this fallback for deployments that have not yet received the
+            // package-specific single-booking route.
+            response = await bookingsAPI.getOne(bookingId);
+          }
+        } else {
+          response = await bookingsAPI.getOne(bookingId);
+        }
         const body = response?.data || response;
-        const booking = body?.data || body?.booking || body;
-        if (!booking?.id) throw new Error('Booking could not be found.');
-
+        const booking = body?.data?.booking || body?.data || body?.booking || body;
         if (cancelled) return;
-        deepLinkHandled.current = true;
-        setSelected(booking);
-        setReview({ decision: null, response: '' });
-        setView(VIEWS.VIEW);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        displayBooking(booking);
       } catch (error) {
         if (cancelled) return;
         // Keep the existing server-side search fallback for legacy identifiers.
