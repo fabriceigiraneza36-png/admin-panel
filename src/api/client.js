@@ -32,7 +32,12 @@ const getCache = new Map()
 const isCacheableGet = (config) => {
   const method = String(config?.method || 'get').toLowerCase()
   const url = String(config?.url || '')
-  return method === 'get' && !url.includes('/notifications')
+  // Booking requests can be created from the public site while this admin
+  // panel is open. Never serve a previously empty booking list from cache.
+  const isLiveOperationalData = url.includes('/notifications') ||
+    url.includes('/bookings') ||
+    url.includes('/push/user-delivery-settings')
+  return method === 'get' && !isLiveOperationalData
 }
 
 const cacheKeyFor = (config) => {
