@@ -19,7 +19,7 @@ import { motion } from 'framer-motion'
 import Table, { TableActions, TableAction } from '@components/common/Table'
 import Pagination                           from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
-import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
+import Modal, { ModalSection, ModalGrid, ModalField, DetailValue } from '@components/common/Modal'
 import Badge                                from '@components/common/Badge'
 import Avatar                               from '@components/common/Avatar'
 import ConfirmDialog                        from '@components/common/ConfirmDialog'
@@ -1957,9 +1957,9 @@ export default function Packages() {
                                   {key.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}
                                 </span>
                               </div>
-                              <p className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700">
-                                {formatPackageDetailValue(value)}
-                              </p>
+                              <div className="min-w-0 break-words text-xs leading-5 text-slate-700">
+                                <DetailValue label={key} value={normalizePackageValue(value)} />
+                              </div>
                             </motion.div>
                           );
                         })}
