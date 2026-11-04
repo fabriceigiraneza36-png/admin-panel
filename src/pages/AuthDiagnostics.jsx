@@ -3,15 +3,9 @@ import {
   Activity, AlertTriangle, Check, ChevronDown, ChevronUp, Copy,
   Filter, RefreshCw, ShieldAlert, Wifi, Clock3,
 } from 'lucide-react'
+import { getToken } from '@utils/helpers'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
-
-const getToken = () =>
-  localStorage.getItem('altuvera_admin_token') ||
-  localStorage.getItem('adminToken') ||
-  localStorage.getItem('token') ||
-  sessionStorage.getItem('altuvera_admin_token') ||
-  sessionStorage.getItem('adminToken') ||
+const API_BASE = import.meta.env.VITE_API_URL ||ionStorage.getItem('adminToken') ||
   ''
 
 const PROVIDERS = [
