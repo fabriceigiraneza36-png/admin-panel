@@ -7,7 +7,7 @@ import { getToken } from '@utils/helpers'
 
 const RAW_API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'https://backend-jd8f.onrender.com/api'
 const API_BASE = (() => {
-  const base = RAW_API_BASE.trim().replace(/\\/+$/, '')
+  const base = RAW_API_BASE.trim().replace(/\/+$/, '')
   return base.endsWith('/api') ? base : `${base}/api`
 })()
 
