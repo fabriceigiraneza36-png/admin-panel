@@ -153,16 +153,134 @@ export function ModalGrid({ children, cols = 2 }) {
   )
 }
 
+/* ── Media-aware values for detail views ── */
+const IMAGE_FIELD_HINT = /image|photo|gallery|flag|cover|hero|banner|thumbnail|avatar|poster|portrait|media|picture|logo/i;
+const IMAGE_URL_PATTERN = /^(?:https?:\\/\\/|blob:|data:image\\/|\\/uploads\\/|\\/media\\/|\\/storage\\/)/i;
+const IMAGE_EXTENSION_PATTERN = /\\.(?:avif|gif|jpe?g|png|webp|svg|bmp|tiff?)(?:[?#].*)?$/i;
+const IMAGE_OBJECT_KEYS = ['url', 'image_url', 'imageUrl', 'src', 'path', 'image', 'photo_url', 'photoUrl'];
+
+function getImageValueUrl(value) {
+  if (typeof value === 'string') return value.trim();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  for (const key of IMAGE_OBJECT_KEYS) {
+    if (typeof value[key] === 'string' && value[key].trim()) return value[key].trim();
+  }
+  return '';
+}
+
+function looksLikeImageUrl(url, label = '') {
+  if (!url || !IMAGE_URL_PATTERN.test(url)) return false;
+  return IMAGE_FIELD_HINT.test(String(label)) || IMAGE_EXTENSION_PATTERN.test(url);
+}
+
+function ImageDetailPreview({ url, label = 'Image' }) {
+  const readableLabel = String(label).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim();
+  return (
+    <div className="w-full max-w-xl space-y-1.5">
+      <a href={url} target="_blank" rel="noreferrer"
+        className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+        <img src={url} alt={readableLabel || 'Saved image'} loading="lazy"
+          className="block max-h-56 min-h-24 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          onError={(event) => {
+            event.currentTarget.style.display = 'none';
+            const fallback = event.currentTarget.parentElement?.querySelector('[data-image-fallback]');
+            if (fallback) fallback.style.display = 'flex';
+          }} />
+        <span data-image-fallback style={{ display: 'none' }}
+          className="min-h-24 w-full flex-col items-center justify-center gap-1 px-3 py-5 text-center text-xs font-semibold text-slate-500">
+          <span className="text-sm">Image unavailable</span>
+          <span className="font-normal">The saved image could not be loaded.</span>
+        </span>
+        <span className="pointer-events-none absolute bottom-2 right-2 rounded-lg bg-slate-950/65 px-2.5 py-1 text-[10px] font-bold text-white opacity-0 backdrop-blur transition group-hover:opacity-100">
+          View full image
+        </span>
+      </a>
+      <p className="break-all text-[10px] text-slate-400" title={url}>{readableLabel || 'Image'} preview</p>
+    </div>
+  );
+}
+
+/**
+ * Renders values from saved records without exposing raw image URLs.
+ * Image fields, image-looking URLs, nested media objects and galleries become
+ * visual previews; ordinary text and non-image links remain readable.
+ */
+export function DetailValue({ label = '', value }) {
+  if (value === null || value === undefined || value === '') {
+    return <span className="text-slate-400 italic">—</span>;
+  }
+  if (React.isValidElement(value)) return value;
+  if (typeof value === 'boolean') {
+    return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${value ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{value ? 'Yes' : 'No'}</span>;
+  }
+  if (typeof value === 'number') {
+    return <span className="tabular-nums">{Number.isFinite(value) ? value.toLocaleString() : '—'}</span>;
+  }
+
+  if (Array.isArray(value)) {
+    const items = value.filter((item) => item !== null && item !== undefined && item !== '');
+    if (!items.length) return <span className="text-slate-400 italic">—</span>;
+    const imageItems = items.map((item) => ({ item, url: getImageValueUrl(item) || (typeof item === 'string' ? item.trim() : '') }))
+      .filter(({ url }) => looksLikeImageUrl(url, label));
+    if (imageItems.length === items.length) {
+      return (
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+          {imageItems.map(({ item, url }, index) => (
+            <ImageDetailPreview key={item?.id ?? url ?? index} url={url}
+              label={item?.caption || item?.title || (items.length > 1 ? `${label || 'Image'} ${index + 1}` : label || 'Image')} />
+          ))}
+        </div>
+      );
+    }
+    return <div className="flex flex-wrap gap-1.5">{items.map((item, index) => (
+      <span key={item?.id ?? index} className="inline-flex max-w-full items-center rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+        <DetailValue label={label} value={item} />
+      </span>
+    ))}</div>;
+  }
+
+  if (typeof value === 'object') {
+    const objectUrl = getImageValueUrl(value);
+    if (looksLikeImageUrl(objectUrl, label)) {
+      return <ImageDetailPreview url={objectUrl} label={value.caption || value.title || label || 'Image'} />;
+    }
+    const entries = Object.entries(value).filter(([key, child]) =>
+      !/^(id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
+      child !== null && child !== undefined && child !== ''
+    );
+    if (!entries.length) return <span className="text-slate-400">No details provided</span>;
+    return (
+      <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+        {entries.map(([key, child]) => (
+          <div key={key} className="min-w-0 rounded-lg border border-slate-100 bg-white p-2.5">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ')}</p>
+            <div className="min-w-0 break-words text-sm text-slate-700"><DetailValue label={key} value={child} /></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const textValue = String(value).trim();
+  if (looksLikeImageUrl(textValue, label)) {
+    return <ImageDetailPreview url={textValue} label={label || 'Image'} />;
+  }
+  if (IMAGE_URL_PATTERN.test(textValue)) {
+    return <a href={textValue} target="_blank" rel="noreferrer" className="break-all text-sm font-semibold text-emerald-700 underline-offset-2 hover:underline">Open link</a>;
+  }
+  return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
+}
+
 /* ── Field display row inside modal ── */
 export function ModalField({ label, value, className = '' }) {
   return (
-    <div className={className}>
+    <div className={`min-w-0 ${className}`}>
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
         {label}
       </p>
-      <p className="text-sm font-medium text-slate-800 break-words whitespace-pre-wrap">
-        {value === null || value === undefined || value === '' ? <span className="text-slate-400 italic">—</span> : value}
-      </p>
+      <div className="min-w-0 text-sm font-medium text-slate-800 break-words whitespace-pre-wrap">
+        <DetailValue label={label} value={value} />
+      </div>
     </div>
   )
 }
