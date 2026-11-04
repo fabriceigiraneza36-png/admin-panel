@@ -5,8 +5,11 @@ import {
 } from 'lucide-react'
 import { getToken } from '@utils/helpers'
 
-const API_BASE = import.meta.env.VITE_API_URL ||ionStorage.getItem('adminToken') ||
-  ''
+const RAW_API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'https://backend-jd8f.onrender.com/api'
+const API_BASE = (() => {
+  const base = RAW_API_BASE.trim().replace(/\\/+$/, '')
+  return base.endsWith('/api') ? base : `${base}/api`
+})()
 
 const PROVIDERS = [
   { value: '', label: 'All providers' },
