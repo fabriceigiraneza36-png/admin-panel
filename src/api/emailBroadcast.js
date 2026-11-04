@@ -17,6 +17,22 @@ export const emailBroadcastAPI = {
   saveTemplate: (payload) => apiClient.post(`${BASE}/templates`, payload),
   getHistory: () => apiClient.get(`${BASE}/history`),
 
+  // Content-aware campaigns: real content records and destination media.
+  getContentLibrary: (params = {}) => apiClient.get(`${BASE}/content/library`, { params }),
+  getRecipients: (params = {}) => apiClient.get(`${BASE}/recipients`, { params }),
+  getAudienceSettings: () => apiClient.get(`${BASE}/audience-settings`),
+  updateAudienceSettings: (payload) => apiClient.put(`${BASE}/audience-settings`, payload),
+  saveAudienceList: (payload) => apiClient.post(`${BASE}/audiences`, payload),
+  deleteAudienceList: (id) => apiClient.delete(`${BASE}/audiences/${encodeURIComponent(id)}`),
+  previewContentCampaign: (payload) => apiClient.post(`${BASE}/content-preview`, payload),
+  sendContentCampaign: (payload) => apiClient.post(`${BASE}/content-send`, payload),
+  attachContentImages: (type, id, formData) => apiClient.post(`${BASE}/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }, timeout: 90000,
+  }),
+  uploadGalleryAssets: (formData) => apiClient.post(`${BASE}/assets/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }, timeout: 90000,
+  }),
+
   // Distinct nationalities (with counts) for the audience dropdown
   getNationalities: () => apiClient.get(`${BASE}/nationalities`),
 
