@@ -568,8 +568,16 @@ const MsgBubble = React.memo(function MsgBubble({
                 </div>
               )}
               {!isDeleted && message.metadata?.resource?.name && (
-                <div className={`mb-2 rounded-lg border px-2.5 py-2 text-[10px] ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                  <div className="flex items-center gap-1.5 font-extrabold"><Search size={12}/> {message.metadata.resource.type || 'Resource'} · {message.metadata.resource.name}</div>
+                <div className={`altu-message-subject mb-2 flex min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 ${mine ? 'border-white/20 bg-white/10 text-white' : 'border-emerald-100 bg-emerald-50/90 text-slate-800'}`}>
+                  {message.metadata.resource.imageUrl || message.metadata.resource.image_url
+                    ? <img src={message.metadata.resource.imageUrl || message.metadata.resource.image_url} alt="" loading="lazy" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                    : <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${mine ? 'bg-white/10 text-emerald-100' : 'bg-white text-emerald-700'}`}><Search size={17}/></span>}
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-[9px] font-extrabold uppercase tracking-[.14em] ${mine ? 'text-emerald-100' : 'text-emerald-700'}`}>Message subject · {message.metadata.resource.type || 'Travel item'}</span>
+                    <span className="mt-0.5 block break-words text-[11px] font-extrabold leading-snug">{message.metadata.resource.name}</span>
+                    {message.metadata.resource.country && <span className={`mt-0.5 block truncate text-[10px] ${mine ? 'text-white/70' : 'text-slate-500'}`}>{message.metadata.resource.country}</span>}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-extrabold uppercase tracking-wider ${mine ? 'bg-white/10 text-white/80' : 'bg-white text-emerald-700'}`}>Subject</span>
                 </div>
               )}
               {!isDeleted && (message.msgType === 'itinerary' || message.metadata?.kind === 'itinerary') && (

@@ -1175,3 +1175,27 @@
     padding-inline: 8px !important;
   }
 }
+
+/* Altuvera messaging refresh — shared visual language with the traveller portal */
+.messages-admin-shell{--altu-admin-green:#087a55;--altu-admin-deep:#07513d;--altu-admin-line:#e2ece6;--altu-admin-ink:#14251e;background:#f5faf7;color:var(--altu-admin-ink)}
+.messages-admin-shell>header{background:linear-gradient(120deg,#fff,#f3faf6);border-bottom-color:#e2ece6;box-shadow:0 8px 26px rgba(8,55,34,.055)}
+.messages-admin-shell main>aside{background:linear-gradient(180deg,#fff,#fbfefc);border-right-color:#e3ece6}
+.messages-admin-shell aside>div:first-child{background:linear-gradient(145deg,#fff,#f4faf6)}
+.messages-admin-shell aside>div:nth-child(2)>div.divide-y>button{position:relative;transition:background-color .18s,transform .18s,box-shadow .18s}
+.messages-admin-shell aside>div:nth-child(2)>div.divide-y>button:active{transform:scale(.994)}
+.messages-admin-shell aside>div:nth-child(2)>div.divide-y>button[aria-pressed=true]{background:linear-gradient(100deg,#eaf7ef,#f8fcf9 78%,#fff);box-shadow:inset 3px 0 #0a8a5d}
+.messages-admin-shell main>section{background:radial-gradient(ellipse at 10% 0%,rgba(210,239,222,.24),transparent 36%),#f8fbf9}
+.messages-admin-shell main>section>header{min-height:78px;background:rgba(255,255,255,.95);border-bottom-color:#e4ede7;box-shadow:0 8px 24px rgba(10,52,34,.045);backdrop-filter:blur(14px)}
+.messages-admin-shell [role=log]{padding:clamp(14px,2.2vw,28px);background:radial-gradient(circle at 1px 1px,rgba(16,94,58,.03) 1px,transparent 0) 0 0/22px 22px,transparent}
+.messages-admin-shell .messages-chat-composer{padding-top:12px;background:linear-gradient(180deg,rgba(255,255,255,.98),#fff);border-top-color:#e2ece6;box-shadow:0 -10px 28px rgba(15,55,34,.035)}
+.messages-admin-shell .messages-chat-composer textarea{min-height:46px!important;border-color:#dfeae3;background:#f8fbf9;border-radius:15px}
+.messages-admin-shell .messages-chat-composer textarea:focus{border-color:#79c9a1;box-shadow:0 0 0 4px rgba(16,145,88,.08)}
+.messages-admin-shell .messages-chat-composer button[aria-label="Send"],.messages-admin-shell .messages-chat-composer button[aria-label="Send message"]{background:linear-gradient(135deg,#0b8b5d,#066544);box-shadow:0 6px 15px rgba(7,120,77,.18)}
+.messages-admin-shell [data-message-id]{animation:altu-admin-message-rise .22s cubic-bezier(.2,.75,.25,1) both}
+.messages-admin-shell .altu-message-subject{border-radius:14px;box-shadow:0 3px 12px rgba(10,71,43,.045);animation:altu-admin-message-rise .2s ease both}
+.messages-admin-shell .altu-message-subject img{border:1px solid rgba(15,83,50,.08)}
+.messages-admin-shell .message-modal-card{border-radius:24px;border-color:#dcebe2;box-shadow:0 28px 90px rgba(2,24,17,.24)}
+.messages-admin-shell button:focus-visible,.messages-admin-shell input:focus-visible,.messages-admin-shell textarea:focus-visible{outline:3px solid rgba(13,143,88,.24);outline-offset:2px}
+@keyframes altu-admin-message-rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:767px){.messages-admin-shell{border-radius:0}.messages-admin-shell>header{padding:10px 12px}.messages-admin-shell main>section>header{min-height:66px;padding:10px 12px;gap:8px}.messages-admin-shell [role=log]{padding:12px 10px 18px}.messages-admin-shell .messages-chat-composer{padding:9px 9px max(10px,env(safe-area-inset-bottom))}.messages-admin-shell .messages-chat-composer textarea{font-size:16px!important}.messages-admin-shell .altu-message-subject{gap:8px;padding:8px}}
+@media(prefers-reduced-motion:reduce){.messages-admin-shell [data-message-id],.messages-admin-shell .altu-message-subject{animation:none!important}}
