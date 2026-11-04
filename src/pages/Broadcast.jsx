@@ -743,7 +743,14 @@ function EmailBroadcast() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="min-w-0"><span className={labelClass}>Campaign category</span>
                   <select value={draft.context} onChange={(event) => patchDraft("context", event.target.value)} className={inputClass}>
-                    <option value="new_destination">New destination</option><option value="new_country">Country update</option><option value="new_package">New package</option><option value="new_post">New travel story</option><option value="general">General travel update</option>
+                    <option value="new_destination">New destination</option>
+                    <option value="new_country">Country update</option>
+                    <option value="new_package">New package</option>
+                    <option value="new_post">New travel story</option>
+                    <option value="top_rated_destination">Popular destination inspiration</option>
+                    <option value="booking_encouragement">Trip-planning inspiration</option>
+                    <option value="travel_guide">Travel guide</option>
+                    <option value="general">General travel update</option>
                   </select>
                 </label>
                 <label className="min-w-0"><span className={labelClass}>Design name</span><input value={draft.name} onChange={(event) => patchDraft("name", event.target.value)} maxLength={120} className={inputClass} placeholder="Name this design for next time" /></label>
