@@ -46,6 +46,7 @@ import TourismAnalytics from '@pages/TourismAnalytics'
 import ItineraryBuilder from '@pages/ItineraryBuilder'
 import AccountRecovery from '@pages/AccountRecovery'
 import AccountActivityReview from '@pages/AccountActivityReview'
+import AuthDiagnostics from '@pages/AuthDiagnostics'
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
@@ -271,6 +272,10 @@ const router = createBrowserRouter(
                 {
                     path:    'account-activity-review',
                     element: <Page title="Account Activity Review"><AccountActivityReview /></Page>,
+                },
+                {
+                    path:    'auth-diagnostics',
+                    element: <Page title="Auth Diagnostics"><AuthDiagnostics /></Page>,
                 },
                 {
                     path:    'maintenance',
