@@ -2231,7 +2231,7 @@ export default function Messages() {
         const matchesPurpose = purposeFilter === 'group'
           ? isGroup
           : !isGroup && (purposeFilter === 'personal'
-            ? (type === 'personal' || channel === 'general_enquiries' || channel === 'personal_support' || (!type && !channel))
+            ? (type !== 'safari_planning' && type !== 'resource_support' && channel !== 'safari_planning' && channel !== 'booking_support')
             : purposeFilter === 'safari_planning'
               ? (type === 'safari_planning' || channel === 'safari_planning')
               : (type === 'resource_support' || channel === 'booking_support'));
@@ -2300,8 +2300,6 @@ export default function Messages() {
     || activeConv?.conversation_type === 'safari_planning'
     || activeConv?.channel === 'safari_planning'
   const isGroupActiveConversation = Boolean(activeConv?.groupId || activeConv?.group_id)
-  const isGeneralEnquiriesConversation = Boolean(activeConv) && !isGroupActiveConversation
-    && !isBookingSupportConversation && !isSafariPlanningConversation
 
   const loadItineraryDraft = useCallback(async (reference) => {
     const ref = String(reference || '').trim()
