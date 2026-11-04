@@ -398,14 +398,15 @@ export default function Bookings() {
     const trigger = bookingActionsRef.current?.getBoundingClientRect()
     if (!trigger) return
     const margin = 12
-    const width = Math.min(288, Math.max(220, window.innerWidth - margin * 2))
-    const maxHeight = Math.max(180, window.innerHeight - margin * 2)
-    const estimatedHeight = Math.min(340, maxHeight)
-    const below = window.innerHeight - trigger.bottom - margin
-    const above = trigger.top - margin
-    const top = below >= Math.min(estimatedHeight, 220) || below >= above
-      ? Math.min(trigger.bottom + 8, window.innerHeight - margin - Math.min(estimatedHeight, below))
-      : Math.max(margin, trigger.top - 8 - estimatedHeight)
+    const width = Math.max(1, Math.min(288, window.innerWidth - margin * 2))
+    const spaceBelow = Math.max(0, window.innerHeight - trigger.bottom - margin * 2)
+    const spaceAbove = Math.max(0, trigger.top - margin * 2)
+    const placeBelow = spaceBelow >= spaceAbove
+    const availableSpace = placeBelow ? spaceBelow : spaceAbove
+    const maxHeight = Math.max(96, Math.min(360, availableSpace))
+    const top = placeBelow
+      ? Math.max(margin, Math.min(trigger.bottom + 8, window.innerHeight - margin - maxHeight))
+      : Math.max(margin, trigger.top - 8 - maxHeight)
     const left = Math.max(margin, Math.min(trigger.right - width, window.innerWidth - width - margin))
     setBookingActionsPosition({ top, left, width, maxHeight })
   }, [])
