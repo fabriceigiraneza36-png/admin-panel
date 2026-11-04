@@ -77,7 +77,7 @@ export default function AuthDiagnostics() {
       const params = new URLSearchParams({ limit: '50', offset: String(nextOffset) })
       if (provider) params.set('provider', provider)
       if (category) params.set('category', category)
-      const response = await fetch(`${API_BASE.replace(/\/+$/, '')}/users/auth-diagnostics?${params}`, {
+      const response = await fetch(`${API_BASE}/users/auth-diagnostics?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
       })
       const payload = await response.json().catch(() => ({}))
