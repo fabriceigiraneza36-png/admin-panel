@@ -2,8 +2,7 @@
 // Admin-wide countdown for automatically queued contextual email campaigns.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BellRing, Clock3, Image as ImageIcon, Palette, Send, X, Save,
-  CheckCircle2, Mail, Sparkles, ExternalLink,
+  BellRing, Clock3, Send, X, Save, CheckCircle2, Mail, Sparkles,
 } from "lucide-react";
 import { useSocket } from "@context/SocketContext";
 import { emailBroadcastAPI } from "@api/emailBroadcast";
