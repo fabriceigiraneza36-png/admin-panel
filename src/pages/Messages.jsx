@@ -381,6 +381,15 @@ const ConvRow = React.memo(function ConvRow({ conv, active, onSelect, isTyping, 
           </span>
         </div>
 
+        {!(conv.groupId || conv.group_id || conv.isGroup || conv.is_group) && (() => {
+          const type = String(conv.conversationType || conv.conversation_type || '').toLowerCase();
+          const channel = String(conv.channel || '').toLowerCase();
+          const purpose = type === 'resource_support' || channel === 'booking_support'
+            ? 'Booking Support' : type === 'safari_planning' || channel === 'safari_planning'
+              ? 'Safari Planning' : 'General Enquiries';
+          const purposeClass = purpose === 'Booking Support' ? 'bg-emerald-50 text-emerald-800' : purpose === 'Safari Planning' ? 'bg-teal-50 text-teal-800' : 'bg-slate-100 text-slate-600';
+          return <span className={`mb-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${purposeClass}`}>{purpose}</span>;
+        })()}
         {relatedResource?.title && <p className="mb-1 flex items-center gap-1 truncate text-[10px] font-semibold text-emerald-700"><FileText size={10} className="shrink-0"/><span className="truncate">{relatedResource.type || "Related item"}: {relatedResource.title}</span></p>}
         <div className="flex items-center justify-between gap-2">
           {isTyping ? (
@@ -691,6 +700,7 @@ function NewChatModal({ onClose, onCreated }) {
   const [users, setUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [conversationType, setConversationType] = useState('personal')
   const [subject, setSubject] = useState('')
   const [firstMsg, setFirstMsg] = useState('')
   const [creating, setCreating] = useState(false)
@@ -731,7 +741,9 @@ function NewChatModal({ onClose, onCreated }) {
         method: 'POST',
         body: JSON.stringify({
           targetUserId: selected.id,
-          subject: subject.trim() || `Chat with ${selected.fullName || selected.email}`,
+          conversationType,
+          channel: conversationType === 'personal' ? 'general_enquiries' : conversationType === 'safari_planning' ? 'safari_planning' : 'booking_support',
+          subject: subject.trim() || (conversationType === 'personal' ? 'General Enquiries' : conversationType === 'safari_planning' ? 'Safari Planning' : 'Booking Support'),
           body: firstMsg.trim(),
         }),
       })
@@ -828,6 +840,31 @@ function NewChatModal({ onClose, onCreated }) {
                 </button>
               </div>
 
+              <section className="space-y-2.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-slate-500">Choose conversation purpose</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    {type:'personal',title:'General Enquiries',detail:'General questions, account assistance and Altuvera service information.',icon:<MessageSquare size={16}/>},
+                    {type:'safari_planning',title:'Safari Planning',detail:'Pre-booking destination, country, package and custom safari discussions.',icon:<MapPin size={16}/>},
+                    {type:'resource_support',title:'Booking Support',detail:'Existing booking status, confirmations, itinerary, documents and travel changes.',icon:<FileText size={16}/>},
+                  ].map(item => (
+                    <button key={item.type} type="button" aria-pressed={conversationType === item.type}
+                      onClick={() => {
+                        setConversationType(item.type)
+                        setSubject(item.type === 'personal' ? 'General Enquiries' : item.type === 'safari_planning' ? 'Safari Planning' : 'Booking Support')
+                      }}
+                      className={`flex items-start gap-3 rounded-xl border p-3 text-left transition ${conversationType === item.type ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-300'}`}>
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${conversationType === item.type ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>{item.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-extrabold text-slate-900">{item.title}</span>
+                        <span className="mt-1 block text-[11px] leading-relaxed text-slate-500">{item.detail}</span>
+                      </span>
+                      {conversationType === item.type && <Check size={15} className="mt-1 shrink-0 text-emerald-700"/>}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Subject</label>
                 <input value={subject} onChange={e => setSubject(e.target.value)}
@@ -843,7 +880,7 @@ function NewChatModal({ onClose, onCreated }) {
                 </label>
                 <textarea ref={taRef} value={firstMsg}
                   onChange={e => setFirstMsg(e.target.value)}
-                  rows={4} placeholder="Hi! I'm reaching out regarding your upcoming itinerary…"
+                  rows={4} placeholder={conversationType === 'personal' ? "Write a general response or ask how you can help…" : conversationType === 'safari_planning' ? "Discuss destinations, package options or ideas for a custom safari…" : "Contact the traveler about their existing booking, itinerary or travel arrangements…"}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg
                              outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100
                              resize-none bg-slate-50 focus:bg-white transition" />
@@ -1108,6 +1145,7 @@ export default function Messages() {
   const [presenceByConversation, setPresenceByConversation] = useState({})
   // Show every conversation by default so threads are never hidden by the initial filter.
   const [filter, setFilter] = useState('all')
+  const [purposeFilter, setPurposeFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [replyToId, setReplyToId] = useState(null)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -2185,7 +2223,20 @@ export default function Messages() {
     const matchesSearch = (conv, userName = '') => {
       const query = search.trim().toLowerCase();
       const status = String(conv.status || 'open').toLowerCase();
+      const isGroup = Boolean(conv.groupId || conv.group_id || conv.isGroup || conv.is_group);
       if (filter !== 'all' && status !== filter) return false;
+      if (purposeFilter !== 'all') {
+        const type = String(conv.conversationType || conv.conversation_type || '').toLowerCase();
+        const channel = String(conv.channel || '').toLowerCase();
+        const matchesPurpose = purposeFilter === 'group'
+          ? isGroup
+          : !isGroup && (purposeFilter === 'personal'
+            ? (type === 'personal' || channel === 'general_enquiries' || channel === 'personal_support' || (!type && !channel))
+            : purposeFilter === 'safari_planning'
+              ? (type === 'safari_planning' || channel === 'safari_planning')
+              : (type === 'resource_support' || channel === 'booking_support'));
+        if (!matchesPurpose) return false;
+      }
       if (!query) return true;
       return [userName, conv.groupName, conv.subject, conv.guestName, conv.lastMessage, conv.bookingNumber]
         .some(value => String(value || '').toLowerCase().includes(query));
@@ -2210,7 +2261,7 @@ export default function Messages() {
       .sort((a,b) => a.name.localeCompare(b.name));
     groupThreads.sort((a,b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
     return { users, groupThreads };
-  }, [conversations, filter, search]);
+  }, [conversations, filter, search, purposeFilter]);
 
   const activePresence = activeId ? presenceByConversation[String(activeId)] : null
   const activeSince = activePresence?.activeSince ? new Date(activePresence.activeSince).getTime() : 0
@@ -2245,6 +2296,12 @@ export default function Messages() {
   const isBookingSupportConversation = activeConv?.conversationType === 'resource_support'
     || activeConv?.conversation_type === 'resource_support'
     || activeConv?.channel === 'booking_support'
+  const isSafariPlanningConversation = activeConv?.conversationType === 'safari_planning'
+    || activeConv?.conversation_type === 'safari_planning'
+    || activeConv?.channel === 'safari_planning'
+  const isGroupActiveConversation = Boolean(activeConv?.groupId || activeConv?.group_id)
+  const isGeneralEnquiriesConversation = Boolean(activeConv) && !isGroupActiveConversation
+    && !isBookingSupportConversation && !isSafariPlanningConversation
 
   const loadItineraryDraft = useCallback(async (reference) => {
     const ref = String(reference || '').trim()
@@ -2567,6 +2624,21 @@ export default function Messages() {
                 ))}
               </div>
 
+              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl border border-slate-100 bg-white" role="tablist" aria-label="Conversation purpose">
+                {[
+                  {value:'all',label:'All'},
+                  {value:'personal',label:'General'},
+                  {value:'safari_planning',label:'Planning'},
+                  {value:'resource_support',label:'Booking'},
+                ].map(item => (
+                  <button key={item.value} type="button" onClick={() => setPurposeFilter(item.value)}
+                    aria-pressed={purposeFilter === item.value}
+                    className={`min-w-0 rounded-lg px-1 py-2 text-[9px] sm:text-[10px] font-extrabold transition ${purposeFilter === item.value ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-800'}`}>
+                    <span className="block truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {conversations.length} thread{conversations.length !== 1 ? 's' : ''}
@@ -2782,6 +2854,26 @@ export default function Messages() {
                     backgroundColor: '#ffffff',
                   }}
                 >
+                  {activeConv && !isGroupActiveConversation && (
+                    <section className={`mb-3 flex items-start gap-3 rounded-2xl border px-3.5 py-3 ${isBookingSupportConversation ? 'border-emerald-200 bg-emerald-50' : isSafariPlanningConversation ? 'border-teal-200 bg-teal-50' : 'border-slate-200 bg-slate-50'}`}>
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isBookingSupportConversation ? 'bg-emerald-700 text-white' : isSafariPlanningConversation ? 'bg-teal-700 text-white' : 'bg-slate-700 text-white'}`}>
+                        {isBookingSupportConversation ? <FileText size={16}/> : isSafariPlanningConversation ? <MapPin size={16}/> : <MessageSquare size={16}/>}
+                      </span>
+                      <div className="min-w-0">
+                        <p className={`text-[10px] font-extrabold uppercase tracking-[.14em] ${isBookingSupportConversation ? 'text-emerald-900' : isSafariPlanningConversation ? 'text-teal-900' : 'text-slate-800'}`}>
+                          {isBookingSupportConversation ? 'Booking Support' : isSafariPlanningConversation ? 'Safari Planning' : 'General Enquiries'}
+                        </p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600">
+                          {isBookingSupportConversation
+                            ? 'Existing booking operations: verified booking context, itinerary preparation and travel changes.'
+                            : isSafariPlanningConversation
+                              ? 'Pre-booking trip design: destination, country and package discussions, including custom safari ideas.'
+                              : 'General Altuvera assistance: service questions, account guidance and other enquiries.'}
+                        </p>
+                      </div>
+                      {isBookingSupportConversation && activeBookingId && <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-1 font-mono text-[10px] font-bold text-emerald-800">#{activeBookingId}</span>}
+                    </section>
+                  )}
                   {loadingMsgs && messages.length === 0 ? (
                     <div className="space-y-3">
                       {Array.from({ length: 5 }).map((_, i) => (
