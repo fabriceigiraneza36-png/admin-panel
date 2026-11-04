@@ -323,6 +323,10 @@ function CancellationRequestPanel({ booking, review, setReview, reviewing, onRev
   )
 }
 
+function BodyPortal({ children }) {
+  return createPortal(children, document.body)
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Bookings() {
@@ -1494,7 +1498,8 @@ export default function Bookings() {
       {/* ════════════════════════════════════════════════════════════════
           VIEW (DETAIL) PAGE
           ════════════════════════════════════════════════════════════ */}
-      {view === VIEWS.VIEW && selected && createPortal(
+      {view === VIEWS.VIEW && selected && (
+        <BodyPortal>
         <div className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-[3px] sm:p-4">
         <motion.div key="view"
           role="dialog" aria-modal="true" aria-labelledby="booking-detail-title"
@@ -1785,8 +1790,8 @@ export default function Bookings() {
           </div>
 
         </motion.div>
-        </div>,
-        document.body
+        </div>
+        </BodyPortal>
       )}
 
       {/* ════════════════════════════════════════════════════════════════
