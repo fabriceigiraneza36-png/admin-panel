@@ -20,7 +20,7 @@ import {
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
   Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone, ClipboardCheck,
-  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck,
+  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -632,7 +632,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck, BarChart3,
+  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck, BarChart3, Activity,
 }
 
 const NAV_GROUPS = [
@@ -683,6 +683,7 @@ const NAV_GROUPS = [
       { path: '/notifications', label: 'Notifications', icon: 'Bell', badge: 'notif' },
       { path: '/account-recovery', label: 'Account Recovery', icon: 'ShieldCheck' },
       { path: '/account-activity-review', label: 'Account Activity Review', icon: 'ShieldCheck' },
+      { path: '/auth-diagnostics', label: 'Auth Diagnostics', icon: 'Activity' },
       { path: '/maintenance', label: 'Maintenance', icon: 'Database' },
       { path: '/broadcast', label: 'Broadcast', icon: 'Megaphone' },
       { path: '/settings', label: 'Settings', icon: 'Settings' },
