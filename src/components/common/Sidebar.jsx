@@ -1441,7 +1441,7 @@ export function AdminLayout() {
               width: 270, maxWidth: "88vw",
               boxShadow: "8px 0 32px rgba(5,150,105,0.15)",
               transform: "translateX(" + ((drawerDragX == null ? 270 : drawerDragX) - 270) + "px)",
-              transition: drawerDragX == null ? "transform 360ms cubic-bezier(.22,1,.36,1)" : "none", willChange: "transform", touchAction: "pan-y",
+              transition: drawerGestureRef.current ? "none" : "transform 360ms cubic-bezier(.22,1,.36,1)", willChange: "transform", touchAction: "pan-y",
             }}
           >
             <Sidebar collapsed={false} isMobile onMobileClose={() => { setMobileOpen(false); setDrawerDragX(null) }} />
