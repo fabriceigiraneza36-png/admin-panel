@@ -187,6 +187,16 @@ function EmailBroadcast() {
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
   const [libraryError, setLibraryError] = useState("");
+  const templateRailRef = useRef(null);
+  const previewGalleryRef = useRef(null);
+
+  const scrollTemplateRail = useCallback((direction) => {
+    templateRailRef.current?.scrollBy({ left: direction * Math.max(220, templateRailRef.current.clientWidth * 0.72), behavior: "smooth" });
+  }, []);
+
+  const scrollPreviewGallery = useCallback((direction) => {
+    previewGalleryRef.current?.scrollBy({ left: direction * 250, behavior: "smooth" });
+  }, []);
 
   const patchDraft = useCallback((key, value) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -667,25 +677,58 @@ function EmailBroadcast() {
 
             <section className="space-y-3 border-t border-slate-100 pt-5">
               <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900"><Mail size={17} className="text-emerald-700" /> 3. Compose the update</h3>
+              <style>{`
+                .campaign-template-rail,.campaign-preview-gallery{scroll-behavior:smooth;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:thin;scrollbar-color:#a7d9bd transparent}
+                .campaign-template-rail::-webkit-scrollbar,.campaign-preview-gallery::-webkit-scrollbar{height:5px}
+                .campaign-template-rail::-webkit-scrollbar-thumb,.campaign-preview-gallery::-webkit-scrollbar-thumb{background:#b7dfc7;border-radius:99px}
+                .campaign-template-card{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+                .campaign-template-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(10,70,44,.08)}
+                .campaign-animated-icon{transition:transform .24s ease,color .24s ease}
+                .campaign-template-card:hover .campaign-animated-icon{transform:rotate(-9deg) scale(1.12)}
+                .campaign-motion-hint{animation:campaignHintPulse 2.8s ease-in-out infinite}
+                @keyframes campaignHintPulse{0%,100%{opacity:.62;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+                @media(prefers-reduced-motion:reduce){.campaign-template-card,.campaign-animated-icon,.campaign-motion-hint{animation:none!important;transition:none!important;transform:none!important}}
+              `}</style>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/45 p-3 sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-emerald-800">Saved email designs</p>
+                    <p className="mt-1 text-[11px] text-slate-600">Choose a ready-made starting point. You can change the wording before sending.</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" onClick={() => scrollTemplateRail(-1)} aria-label="Scroll templates left" className="grid h-8 w-8 place-items-center rounded-full border border-emerald-200 bg-white text-emerald-800 shadow-sm transition hover:bg-emerald-100"><ChevronLeft size={15}/></button>
+                    <button type="button" onClick={() => scrollTemplateRail(1)} aria-label="Scroll templates right" className="grid h-8 w-8 place-items-center rounded-full border border-emerald-200 bg-white text-emerald-800 shadow-sm transition hover:bg-emerald-100"><ChevronRight size={15}/></button>
+                  </div>
+                </div>
+                <div ref={templateRailRef} className="campaign-template-rail flex gap-2.5 overflow-x-auto pb-2">
+                  {templates.map((item) => {
+                    const active = draft.key === item.key;
+                    return (
+                      <button key={item.key} type="button" onClick={() => applyTemplate(item)} aria-pressed={active}
+                        className={"campaign-template-card min-w-[174px] max-w-[190px] shrink-0 snap-start rounded-xl border p-3 text-left " + (active ? "border-emerald-600 bg-white ring-2 ring-emerald-100 shadow-sm" : "border-white bg-white/85 hover:border-emerald-200")}>
+                        <span className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><Sparkles size={16} className="campaign-animated-icon"/></span>
+                        <span className="block line-clamp-2 text-xs font-extrabold leading-4 text-slate-800">{item.name}</span>
+                        <span className="mt-1 block truncate text-[9px] font-semibold uppercase tracking-wide text-slate-400">{String(item.context || "general").replace(/[_-]+/g," ")}</span>
+                        <span className={"mt-2 inline-flex items-center gap-1 text-[10px] font-extrabold " + (active ? "text-emerald-800" : "text-emerald-700")}>{active ? <CheckCircle2 size={12}/> : <Plus size={12}/>} {active ? "Selected" : "Use this design"}</span>
+                      </button>
+                    );
+                  })}
+                  {!templates.length && <div className="min-w-[220px] rounded-xl border border-dashed border-emerald-200 bg-white/75 p-4 text-xs text-slate-500">Saved designs will appear here when they are available.</div>}
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="min-w-0"><span className={labelClass}>Saved design</span>
-                  <select value={draft.key} onChange={(event) => applyTemplate(templates.find((item) => item.key === event.target.value))} className={inputClass}>
-                    {templates.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
-                    {!templates.length && <option value={draft.key}>{draft.name}</option>}
-                  </select>
-                </label>
                 <label className="min-w-0"><span className={labelClass}>Campaign category</span>
                   <select value={draft.context} onChange={(event) => patchDraft("context", event.target.value)} className={inputClass}>
                     <option value="new_destination">New destination</option><option value="new_country">Country update</option><option value="new_package">New package</option><option value="new_post">New travel story</option><option value="general">General travel update</option>
                   </select>
                 </label>
+                <label className="min-w-0"><span className={labelClass}>Design name</span><input value={draft.name} onChange={(event) => patchDraft("name", event.target.value)} maxLength={120} className={inputClass} placeholder="Name this design for next time" /></label>
               </div>
-              <label className="block"><span className={labelClass}>Template name</span><input value={draft.name} onChange={(event) => patchDraft("name", event.target.value)} maxLength={120} className={inputClass} /></label>
               <label className="block"><span className={labelClass}>Email subject</span><input value={draft.subject} onChange={(event) => patchDraft("subject", event.target.value)} maxLength={200} className={inputClass} placeholder="A new Altuvera update for you" /></label>
               <label className="block"><span className={labelClass}>Inbox preview text</span><input value={draft.preheader} onChange={(event) => patchDraft("preheader", event.target.value)} maxLength={240} className={inputClass} placeholder="A short message shown before the email is opened" /></label>
               <label className="block"><span className={labelClass}>Email headline</span><input value={draft.headline} onChange={(event) => patchDraft("headline", event.target.value)} maxLength={180} className={inputClass} placeholder="A fresh story from East Africa" /></label>
               <label className="block"><span className={labelClass}>Message</span><textarea value={draft.body} onChange={(event) => patchDraft("body", event.target.value)} rows={5} maxLength={10000} className={inputClass + " min-h-[135px] resize-y"} placeholder="Write your update. Imported items and selected images are displayed below the message." /></label>
-              <p className="-mt-1 text-[10px] leading-4 text-slate-500">Personalisation tokens: {"{{firstName}}"}, {"{{destinationName}}"}, {"{{countryName}}"}, {"{{packageName}}"}, {"{{postTitle}}"}.</p>
+              <p className="-mt-1 inline-flex items-start gap-1.5 text-[10px] leading-4 text-slate-500"><Sparkles size={12} className="campaign-motion-hint mt-0.5 shrink-0 text-emerald-600"/> Personal details and the names of imported places or packages are added automatically. You do not need to enter any codes.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block"><span className={labelClass}>Button label</span><input value={draft.cta_label} onChange={(event) => patchDraft("cta_label", event.target.value)} className={inputClass} /></label>
                 <label className="block"><span className={labelClass}>Button destination URL</span><input value={draft.cta_url} onChange={(event) => patchDraft("cta_url", event.target.value)} className={inputClass} placeholder={selectedItems[0]?.contentUrl || "https://www.altuverasafaris.com"} /></label>
@@ -801,7 +844,22 @@ function EmailBroadcast() {
                     <p className="mt-2 text-[10px] text-slate-500">Hello Alex,</p>
                     <div className="mt-3 space-y-2">{sampleBody.split(/\n{2,}/).map((part,index)=><p key={index} className="whitespace-pre-line text-xs leading-6 text-slate-700">{part}</p>)}</div>
                     {contentPreview.length>0 && <div className="mt-4 space-y-2">{contentPreview.map((item)=><div key={item.type+":"+item.id} className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3"><p className="text-[8px] font-bold uppercase tracking-wider text-emerald-700">{item.type}</p><p className="mt-1 text-xs font-extrabold text-emerald-950">{item.title}</p><p className="mt-1 text-[10px] leading-4 text-slate-500">{item.description}</p></div>)}</div>}
-                    {mediaGallery.length>0 && <div className="mt-4"><p className="mb-2 text-[9px] font-extrabold uppercase tracking-wider text-emerald-800">A closer look · swipe images</p><div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2">{mediaGallery.map((image)=><div key={image.url} className="w-36 shrink-0 snap-start overflow-hidden rounded-lg border border-emerald-100"><img src={image.url} alt={image.alt || ""} className="h-24 w-full object-cover" /><p className="truncate px-2 py-1 text-[9px] text-slate-500">{image.caption || image.title || "Altuvera Safaris"}</p></div>)}</div></div>}
+                    {mediaGallery.length>0 && <div className="mt-4">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[9px] font-extrabold uppercase tracking-wider text-emerald-800">Campaign image preview</p>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => scrollPreviewGallery(-1)} aria-label="Previous campaign image" className="grid h-7 w-7 place-items-center rounded-full border border-emerald-100 bg-white text-emerald-800 shadow-sm"><ChevronLeft size={13}/></button>
+                          <button type="button" onClick={() => scrollPreviewGallery(1)} aria-label="Next campaign image" className="grid h-7 w-7 place-items-center rounded-full border border-emerald-100 bg-white text-emerald-800 shadow-sm"><ChevronRight size={13}/></button>
+                        </div>
+                      </div>
+                      <div ref={previewGalleryRef} className="campaign-preview-gallery flex gap-2.5 overflow-x-auto pb-2" style={{scrollBehavior:"smooth",WebkitOverflowScrolling:"touch",touchAction:"pan-x"}}>
+                        {mediaGallery.map((image)=><div key={image.url} className="w-52 shrink-0 snap-start overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
+                          <img src={image.url} alt={image.alt || ""} loading="lazy" className="h-28 w-full object-cover" />
+                          <p className="truncate px-2.5 py-2 text-[9px] font-medium text-slate-600">{image.caption || image.title || "Altuvera Safaris"}</p>
+                        </div>)}
+                      </div>
+                      <p className="mt-1 text-[9px] leading-4 text-slate-400">Swipe or use the arrows to review every image. The delivered email uses a Gmail-friendly layout that does not depend on horizontal scrolling.</p>
+                    </div>}
                     <div className="mt-4 text-center"><span className="inline-flex rounded-full px-5 py-2.5 text-[10px] font-extrabold text-white" style={{background:draft.accent_color}}>{draft.cta_label || "Explore update"} →</span></div>
                     <p className="mt-4 border-t border-slate-100 pt-3 text-center text-[9px] text-slate-400">You are receiving travel updates because you opted in.</p>
                   </div>
