@@ -700,7 +700,9 @@ const resolveIcon = (icon) => {
    STYLES
 ═══════════════════════════════════════════════════════════════════════════ */
 const SIDEBAR_CSS = `
-.sb-mobile-shell { width: 270px; max-width: 88vw; }
+.sb-mobile-shell { width: 270px; max-width: 88vw; height:100vh; height:100dvh; min-height:100svh; max-height:100dvh; }
+.sb-admin-drawer-backdrop { opacity:1; transition:opacity 320ms ease; }
+.sb-admin-drawer-panel { height:100vh; height:100dvh; min-height:100svh; max-height:100dvh; will-change:transform; }
 .sb-nav::-webkit-scrollbar { width: 4px; }
 .sb-nav::-webkit-scrollbar-track { background: transparent; }
 .sb-nav::-webkit-scrollbar-thumb {
@@ -961,7 +963,11 @@ export default function Sidebar({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          height: '100%',
+          height: isMobile ? '100dvh' : '100%',
+          minHeight: isMobile ? '100svh' : 0,
+          boxSizing: 'border-box',
+          paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
+          paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : 0,
           width: isCollapsed ? '76px' : '270px',
           background: '#ffffff',
           borderRight: '1px solid #e5e7eb',
@@ -1324,6 +1330,7 @@ export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [drawerDragX, setDrawerDragX] = useState(null)
   const drawerGestureRef = useRef(null)
+  const drawerCloseTimerRef = useRef(null)
   const location = useLocation()
   const isMessagesPage = location.pathname === '/messages' || location.pathname.startsWith('/messages/')
   const { notifications: adminNotifications, markRead: markNotificationRead } = useNotifications()
@@ -1346,7 +1353,8 @@ export function AdminLayout() {
     unreadMessageNotifications.forEach(n => { if (n.id != null) markNotificationRead(n.id) })
   }, [isMessagesPage, adminNotifications, markNotificationRead])
 
-  useEffect(() => { setMobileOpen(false); setDrawerDragX(null); drawerGestureRef.current = null }, [location.pathname])
+  useEffect(() => { clearTimeout(drawerCloseTimerRef.current); setMobileOpen(false); setDrawerDragX(null); drawerGestureRef.current = null }, [location.pathname])
+  useEffect(() => () => clearTimeout(drawerCloseTimerRef.current), [])
 
   // Open instantly from the screen edge and keep the drawer under the user's finger.
   const handleDrawerTouchStart = (event) => {
@@ -1389,12 +1397,12 @@ export function AdminLayout() {
     const gesture = drawerGestureRef.current
     if (!gesture) return
     drawerGestureRef.current = null
-    if (gesture.mode === 'open') {
-      setMobileOpen((drawerDragX ?? 0) >= 55)
-    } else {
-      setMobileOpen((drawerDragX ?? 270) >= 190)
-    }
-    setDrawerDragX(null)
+    const shouldStayOpen = gesture.mode === 'open' ? (drawerDragX ?? 0) >= 55 : (drawerDragX ?? 270) >= 190
+    if (shouldStayOpen) { setMobileOpen(true); setDrawerDragX(null); return }
+    if (gesture.mode === 'open') { setMobileOpen(false); setDrawerDragX(null); return }
+    setDrawerDragX(0)
+    clearTimeout(drawerCloseTimerRef.current)
+    drawerCloseTimerRef.current = setTimeout(() => { setMobileOpen(false); setDrawerDragX(null) }, 380)
   }
 
   useEffect(() => {
@@ -1421,19 +1429,19 @@ export function AdminLayout() {
           <div
             key="backdrop"
             onClick={() => { setMobileOpen(false); setDrawerDragX(null) }}
-            className="sb-lg-hidden"
+            className="sb-lg-hidden sb-admin-drawer-backdrop"
             style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(15,23,42,0.55)" }}
           />
           <div
             key="drawer"
             data-admin-mobile-drawer="true"
-            className="sb-lg-hidden"
+            className="sb-lg-hidden sb-admin-drawer-panel"
             style={{
-              position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50,
+              position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50, height: "100dvh", minHeight: "100svh", boxSizing: "border-box",
               width: 270, maxWidth: "88vw",
               boxShadow: "8px 0 32px rgba(5,150,105,0.15)",
               transform: "translateX(" + ((drawerDragX == null ? 270 : drawerDragX) - 270) + "px)",
-              transition: "none", willChange: "transform", touchAction: "pan-y",
+              transition: drawerDragX == null ? "transform 360ms cubic-bezier(.22,1,.36,1)" : "none", willChange: "transform", touchAction: "pan-y",
             }}
           >
             <Sidebar collapsed={false} isMobile onMobileClose={() => { setMobileOpen(false); setDrawerDragX(null) }} />
