@@ -12,7 +12,7 @@ import {
   Send, Smile, X, ArrowLeft, CornerUpLeft, Check, CheckCheck,
   MessageSquare, RefreshCw, Search, Plus, User, UsersRound, ChevronDown, Circle, Trash2,
   PanelLeftClose, PanelLeftOpen, MoreHorizontal, Pin, Highlighter, Pencil, Undo2, Copy,
-  Archive, ArchiveRestore, Forward, FileText, CalendarDays,
+  Archive, ArchiveRestore, Forward, FileText, CalendarDays, MapPin,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth }   from '@context/AuthContext'
