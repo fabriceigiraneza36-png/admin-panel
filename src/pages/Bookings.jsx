@@ -1,5 +1,6 @@
 // admin/src/pages/Bookings.jsx
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CalendarCheck, Eye, Pencil, Trash2, RefreshCw,
   CheckCircle, Download, Plus, User, ChevronRight,
@@ -1494,7 +1495,8 @@ export default function Bookings() {
           VIEW (DETAIL) PAGE
           ════════════════════════════════════════════════════════════ */}
       {view === VIEWS.VIEW && selected && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-[3px] sm:items-center sm:p-4">
+        {createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-[3px] sm:p-4">
         <motion.div key="view"
           role="dialog" aria-modal="true" aria-labelledby="booking-detail-title"
           initial={{ opacity: 0, y: 12, scale: .99 }} animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1784,7 +1786,9 @@ export default function Bookings() {
           </div>
 
         </motion.div>
-        </div>
+        </div>,
+        document.body
+        )}
       )}
 
       {/* ════════════════════════════════════════════════════════════════
