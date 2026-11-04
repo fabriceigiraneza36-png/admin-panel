@@ -754,7 +754,7 @@ function EmailBroadcast() {
                 </div>
               )}
               {recipientMode === "default" && defaultAudience === "saved_list" && (
-                <select value={defaultAudienceListId} onChange={(event) => setDefaultAudienceListId(event.target.value)} className={inputClass}>
+                <select value={defaultAudienceListId} onChange={(event) => makeDefaultAudience("saved_list",event.target.value)} className={inputClass} disabled={savingDefault}>
                   <option value="">Choose default saved list…</option>
                   {audienceLists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
                 </select>
@@ -1110,7 +1110,7 @@ export default function Broadcast() {
             <Megaphone size={28} className="text-primary-600" /> Broadcast
           </h1>
           <p className="page-subtitle">
-            Send a newsletter to active subscribers by email; linked subscriber accounts also receive the newsletter instantly in their in-app notification center.
+            Build targeted updates from live Altuvera destinations, countries, packages, travel stories and gallery media. Send by email, in-app notification, or both.
           </p>
         </div>
       </div>
