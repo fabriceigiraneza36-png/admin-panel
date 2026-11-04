@@ -155,8 +155,8 @@ export function ModalGrid({ children, cols = 2 }) {
 
 /* ── Media-aware values for detail views ── */
 const IMAGE_FIELD_HINT = /image|photo|gallery|flag|cover|hero|banner|thumbnail|avatar|poster|portrait|media|picture|logo/i;
-const IMAGE_URL_PATTERN = /^(?:https?:\\/\\/|blob:|data:image\\/|\\/uploads\\/|\\/media\\/|\\/storage\\/)/i;
-const IMAGE_EXTENSION_PATTERN = /\\.(?:avif|gif|jpe?g|png|webp|svg|bmp|tiff?)(?:[?#].*)?$/i;
+const IMAGE_URL_PATTERN = /^(?:https?:\/\/|blob:|data:image\/|\/uploads\/|\/media\/|\/storage\/)/i;
+const IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|webp|svg|bmp|tiff?)(?:[?#].*)?$/i;
 const IMAGE_OBJECT_KEYS = ['url', 'image_url', 'imageUrl', 'src', 'path', 'image', 'photo_url', 'photoUrl'];
 
 function getImageValueUrl(value) {
