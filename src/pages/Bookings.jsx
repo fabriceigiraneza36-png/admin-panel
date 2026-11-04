@@ -344,6 +344,8 @@ export default function Bookings() {
   const detailRequestRef = useRef(0)
   const [showBookingActions, setShowBookingActions] = useState(false)
   const bookingActionsRef = useRef(null)
+  const bookingActionsMenuRef = useRef(null)
+  const [bookingActionsPosition, setBookingActionsPosition] = useState({ top: 12, left: 12, width: 288, maxHeight: 400 })
 
   // ── List state ────────────────────────────────────────────────────────────
   const [items,       setItems]       = useState([])
@@ -392,21 +394,45 @@ export default function Bookings() {
   const deepLinkHandled = useRef(false)
   const deepLinkRequest = useRef(null)
 
+  const updateBookingActionsPosition = useCallback(() => {
+    const trigger = bookingActionsRef.current?.getBoundingClientRect()
+    if (!trigger) return
+    const margin = 12
+    const width = Math.min(288, Math.max(220, window.innerWidth - margin * 2))
+    const maxHeight = Math.max(180, window.innerHeight - margin * 2)
+    const estimatedHeight = Math.min(340, maxHeight)
+    const below = window.innerHeight - trigger.bottom - margin
+    const above = trigger.top - margin
+    const top = below >= Math.min(estimatedHeight, 220) || below >= above
+      ? Math.min(trigger.bottom + 8, window.innerHeight - margin - Math.min(estimatedHeight, below))
+      : Math.max(margin, trigger.top - 8 - estimatedHeight)
+    const left = Math.max(margin, Math.min(trigger.right - width, window.innerWidth - width - margin))
+    setBookingActionsPosition({ top, left, width, maxHeight })
+  }, [])
+
   useEffect(() => {
     if (!showBookingActions) return
+    updateBookingActionsPosition()
     const closeOnOutside = (event) => {
-      if (!bookingActionsRef.current?.contains(event.target)) setShowBookingActions(false)
+      if (!bookingActionsRef.current?.contains(event.target) && !bookingActionsMenuRef.current?.contains(event.target)) {
+        setShowBookingActions(false)
+      }
     }
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setShowBookingActions(false)
     }
+    const reposition = () => updateBookingActionsPosition()
     document.addEventListener('pointerdown', closeOnOutside)
     document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', reposition)
+    window.addEventListener('scroll', reposition, true)
     return () => {
       document.removeEventListener('pointerdown', closeOnOutside)
       document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', reposition)
+      window.removeEventListener('scroll', reposition, true)
     }
-  }, [showBookingActions])
+  }, [showBookingActions, updateBookingActionsPosition])
 
   useEffect(() => {
     setShowBookingActions(false)
@@ -1552,7 +1578,13 @@ export default function Bookings() {
                   type="button"
                   aria-haspopup="menu"
                   aria-expanded={showBookingActions}
-                  onClick={() => setShowBookingActions((open) => !open)}
+                  onClick={() => {
+                    if (showBookingActions) setShowBookingActions(false)
+                    else {
+                      updateBookingActionsPosition()
+                      setShowBookingActions(true)
+                    }
+                  }}
                   className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3.5 text-xs font-extrabold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${showBookingActions ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'}`}
                 >
                   <MoreHorizontal size={17} />
@@ -1560,9 +1592,10 @@ export default function Bookings() {
                   <ChevronDown size={14} className={`transition-transform ${showBookingActions ? 'rotate-180' : ''}`} />
                 </button>
 
-                {showBookingActions && (
-                  <div role="menu" aria-label="Booking actions"
-                    className="absolute right-0 top-full z-[80] mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_55px_rgba(15,23,42,.22)] ring-1 ring-black/5">
+                {showBookingActions && createPortal(
+                  <div ref={bookingActionsMenuRef} role="menu" aria-label="Booking actions"
+                    style={{ position: 'fixed', top: bookingActionsPosition.top, left: bookingActionsPosition.left, width: bookingActionsPosition.width, maxHeight: bookingActionsPosition.maxHeight }}
+                    className="z-[10050] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_55px_rgba(15,23,42,.24)] ring-1 ring-black/5">
                     <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Manage this booking</p>
 
                     {selected.status === 'pending' && (
@@ -1605,7 +1638,8 @@ export default function Bookings() {
                       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-50"><Trash2 size={16}/></span>
                       <span>Delete booking</span>
                     </button>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
               <button onClick={goList} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" aria-label="Close booking details" title="Close">
