@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Activity, AlertTriangle, Check, ChevronDown, ChevronUp, Copy,
-  Filter, RefreshCw, ShieldAlert, Wifi, WifiOff, Clock3,
+  Filter, RefreshCw, ShieldAlert, Wifi, Clock3,
 } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
