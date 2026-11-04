@@ -19,7 +19,7 @@ import { galleryAPI }      from '@api/gallery'
 import Table               from '@components/common/Table'
 import Pagination          from '@components/common/Pagination'
 import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar'
-import Modal, { ModalSection, ModalGrid, ModalField } from '@components/common/Modal'
+import Modal, { ModalSection, ModalGrid, ModalField, DetailValue } from '@components/common/Modal'
 import Badge, { BooleanBadge } from '@components/common/Badge'
 import Avatar              from '@components/common/Avatar'
 import ImageUpload         from '@components/common/ImageUpload'
@@ -151,67 +151,7 @@ function readableFieldLabel(key = '') {
 }
 
 function ReadableViewValue({ value, label = '' }) {
-  if (value === null || value === undefined || value === '') {
-    return <span className="text-slate-400">Not provided</span>
-  }
-  if (typeof value === 'boolean') {
-    return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${value ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{value ? 'Yes' : 'No'}</span>
-  }
-  if (typeof value === 'number') {
-    return <span className="tabular-nums">{Number.isFinite(value) ? value.toLocaleString() : '—'}</span>
-  }
-  if (Array.isArray(value)) {
-    const items = value.filter(item => item !== null && item !== undefined && item !== '')
-    if (!items.length) return <span className="text-slate-400">Not provided</span>
-    const isSimpleList = items.every(item => ['string', 'number', 'boolean'].includes(typeof item))
-    if (isSimpleList) {
-      return <div className="flex flex-wrap gap-1.5">{items.map((item, index) => (
-        <span key={index} className="inline-flex max-w-full items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 break-words">
-          {typeof item === 'boolean' ? (item ? 'Yes' : 'No') : String(item)}
-        </span>
-      ))}</div>
-    }
-    return <div className="space-y-2">
-      {items.map((item, index) => (
-        <article key={item?.id ?? index} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{readableFieldLabel(label.replace(/s$/i, '') || 'Item')} {index + 1}</p>
-          {item && typeof item === 'object'
-            ? <ReadableViewValue value={item} label={label.replace(/s$/i, '') || 'Item'} />
-            : <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{String(item)}</p>}
-        </article>
-      ))}
-    </div>
-  }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value).filter(([key, child]) =>
-      !/^(id|created_at|updated_at|deleted_at|createdAt|updatedAt)$/i.test(key) &&
-      child !== null && child !== undefined && child !== ''
-    )
-    if (!entries.length) return <span className="text-slate-400">No details provided</span>
-    return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {entries.map(([key, child]) => (
-        <div key={key} className="min-w-0 rounded-lg border border-slate-100 bg-white p-2.5">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{readableFieldLabel(key)}</p>
-          <div className="min-w-0 break-words text-sm text-slate-700"><ReadableViewValue value={child} label={key} /></div>
-        </div>
-      ))}
-    </div>
-  }
-  const textValue = String(value)
-  const looksLikeImage = /image|photo|flag|cover|hero|banner|thumbnail|avatar|poster/i.test(label)
-  const looksLikeUrl = /^(https?:\/\/|\/uploads\/|\/media\/)/i.test(textValue)
-  if (looksLikeImage && looksLikeUrl) {
-    return <div className="space-y-2">
-      <a href={textValue} target="_blank" rel="noreferrer" className="block w-fit max-w-full">
-        <img src={textValue} alt={readableFieldLabel(label)} loading="lazy" className="h-24 max-w-full rounded-lg border border-slate-200 object-cover sm:h-28" onError={e => { e.currentTarget.style.display = 'none' }} />
-      </a>
-      <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-xs font-semibold text-emerald-700 hover:underline">Open image <ExternalLink size={12} /></a>
-    </div>
-  }
-  if (looksLikeUrl) {
-    return <a href={textValue} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 break-all text-sm font-semibold text-emerald-700 hover:underline">{textValue}<ExternalLink size={12} className="shrink-0" /></a>
-  }
-  return <span className="whitespace-pre-wrap break-words">{textValue}</span>
+  return <DetailValue value={value} label={label} />
 }
 
 /* ─── Confetti ───────────────────────────────────────────────────────────── */
