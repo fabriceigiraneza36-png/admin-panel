@@ -17,7 +17,7 @@ import {
   Megaphone, Send, Users, Bell, Link2, CalendarClock,
   Info, CheckCircle2, Mail, Globe, Ticket, UserCheck, Flag,
   Search, Image as ImageIcon, UploadCloud, X, Plus, Save, Sparkles,
-  Check, Loader2, UsersRound, Layers3, ShieldCheck, Eye,
+  Check, Loader2, UsersRound, Layers3, ShieldCheck, Eye, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { notificationsAPI } from "@api/notifications";
 import { emailBroadcastAPI } from "@api/emailBroadcast";
@@ -133,6 +133,34 @@ function RecipientBadge({ loading, count }) {
     </div>
   );
 }
+
+const campaignTokenSamples = (selectedItems = []) => ({
+  firstName: "Alex",
+  destinationName: selectedItems.find((item) => item.type === "destination")?.title || "Volcanoes National Park",
+  countryName: selectedItems.find((item) => item.type === "country")?.title || "Rwanda",
+  packageName: selectedItems.find((item) => item.type === "package")?.title || "Rwanda Gorilla Trekking",
+  postTitle: selectedItems.find((item) => item.type === "post")?.title || "A guide to Rwanda",
+  contentUrl: selectedItems[0]?.contentUrl || "https://www.altuverasafaris.com/destinations",
+  bookingUrl: "https://www.altuverasafaris.com/booking",
+});
+
+const formatForManager = (value, selectedItems = []) => {
+  const samples = campaignTokenSamples(selectedItems);
+  return String(value || "").replace(/\{\{\s*([a-zA-Z]+)\s*\}\}/g, (token, key) =>
+    Object.prototype.hasOwnProperty.call(samples, key) ? samples[key] : token
+  );
+};
+
+const preserveManagerTokens = (editedValue, originalValue, selectedItems = []) => {
+  let output = String(editedValue || "");
+  const original = String(originalValue || "");
+  const samples = campaignTokenSamples(selectedItems);
+  Object.entries(samples).forEach(([key, sample]) => {
+    const hasToken = new RegExp("\\{\\{\\s*" + key + "\\s*\\}\\}", "i").test(original);
+    if (hasToken && sample) output = output.split(String(sample)).join("{{" + key + "}}");
+  });
+  return output;
+};
 
 /* ═══════════════════════════════════════════════════════════════════════════
    EMAIL BROADCAST
@@ -533,12 +561,8 @@ function EmailBroadcast() {
   const contentPreview = selectedItems.length
     ? selectedItems.map((item) => ({ ...item, displayTitle: item.title }))
     : [];
-  const sampleBody = draft.body
-    .replace(/\{\{\s*firstName\s*\}\}/g, "Alex")
-    .replace(/\{\{\s*destinationName\s*\}\}/g, selectedItems.find((item) => item.type === "destination")?.title || "Volcanoes National Park")
-    .replace(/\{\{\s*countryName\s*\}\}/g, selectedItems.find((item) => item.type === "country")?.title || "Rwanda")
-    .replace(/\{\{\s*packageName\s*\}\}/g, selectedItems.find((item) => item.type === "package")?.title || "Rwanda Gorilla Trekking")
-    .replace(/\{\{\s*postTitle\s*\}\}/g, selectedItems.find((item) => item.type === "post")?.title || "A guide to Rwanda");
+  const sampleBody = formatForManager(draft.body, selectedItems)
+    .replace(/^\s*(?:hello|dear)\s+Alex\s*,?\s*\n+/i, "");
 
   const inputClass = "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
   const labelClass = "mb-1.5 block text-xs font-bold uppercase tracking-[.08em] text-slate-500";
@@ -724,14 +748,14 @@ function EmailBroadcast() {
                 </label>
                 <label className="min-w-0"><span className={labelClass}>Design name</span><input value={draft.name} onChange={(event) => patchDraft("name", event.target.value)} maxLength={120} className={inputClass} placeholder="Name this design for next time" /></label>
               </div>
-              <label className="block"><span className={labelClass}>Email subject</span><input value={draft.subject} onChange={(event) => patchDraft("subject", event.target.value)} maxLength={200} className={inputClass} placeholder="A new Altuvera update for you" /></label>
-              <label className="block"><span className={labelClass}>Inbox preview text</span><input value={draft.preheader} onChange={(event) => patchDraft("preheader", event.target.value)} maxLength={240} className={inputClass} placeholder="A short message shown before the email is opened" /></label>
-              <label className="block"><span className={labelClass}>Email headline</span><input value={draft.headline} onChange={(event) => patchDraft("headline", event.target.value)} maxLength={180} className={inputClass} placeholder="A fresh story from East Africa" /></label>
-              <label className="block"><span className={labelClass}>Message</span><textarea value={draft.body} onChange={(event) => patchDraft("body", event.target.value)} rows={5} maxLength={10000} className={inputClass + " min-h-[135px] resize-y"} placeholder="Write your update. Imported items and selected images are displayed below the message." /></label>
+              <label className="block"><span className={labelClass}>Email subject</span><input value={formatForManager(draft.subject, selectedItems)} onChange={(event) => patchDraft("subject", preserveManagerTokens(event.target.value, draft.subject, selectedItems))} maxLength={200} className={inputClass} placeholder="A new Altuvera update for you" /></label>
+              <label className="block"><span className={labelClass}>Inbox preview text</span><input value={formatForManager(draft.preheader, selectedItems)} onChange={(event) => patchDraft("preheader", preserveManagerTokens(event.target.value, draft.preheader, selectedItems))} maxLength={240} className={inputClass} placeholder="A short message shown before the email is opened" /></label>
+              <label className="block"><span className={labelClass}>Email headline</span><input value={formatForManager(draft.headline, selectedItems)} onChange={(event) => patchDraft("headline", preserveManagerTokens(event.target.value, draft.headline, selectedItems))} maxLength={180} className={inputClass} placeholder="A fresh story from East Africa" /></label>
+              <label className="block"><span className={labelClass}>Message</span><textarea value={formatForManager(draft.body, selectedItems)} onChange={(event) => patchDraft("body", preserveManagerTokens(event.target.value, draft.body, selectedItems))} rows={5} maxLength={10000} className={inputClass + " min-h-[135px] resize-y"} placeholder="Write your update. Imported items and selected images are displayed below the message." /></label>
               <p className="-mt-1 inline-flex items-start gap-1.5 text-[10px] leading-4 text-slate-500"><Sparkles size={12} className="campaign-motion-hint mt-0.5 shrink-0 text-emerald-600"/> Personal details and the names of imported places or packages are added automatically. You do not need to enter any codes.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block"><span className={labelClass}>Button label</span><input value={draft.cta_label} onChange={(event) => patchDraft("cta_label", event.target.value)} className={inputClass} /></label>
-                <label className="block"><span className={labelClass}>Button destination URL</span><input value={draft.cta_url} onChange={(event) => patchDraft("cta_url", event.target.value)} className={inputClass} placeholder={selectedItems[0]?.contentUrl || "https://www.altuverasafaris.com"} /></label>
+                <label className="block"><span className={labelClass}>Button destination URL</span><input value={formatForManager(draft.cta_url, selectedItems)} onChange={(event) => patchDraft("cta_url", preserveManagerTokens(event.target.value, draft.cta_url, selectedItems))} className={inputClass} placeholder={selectedItems[0]?.contentUrl || "https://www.altuverasafaris.com"} /></label>
               </div>
               <details className="rounded-xl border border-slate-200 p-3">
                 <summary className="cursor-pointer text-xs font-bold text-slate-700">In-app notification copy and design options</summary>
@@ -840,7 +864,7 @@ function EmailBroadcast() {
                   </div>
                   <div className="p-4 sm:p-5">
                     <div className="mb-3 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-[.13em] text-emerald-800">✦ A fresh update from Altuvera ✦</div>
-                    <h3 className="text-lg font-extrabold leading-tight text-emerald-950 sm:text-xl">{(draft.headline || draft.subject).replace(/\{\{\s*firstName\s*\}\}/g,"Alex")}</h3>
+                    <h3 className="text-lg font-extrabold leading-tight text-emerald-950 sm:text-xl">{formatForManager(draft.headline || draft.subject, selectedItems)}</h3>
                     <p className="mt-2 text-[10px] text-slate-500">Hello Alex,</p>
                     <div className="mt-3 space-y-2">{sampleBody.split(/\n{2,}/).map((part,index)=><p key={index} className="whitespace-pre-line text-xs leading-6 text-slate-700">{part}</p>)}</div>
                     {contentPreview.length>0 && <div className="mt-4 space-y-2">{contentPreview.map((item)=><div key={item.type+":"+item.id} className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3"><p className="text-[8px] font-bold uppercase tracking-wider text-emerald-700">{item.type}</p><p className="mt-1 text-xs font-extrabold text-emerald-950">{item.title}</p><p className="mt-1 text-[10px] leading-4 text-slate-500">{item.description}</p></div>)}</div>}
