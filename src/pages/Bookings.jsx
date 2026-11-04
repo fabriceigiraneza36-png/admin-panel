@@ -1494,8 +1494,7 @@ export default function Bookings() {
       {/* ════════════════════════════════════════════════════════════════
           VIEW (DETAIL) PAGE
           ════════════════════════════════════════════════════════════ */}
-      {view === VIEWS.VIEW && selected && (
-        {createPortal(
+      {view === VIEWS.VIEW && selected && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-[3px] sm:p-4">
         <motion.div key="view"
           role="dialog" aria-modal="true" aria-labelledby="booking-detail-title"
@@ -1788,7 +1787,6 @@ export default function Bookings() {
         </motion.div>
         </div>,
         document.body
-        )}
       )}
 
       {/* ════════════════════════════════════════════════════════════════
