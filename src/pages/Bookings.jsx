@@ -9,6 +9,7 @@ import {
   XCircle, ArrowLeft, MapPin, Phone, Mail,
   Users, Bed, ClipboardList, AlertTriangle,
   CheckSquare, Square, MessageSquare, Send, ClipboardCheck, Database,
+  MoreHorizontal, ChevronDown,
 } from 'lucide-react'
 import { bookingsAPI }      from '@api/bookings'
 import { notificationsAPI } from '@api/notifications'
@@ -18,6 +19,7 @@ import SearchBar, { FilterBar, FilterSelect } from '@components/common/SearchBar
 import Badge                from '@components/common/Badge'
 import Avatar               from '@components/common/Avatar'
 import ConfirmDialog        from '@components/common/ConfirmDialog'
+import { DetailValue }      from '@components/common/Modal'
 import BulkActionsToolbar   from '@components/common/BulkActionsToolbar'
 import { useToast }         from '@hooks/useToast'
 import { usePagination }    from '@hooks/usePagination'
@@ -148,11 +150,12 @@ const hasBookingValue = (value) => {
 
 function InfoItem({ label, value, full = false }) {
   if (!hasBookingValue(value) || value === '—' || value === 'N/A') return null;
-  const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
   return (
     <div className={`min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 p-3 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
       <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-800">{displayValue}</p>
+      <div className="min-w-0 break-words text-sm font-semibold leading-6 text-slate-800">
+        <DetailValue label={label} value={value} />
+      </div>
     </div>
   )
 }
@@ -167,9 +170,9 @@ function DetailObject({ title, icon: Icon, value }) {
         {entries.map(([key, value]) => (
           <div key={key} className="min-w-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
-            <p className="text-sm text-slate-700 break-words whitespace-pre-wrap">
-              {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-            </p>
+            <div className="min-w-0 text-sm text-slate-700 break-words whitespace-pre-wrap">
+              <DetailValue label={key} value={value} />
+            </div>
           </div>
         ))}
       </div>
@@ -339,6 +342,8 @@ export default function Bookings() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const detailRequestRef = useRef(0)
+  const [showBookingActions, setShowBookingActions] = useState(false)
+  const bookingActionsRef = useRef(null)
 
   // ── List state ────────────────────────────────────────────────────────────
   const [items,       setItems]       = useState([])
@@ -386,6 +391,26 @@ export default function Bookings() {
   const [searchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
   const deepLinkRequest = useRef(null)
+
+  useEffect(() => {
+    if (!showBookingActions) return
+    const closeOnOutside = (event) => {
+      if (!bookingActionsRef.current?.contains(event.target)) setShowBookingActions(false)
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setShowBookingActions(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [showBookingActions])
+
+  useEffect(() => {
+    setShowBookingActions(false)
+  }, [selected?.id, view])
 
   useEffect(() => {
     const bookingNumber = formatBookingNumber(selected?.booking_number) || 'Booking';
@@ -1521,43 +1546,69 @@ export default function Bookings() {
                 </p>
               </div>
             </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-              {selected.status === 'pending' && (
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative" ref={bookingActionsRef}>
                 <button
-                  onClick={() => selected.email_verified
-                    ? handleQuickStatus(selected, 'confirmed')
-                    : null}
-                  disabled={!selected.email_verified}
-                  title={selected.email_verified
-                    ? 'Confirm booking'
-                    : 'Traveller must confirm the booking from their real inbox first'}
-                  className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                  <CheckCircle size={14} /> {selected.email_verified ? 'Confirm' : 'Awaiting email'}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={showBookingActions}
+                  onClick={() => setShowBookingActions((open) => !open)}
+                  className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3.5 text-xs font-extrabold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${showBookingActions ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'}`}
+                >
+                  <MoreHorizontal size={17} />
+                  <span>Actions</span>
+                  <ChevronDown size={14} className={`transition-transform ${showBookingActions ? 'rotate-180' : ''}`} />
                 </button>
-              )}
-{String(selected.status || "").toLowerCase() === "confirmed" && (
-                <button
-                  onClick={() => window.location.assign(`/itineraries/${selected.id}`)}
-                  className="btn-primary btn-sm"
-                  disabled={!selected.email_verified}
-                  title={!selected.email_verified ? "Traveller must confirm their email before itinerary delivery." : "Prepare this confirmed booking's itinerary"}>
-                  <ClipboardCheck size={14} /> Itinerary
-                </button>
-              )}
-              <button onClick={() => openMsgModal(selected)}
-                className="btn-secondary btn-sm">
-                <MessageSquare size={14} /> Message
-              </button>
-              <button onClick={() => goEdit(selected)} className="btn-secondary btn-sm">
-                <Pencil size={14} /> Edit
-              </button>
-              <button onClick={() => setDeleteTarget(selected)}
-                className="btn-sm border border-rose-200 text-rose-600
-                  hover:bg-rose-50 rounded-xl px-3 py-2 text-xs font-semibold
-                  flex items-center gap-1.5 transition-all">
-                <Trash2 size={14} /> Delete
-              </button>
-              <button onClick={goList} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" aria-label="Close booking details" title="Close">
+
+                {showBookingActions && (
+                  <div role="menu" aria-label="Booking actions"
+                    className="absolute right-0 top-full z-[80] mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_55px_rgba(15,23,42,.22)] ring-1 ring-black/5">
+                    <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Manage this booking</p>
+
+                    {selected.status === 'pending' && (
+                      <button role="menuitem" type="button"
+                        onClick={() => { setShowBookingActions(false); if (selected.email_verified) handleQuickStatus(selected, 'confirmed') }}
+                        disabled={!selected.email_verified}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-100"><CheckCircle size={16}/></span>
+                        <span className="min-w-0 flex-1">{selected.email_verified ? 'Confirm booking' : 'Awaiting traveller email verification'}</span>
+                      </button>
+                    )}
+
+                    {String(selected.status || '').toLowerCase() === 'confirmed' && (
+                      <button role="menuitem" type="button"
+                        onClick={() => { setShowBookingActions(false); window.location.assign(`/itineraries/${selected.id}`) }}
+                        disabled={!selected.email_verified}
+                        title={!selected.email_verified ? 'Traveller must confirm their email before itinerary delivery.' : 'Prepare this confirmed booking itinerary'}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-100"><ClipboardCheck size={16}/></span>
+                        <span>Prepare itinerary</span>
+                      </button>
+                    )}
+
+                    <button role="menuitem" type="button"
+                      onClick={() => { setShowBookingActions(false); openMsgModal(selected) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><MessageSquare size={16}/></span>
+                      <span>Message traveller</span>
+                    </button>
+                    <button role="menuitem" type="button"
+                      onClick={() => { setShowBookingActions(false); goEdit(selected) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><Pencil size={16}/></span>
+                      <span>Edit booking</span>
+                    </button>
+                    <div className="my-1 border-t border-slate-100" />
+                    <button role="menuitem" type="button"
+                      onClick={() => { setShowBookingActions(false); setDeleteTarget(selected) }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-700 transition hover:bg-rose-50">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-rose-50"><Trash2 size={16}/></span>
+                      <span>Delete booking</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button onClick={goList} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" aria-label="Close booking details" title="Close">
                 <XCircle size={17}/>
               </button>
             </div>
