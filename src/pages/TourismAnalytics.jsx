@@ -214,7 +214,7 @@ export default function TourismAnalytics() {
   },[filtered,itineraries,serverStats,serverStatsOk,from,to,status,query])
 
   const exportReport=()=>{
-    const rows=[['ALTUVERA SAFARIS — TOURISM PERFORMANCE REPORT'],['Generated at',new Date().toISOString()],['Date from',from||'All dates'],['Date to',to||'All dates'],[],['Booking number','Guest','Email','Status','Destination','Country','Package','Created at']]
+    const rows=[['ALTUVERA — TOURISM PERFORMANCE REPORT'],['Generated at',new Date().toISOString()],['Date from',from||'All dates'],['Date to',to||'All dates'],[],['Booking number','Guest','Email','Status','Destination','Country','Package','Created at']]
     filtered.forEach(b=>rows.push([b.booking_number||b.id,b.full_name,b.email,b.status||b.booking_status,b.destination_name||b.service_name,b.country_name,b.package_name,b.created_at||b.createdAt]))
     rows.push([],['Summary metric','Value'],['Bookings represented in exported rows',filtered.length],['Total bookings in report',analytics.total],['Confirmed or completed',analytics.confirmed],['Pending',analytics.pending],['Cancelled',analytics.cancelled],['Conversion rate',analytics.conversion===null?'N/A':`${analytics.conversion.toFixed(1)}%`],['Cancellation rate',analytics.cancellation===null?'N/A':`${analytics.cancellation.toFixed(1)}%`])
     downloadCsv(`altuvera-tourism-report-${new Date().toISOString().slice(0,10)}.csv`,rows)

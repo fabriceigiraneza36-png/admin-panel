@@ -349,7 +349,7 @@ function EmailBroadcast() {
       }
       return [...current, {
         url,
-        alt: image.alt || image.altText || item?.title || "Altuvera Safaris",
+        alt: image.alt || image.altText || item?.title || "Altuvera",
         title: image.title || item?.title || "",
         caption: image.caption || "",
         contentUrl: item?.contentUrl || "",
@@ -369,7 +369,7 @@ function EmailBroadcast() {
         const { data } = await emailBroadcastAPI.uploadGalleryAssets(formData);
         const urls = data?.data?.urls || [];
         const uploaded = urls.map((url, index) => ({
-          url, alt: files[index]?.name || "Altuvera Safaris image",
+          url, alt: files[index]?.name || "Altuvera image",
           title: files[index]?.name || "Altuvera image",
           caption: "",
         }));
@@ -866,7 +866,7 @@ function EmailBroadcast() {
                 <div className="mx-auto max-w-[600px] overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
                   <div className="flex items-center gap-2 px-3 py-3 text-white" style={{background:draft.accent_color}}>
                     <div className="flex h-9 w-12 shrink-0 items-center justify-center rounded-md bg-white p-1"><img src="https://www.altuverasafaris.com/altuvera.png" alt="Altuvera logo" className="max-h-full max-w-full object-contain" /></div>
-                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold">Altuvera Safaris</p><p className="truncate text-[8px] font-bold uppercase tracking-[.1em] text-emerald-100">True adventure in high places &amp; deep culture</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold">Altuvera</p><p className="truncate text-[8px] font-bold uppercase tracking-[.1em] text-emerald-100">True adventure in high places &amp; deep culture</p></div>
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-white/80 bg-emerald-100 text-[10px] font-extrabold text-emerald-900">AL</div>
                   </div>
                   <div className="p-4 sm:p-5">
@@ -886,7 +886,7 @@ function EmailBroadcast() {
                       <div ref={previewGalleryRef} className="campaign-preview-gallery flex gap-2.5 overflow-x-auto pb-2" style={{scrollBehavior:"smooth",WebkitOverflowScrolling:"touch",touchAction:"pan-x"}}>
                         {mediaGallery.map((image)=><div key={image.url} className="w-52 shrink-0 snap-start overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm">
                           <img src={image.url} alt={image.alt || ""} loading="lazy" className="h-28 w-full object-cover" />
-                          <p className="truncate px-2.5 py-2 text-[9px] font-medium text-slate-600">{image.caption || image.title || "Altuvera Safaris"}</p>
+                          <p className="truncate px-2.5 py-2 text-[9px] font-medium text-slate-600">{image.caption || image.title || "Altuvera"}</p>
                         </div>)}
                       </div>
                       <p className="mt-1 text-[9px] leading-4 text-slate-400">Swipe or use the arrows to review every image. The delivered email uses a Gmail-friendly layout that does not depend on horizontal scrolling.</p>

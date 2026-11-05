@@ -168,7 +168,7 @@ export default function ItineraryBuilder() {
         setItinerary(prev => ({
           ...prev,
           title: 'Your ' + destination + ' Adventure',
-          introduction: 'Hello ' + firstName + ', we are delighted to help you discover ' + destination + '. This is your personalised journey, prepared by Altuvera Safaris.',
+          introduction: 'Hello ' + firstName + ', we are delighted to help you discover ' + destination + '. This is your personalised journey, prepared by Altuvera.',
           backgroundMode: getBookingImage(currentBooking) ? 'destination' : 'white',
           planningChecklist: DEFAULT_CHECKLIST.map(item => ({ ...item })),
           operations: { ...DEFAULT_OPERATIONS },
@@ -321,7 +321,7 @@ export default function ItineraryBuilder() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <button onClick={() => navigate('/bookings')} className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-100 transition hover:text-white"><ArrowLeft size={14}/> Back to bookings</button>
-              <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-emerald-200">ALTUVERA SAFARIS · TRIP PREPARATION</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-emerald-200">ALTUVERA · TRIP PREPARATION</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Prepare a traveller’s itinerary</h1>
               <p className="mt-2 max-w-2xl text-xs leading-5 text-emerald-50/90 sm:text-sm">Follow the four simple steps below. Booking details are already filled in, so you only need to add the journey plan and review it before sending.</p>
             </div>
@@ -503,7 +503,7 @@ export default function ItineraryBuilder() {
                 </label>
               </div>
               <label className={labelClass}>A final helpful message (optional)
-                <textarea value={itinerary.contactNote || ''} onChange={event => updateItinerary({ contactNote: event.target.value })} rows={3} className={inputClass + ' resize-y'} placeholder="For assistance during your journey, contact the Altuvera Safaris team..."/>
+                <textarea value={itinerary.contactNote || ''} onChange={event => updateItinerary({ contactNote: event.target.value })} rows={3} className={inputClass + ' resize-y'} placeholder="For assistance during your journey, contact the Altuvera team..."/>
               </label>
 
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
@@ -541,8 +541,8 @@ export default function ItineraryBuilder() {
                 <div className="relative isolate overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-800 to-emerald-700 px-5 py-7 text-white sm:px-8">
                   {destinationImage && <img src={destinationImage} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-25"/>}
                   <div className="flex items-center gap-3">
-                    <div className="grid h-12 w-14 shrink-0 place-items-center rounded-xl border border-white/35 bg-white p-1.5"><img src="https://www.altuverasafaris.com/altuvera.png" alt="Altuvera Safaris" className="max-h-full max-w-full object-contain"/></div>
-                    <div><p className="text-sm font-black">ALTUVERA SAFARIS</p><p className="mt-0.5 text-[9px] font-bold uppercase tracking-[.13em] text-emerald-100">True adventure in high places &amp; deep culture</p></div>
+                    <div className="grid h-12 w-14 shrink-0 place-items-center rounded-xl border border-white/35 bg-white p-1.5"><img src="https://www.altuverasafaris.com/altuvera.png" alt="Altuvera" className="max-h-full max-w-full object-contain"/></div>
+                    <div><p className="text-sm font-black">ALTUVERA</p><p className="mt-0.5 text-[9px] font-bold uppercase tracking-[.13em] text-emerald-100">True adventure in high places &amp; deep culture</p></div>
                   </div>
                   <p className="mt-7 text-[9px] font-extrabold uppercase tracking-[.2em] text-emerald-200">Your journey, thoughtfully arranged</p>
                   <h3 className="mt-2 text-2xl font-black leading-tight sm:text-3xl">{itinerary.title || 'Your Altuvera Adventure'}</h3>
@@ -578,7 +578,7 @@ export default function ItineraryBuilder() {
                   {itinerary.inclusions?.length > 0 && <div><h4 className="text-sm font-black text-emerald-950">Included in your journey</h4><ul className="mt-2 space-y-1.5">{itinerary.inclusions.map((item, index) => <li key={index} className="flex gap-2 text-[10px] text-slate-600"><Check size={12} className="shrink-0 text-emerald-600"/>{item}</li>)}</ul></div>}
                   {itinerary.essentials?.length > 0 && <div><h4 className="text-sm font-black text-emerald-950">What to bring</h4><ul className="mt-2 space-y-1.5">{itinerary.essentials.map((item, index) => <li key={index} className="flex gap-2 text-[10px] text-slate-600"><Luggage size={12} className="shrink-0 text-emerald-700"/>{item}</li>)}</ul></div>}
                   {itinerary.contactNote && <div className="rounded-xl bg-emerald-50 p-3 text-[10px] leading-5 text-emerald-900">{itinerary.contactNote}</div>}
-                  <div className="border-t border-slate-100 pt-3 text-center"><p className="text-[9px] font-bold uppercase tracking-[.15em] text-emerald-800">Altuvera Safaris · East Africa</p><p className="mt-1 text-[9px] text-slate-400">True adventure in high places &amp; deep culture</p></div>
+                  <div className="border-t border-slate-100 pt-3 text-center"><p className="text-[9px] font-bold uppercase tracking-[.15em] text-emerald-800">Altuvera · East Africa</p><p className="mt-1 text-[9px] text-slate-400">True adventure in high places &amp; deep culture</p></div>
                 </div>
               </article>
               <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">

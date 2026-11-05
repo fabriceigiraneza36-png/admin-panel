@@ -1036,7 +1036,7 @@ export default function Sidebar({
                     flexShrink: 0,
                   }}
                 >
-                  <img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera Safaris logo" width="46" height="46"
+                  <img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera logo" width="46" height="46"
                     style={{ display: 'block', width: '46px', height: '46px', objectFit: 'contain' }} />
                 </motion.div>
 

@@ -71,7 +71,7 @@ const SETTING_GROUPS = [
     title: 'Company Information',
     icon: Building2,
     fields: [
-      { key: 'site_name',       label: 'Site Name',        icon: Globe,  placeholder: 'Altuvera Safaris' },
+      { key: 'site_name',       label: 'Site Name',        icon: Globe,  placeholder: 'Altuvera' },
       { key: 'company_address', label: 'Company Address',  icon: MapPin, placeholder: 'Kigali, Rwanda' },
     ],
   },
