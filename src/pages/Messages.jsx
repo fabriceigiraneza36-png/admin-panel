@@ -2328,7 +2328,7 @@ export default function Messages() {
       setItineraryBookingRef(String(booking.id))
       setItineraryDraft({
         title: saved.title || `${booking.destination_name || 'Your'} Adventure Itinerary`,
-        introduction: saved.introduction || `A personalized plan prepared by Altuvera Safaris for ${booking.full_name || 'our traveller'}.`,
+        introduction: saved.introduction || `A personalized plan prepared by Altuvera for ${booking.full_name || 'our traveller'}.`,
         mode: saved.mode === 'manual' ? 'manual' : 'assisted',
         planningChecklist: Array.isArray(saved.planningChecklist) ? saved.planningChecklist : [],
         days,
