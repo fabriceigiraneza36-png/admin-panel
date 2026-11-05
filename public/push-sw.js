@@ -23,7 +23,7 @@ async function displayPushNotification (data) {
 
   // Acknowledge display through the service worker; actual delivery is handled
   // by the browser Push API for all notification types, not a testing workflow.
-  await self.registration.showNotification(data.title || 'Altuvera Safaris', notificationOptions)
+  await self.registration.showNotification(data.title || 'Altuvera', notificationOptions)
 }
 
 self.addEventListener('push', (event) => {
