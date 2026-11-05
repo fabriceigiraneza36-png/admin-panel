@@ -305,7 +305,7 @@ export default function EmailCampaignPrompt() {
             <style>{`@keyframes altuveraEmailFade{from{opacity:.35}to{opacity:1}}@keyframes altuveraEmailRise{from{opacity:.6;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.altuvera-email-motion{animation:none!important;transform:none!important;opacity:1!important}}`}</style>
             <div className="altuvera-email-motion max-w-xl mx-auto bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{animation: activeDraft.animation === "fade" ? "altuveraEmailFade .6s ease-out both" : activeDraft.animation === "rise" ? "altuveraEmailRise .55s ease-out both" : "none"}}>
               <div className="px-5 py-5 text-center" style={{ background: activeDraft.layout === "minimal" ? "#fff" : activeDraft.accent_color, color: activeDraft.layout === "minimal" ? "#0f172a" : "#fff" }}>
-                <p className="text-[10px] font-bold tracking-[.2em]">ALTUVERA SAFARIS</p>
+                <p className="text-[10px] font-bold tracking-[.2em]">ALTUVERA</p>
                 <h3 className="text-xl sm:text-2xl font-extrabold leading-tight mt-3">{previewHeadline}</h3>
                 <p className="text-xs mt-2 opacity-80">True adventure in high places &amp; deep culture</p>
               </div>
