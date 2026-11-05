@@ -557,7 +557,7 @@ export default function Login() {
                 >
                     {/* Mobile logo */}
                     <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-                        <img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera Safaris logo"
+                        <img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera logo"
                             className="w-10 h-10 object-contain flex-shrink-0" />
                         <span className="font-black text-xl" style={{ color: '#111827' }}>
                             Altuvera Admin
