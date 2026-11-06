@@ -20,7 +20,7 @@ import {
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
   Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone, ClipboardCheck,
-  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity, CheckCircle2, XCircle, CreditCard, UserRound, MessageCircle,
+  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity, History, CheckCircle2, XCircle, CreditCard, UserRound, MessageCircle,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -657,7 +657,7 @@ const ICONS = {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users,
   FileText, HelpCircle, Lightbulb, UserCircle, Star,
   Image, MessageSquare, Mail, MessagesSquare, Settings,
-  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck, BarChart3, Activity,
+  Package, Megaphone, Bell, Heart, Database, ShieldCheck, ClipboardCheck, BarChart3, Activity, History,
 }
 
 const NAV_GROUPS = [
@@ -707,6 +707,7 @@ const NAV_GROUPS = [
     items: [
       { path: '/account-recovery', label: 'Account Recovery', icon: 'ShieldCheck' },
       { path: '/account-activity-review', label: 'Account Activity Review', icon: 'ShieldCheck' },
+      { path: '/activity-history', label: 'Activity History', icon: 'History' },
       { path: '/auth-diagnostics', label: 'Auth Diagnostics', icon: 'Activity' },
       { path: '/maintenance', label: 'Maintenance', icon: 'Database' },
       { path: '/broadcast', label: 'Broadcast', icon: 'Megaphone' },
