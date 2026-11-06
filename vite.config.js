@@ -30,15 +30,15 @@ export default defineConfig(({ mode }) => {
     // ── Path aliases ──────────────────────────────────────────────────────────
     resolve: {
       alias: {
-        "@":           path.resolve(__dirname, "./src"),
-        "@api":        path.resolve(__dirname, "./src/api"),
-        "@components": path.resolve(__dirname, "./src/components"),
-        "@pages":      path.resolve(__dirname, "./src/pages"),
-        "@hooks":      path.resolve(__dirname, "./src/hooks"),
-        "@context":    path.resolve(__dirname, "./src/context"),
-        "@store":      path.resolve(__dirname, "./src/store"),
-        "@utils":      path.resolve(__dirname, "./src/utils"),
-        "@styles":     path.resolve(__dirname, "./src/styles"),
+        "@":           path.resolve(import.meta.dirname, "./src"),
+        "@api":        path.resolve(import.meta.dirname, "./src/api"),
+        "@components": path.resolve(import.meta.dirname, "./src/components"),
+        "@pages":      path.resolve(import.meta.dirname, "./src/pages"),
+        "@hooks":      path.resolve(import.meta.dirname, "./src/hooks"),
+        "@context":    path.resolve(import.meta.dirname, "./src/context"),
+        "@store":      path.resolve(import.meta.dirname, "./src/store"),
+        "@utils":      path.resolve(import.meta.dirname, "./src/utils"),
+        "@styles":     path.resolve(import.meta.dirname, "./src/styles"),
       },
     },
 
