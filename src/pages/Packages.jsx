@@ -25,6 +25,7 @@ import Avatar                               from '@components/common/Avatar'
 import ConfirmDialog                        from '@components/common/ConfirmDialog'
 import ImageUpload                          from '@components/common/ImageUpload'
 import TagInput                             from '@components/common/TagInput'
+import ReviewQuestionsEditor                 from '@components/common/ReviewQuestionsEditor'
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 import { useModal }      from '@hooks/useModal'
@@ -247,6 +248,12 @@ const INIT_PACKAGE = {
    images: [], video_url: '',
    gallery: [], features: [], inclusions: [], exclusions: [],
    highlights: [], itinerary: [], faqs: [], tags: [],
+   review_questions: [
+     { id: 'package-itinerary-match', prompt: 'Did the itinerary match the experience described before you booked?', type: 'yes_no', help_text: 'Consider the activities, timing and overall experience.', options: [] },
+     { id: 'package-inclusions-delivered', prompt: 'Were the services and inclusions delivered as described?', type: 'yes_no', help_text: 'You may consider accommodation, transport, meals and activities.', options: [] },
+     { id: 'package-organization-rating', prompt: 'How would you rate the overall organisation of this trip?', type: 'rating', help_text: '1 means poor; 5 means excellent.', options: [] },
+     { id: 'package-improvement', prompt: 'What could make this package even better for future travellers?', type: 'long_text', help_text: 'Share any suggestions you feel comfortable providing.', options: [] },
+   ],
    available_months: [], departure_dates: [], availability_note: '',
    is_published: true, is_featured: false, is_sold_out: false,
    badge_label: '', badge_color: '#047857',
@@ -805,7 +812,7 @@ export default function Packages() {
   const [editing,   setEditing]   = useState(null)
   const [openSecs,  setOpenSecs]  = useState({
     basic: true, pricing: true, duration: false,
-    media: false, pkgdetails: false, design: false, seo: false,
+    media: false, pkgdetails: false, feedback: false, design: false, seo: false,
   })
 
   // ── Detail tab state ───────────────────────────────────────────────────────
@@ -1058,6 +1065,7 @@ export default function Packages() {
        pricing: false, 
        duration: false,
        pkgdetails: false, 
+       feedback: true,
        design: false, 
        seo: false 
      })
@@ -1072,7 +1080,7 @@ export default function Packages() {
      const jsonKeys = [
        'pricing_tiers', 'images', 'gallery', 'features', 'inclusions',
        'exclusions', 'highlights', 'itinerary', 'faqs',
-       'available_months', 'departure_dates',
+       'available_months', 'departure_dates', 'review_questions',
      ]
      jsonKeys.forEach(k => { f[k] = parseJson(f[k]) })
      setForm(f)
@@ -1084,6 +1092,7 @@ export default function Packages() {
        pricing: !!p.price || !!p.pricing_tiers.length, 
        duration: !!p.duration_days || !!p.duration_nights,
        pkgdetails: !!p.features.length || !!p.inclusions.length || !!p.exclusions.length,
+       feedback: true,
        design: !!p.card_theme || !!p.accent_color || !!p.badge_label,
        seo: !!p.meta_title || !!p.meta_description || !!p.is_published || !!p.is_featured 
      })
@@ -1132,6 +1141,7 @@ export default function Packages() {
          duration_nights: form.duration_nights === '' ? null : Number(form.duration_nights),
          category: form.category, highlights: form.highlights || form.features || [],
          inclusions: form.inclusions || [], exclusions: form.exclusions || [],
+         review_questions: (form.review_questions || []).filter(question => String(question.prompt || '').trim()).map(question => ({ ...question, id: String(question.id || '').trim() || `package-question-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, prompt: String(question.prompt).trim(), type: question.type || 'long_text', options: Array.isArray(question.options) ? question.options : [] })),
          is_published: form.is_published, is_featured: form.is_featured,
        }
        if (editing) {
@@ -2070,6 +2080,13 @@ export default function Packages() {
                  This links the package to the destination page and makes the package requestable.
                </p>
              </div>
+           </Section>
+
+           <Section id="feedback" title="Traveller Feedback Questions" icon={MessageSquare} open={openSecs.feedback} onToggle={toggleSec}>
+             <ReviewQuestionsEditor
+               value={form.review_questions || []}
+               onChange={value => upd('review_questions', value)}
+             />
            </Section>
 
            {/* Basic Info */}
