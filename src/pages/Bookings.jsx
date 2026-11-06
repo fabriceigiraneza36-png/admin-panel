@@ -399,7 +399,7 @@ export default function Bookings() {
     if (view !== VIEWS.LIST || highlightedBookingId == null) return undefined
     const frame = window.requestAnimationFrame(() => {
       const row = Array.from(document.querySelectorAll('[data-table-row-id]'))
-        .find((element) => element.getAttribute('data-table-row-id') === String(highlightedBookingId))
+        .find((element) => element.getClientRects().length > 0 && element.getAttribute('data-table-row-id') === String(highlightedBookingId))
       if (row) {
         row.scrollIntoView({ behavior: 'smooth', block: 'center' })
         row.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl')
@@ -606,12 +606,17 @@ export default function Bookings() {
         source_table: booking.source_table || (isPackageBooking ? bookingSource : booking.source_table),
       };
       // On phones keep the bookings list in place and bring the exact record
-      // into view. Desktop keeps the richer booking-detail popup workflow.
-      const visibleOnCurrentPage = items.some((item) => String(item.id) === String(booking.id));
-      if (window.matchMedia('(max-width: 767px)').matches && visibleOnCurrentPage) {
+      // into view, even when it was fetched from outside the current page.
+      // Desktop keeps the richer booking-detail popup workflow.
+      if (window.matchMedia?.('(max-width: 767px)').matches) {
         setView(VIEWS.LIST);
         setSelected(null);
-        setHighlightedBookingId(booking.id);
+        setDetailLoading(false);
+        setDetailError('');
+        setItems((current) => current.some((item) => String(item.id) === String(linkedBooking.id))
+          ? current
+          : [linkedBooking, ...current]);
+        setHighlightedBookingId(linkedBooking.id);
         return;
       }
       void goView(linkedBooking);
@@ -881,10 +886,27 @@ export default function Bookings() {
   const handleDelete = async () => {
     try {
       if (deleteTarget.bulk && deleteTarget.bulk.length > 1) {
-        for (const id of deleteTarget.bulk) {
-          await bookingsAPI.remove(id)
+        const deletedBookingIds = [...deleteTarget.bulk]
+        for (const id of deletedBookingIds) {
+          await bookingsAPI.remove(id, { skipAdminDeletionNotification: true })
         }
-        toast.success(`${deleteTarget.bulk.length} bookings deleted`)
+        try {
+          await notificationsAPI.create({
+            type: 'warning',
+            category: 'admin_activity',
+            priority: 'high',
+            target_scope: 'admin',
+            title: `${deletedBookingIds.length} bookings deleted`,
+            message: `A bulk deletion successfully removed ${deletedBookingIds.length} selected bookings from the Bookings workspace.`,
+            action_url: '/bookings',
+            action_label: 'Open bookings',
+            metadata: { action: 'bulk_delete', resource: 'bookings', count: deletedBookingIds.length, record_ids: deletedBookingIds },
+            send_email: false,
+          })
+        } catch (notificationError) {
+          console.warn('[Bookings] Could not create bulk-deletion notification:', notificationError)
+        }
+        toast.success(`${deletedBookingIds.length} bookings deleted`)
         clearSelection()
       } else {
         await bookingsAPI.remove(deleteTarget.id)
