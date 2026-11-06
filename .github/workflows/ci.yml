@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: admin-panel-ci-${{ github.ref }}
@@ -15,14 +15,38 @@ concurrency:
 
 jobs:
   build:
-    name: Install and build admin panel
+    name: Install, audit, and build admin panel
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
-      - run: npm install --no-audit --no-fund
-      - run: npm run build
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply compatible dependency security updates
+        run: npm audit fix --no-fund --no-progress
+        continue-on-error: true
+      - name: Refresh browser compatibility data
+        run: npx --yes update-browserslist-db@latest
+      - name: Build production bundle
+        run: npm run build
+      - name: Report remaining high-severity advisories
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Commit refreshed dependency lockfile
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Dependency lockfile is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: refresh audited dependency lockfile"
+          git push origin HEAD:main

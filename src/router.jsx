@@ -3,7 +3,7 @@
 // ROUTER v2.2 — per-route browser tab titles
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import React, { Component, useEffect, Suspense } from 'react'
+import React, { Component, useEffect, Suspense, lazy } from 'react'
 import {
     createBrowserRouter,
     RouterProvider,
@@ -14,39 +14,70 @@ import Loader         from '@components/common/Loader'
 import { AdminLayout } from '@components/common/Sidebar'
 import { ErrorTraceModal } from '@components/common/ErrorTraceModal'
 
-// ── Page imports — all eager to avoid Vercel chunk 404s ──────────────────────
+// Route-level splitting keeps rarely used admin screens out of the initial bundle.
+// A one-time reload recovers gracefully when a visitor has an older HTML shell cached
+// while a new deployment has already replaced its hashed JavaScript chunks.
+const CHUNK_RELOAD_KEY = 'altuvera:chunk-reload-at'
 
-import Login         from '@pages/Login'
-import Dashboard     from '@pages/Dashboard'
-import Notifications from '@pages/Notifications'
-import Countries     from '@pages/Countries'
-import Destinations  from '@pages/Destinations'
-import Comments      from '@pages/Comments'
-import DestinationRatings from '@pages/DestinationRatings'
-import Bookings      from '@pages/Bookings'
-import Packages      from '@pages/Packages'
-import Users         from '@pages/Users'
-import Posts         from '@pages/Posts'
-import FAQs          from '@pages/FAQs'
-import Tips          from '@pages/Tips'
-import Team          from '@pages/Team'
-import Testimonials  from '@pages/Testimonials'
-import Gallery       from '@pages/Gallery'
-import Contact       from '@pages/Contact'
-import Subscribers   from '@pages/Subscribers'
-import Settings      from '@pages/Settings'
-import PagesPage     from '@pages/Pages'
-import Broadcast     from '@pages/Broadcast'
-import MessagesPage  from '@pages/Messages'
-import LikesPage     from '@pages/Likes'
-import Maintenance   from '@pages/Maintenance'
-import ItinerariesPage from '@pages/Itineraries'
-import TripOperations from '@pages/TripOperations'
-import TourismAnalytics from '@pages/TourismAnalytics'
-import ItineraryBuilder from '@pages/ItineraryBuilder'
-import AccountRecovery from '@pages/AccountRecovery'
-import AccountActivityReview from '@pages/AccountActivityReview'
-import AuthDiagnostics from '@pages/AuthDiagnostics'
+function lazyRoute(loader) {
+    return lazy(async () => {
+        try {
+            const page = await loader()
+            try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* storage may be unavailable */ }
+            return page
+        } catch (error) {
+            const message = String(error?.message || error)
+            const isChunkLoadFailure = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk .* failed|ChunkLoadError/i.test(message)
+            if (isChunkLoadFailure && typeof window !== 'undefined') {
+                let shouldReload = false
+                try {
+                    const lastAttempt = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0)
+                    if (!lastAttempt || Date.now() - lastAttempt > 30_000) {
+                        sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()))
+                        shouldReload = true
+                    }
+                } catch { /* continue to the route error boundary */ }
+                if (shouldReload) {
+                    window.location.reload()
+                    return new Promise(() => {})
+                }
+            }
+            throw error
+        }
+    })
+}
+
+const Login = lazyRoute(() => import('@pages/Login'))
+const Dashboard = lazyRoute(() => import('@pages/Dashboard'))
+const Notifications = lazyRoute(() => import('@pages/Notifications'))
+const Countries = lazyRoute(() => import('@pages/Countries'))
+const Destinations = lazyRoute(() => import('@pages/Destinations'))
+const Comments = lazyRoute(() => import('@pages/Comments'))
+const DestinationRatings = lazyRoute(() => import('@pages/DestinationRatings'))
+const Bookings = lazyRoute(() => import('@pages/Bookings'))
+const Packages = lazyRoute(() => import('@pages/Packages'))
+const Users = lazyRoute(() => import('@pages/Users'))
+const Posts = lazyRoute(() => import('@pages/Posts'))
+const FAQs = lazyRoute(() => import('@pages/FAQs'))
+const Tips = lazyRoute(() => import('@pages/Tips'))
+const Team = lazyRoute(() => import('@pages/Team'))
+const Testimonials = lazyRoute(() => import('@pages/Testimonials'))
+const Gallery = lazyRoute(() => import('@pages/Gallery'))
+const Contact = lazyRoute(() => import('@pages/Contact'))
+const Subscribers = lazyRoute(() => import('@pages/Subscribers'))
+const Settings = lazyRoute(() => import('@pages/Settings'))
+const PagesPage = lazyRoute(() => import('@pages/Pages'))
+const Broadcast = lazyRoute(() => import('@pages/Broadcast'))
+const MessagesPage = lazyRoute(() => import('@pages/Messages'))
+const LikesPage = lazyRoute(() => import('@pages/Likes'))
+const Maintenance = lazyRoute(() => import('@pages/Maintenance'))
+const ItinerariesPage = lazyRoute(() => import('@pages/Itineraries'))
+const TripOperations = lazyRoute(() => import('@pages/TripOperations'))
+const TourismAnalytics = lazyRoute(() => import('@pages/TourismAnalytics'))
+const ItineraryBuilder = lazyRoute(() => import('@pages/ItineraryBuilder'))
+const AccountRecovery = lazyRoute(() => import('@pages/AccountRecovery'))
+const AccountActivityReview = lazyRoute(() => import('@pages/AccountActivityReview'))
+const AuthDiagnostics = lazyRoute(() => import('@pages/AuthDiagnostics'))
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.

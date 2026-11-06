@@ -116,41 +116,29 @@ export default defineConfig(({ mode }) => {
           // ── Smart chunk splitting ─────────────────────────────────────────
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
+            const normalizedId = id.replace(/\\\\/g, "/");
 
-            // React core
-            if (id.includes("react-dom"))            return "react-dom";
-            if (id.includes("react-router"))         return "router";
-            if (id.match(/[\\/]react[\\/]/))         return "react";
+            // Keep framework and state packages in stable shared chunks.
+            if (normalizedId.includes("/node_modules/react-dom/")) return "react-dom";
+            if (normalizedId.includes("/node_modules/react-router")) return "router";
+            if (normalizedId.includes("/node_modules/react/")) return "react";
+            if (normalizedId.includes("/node_modules/@reduxjs/toolkit/") || normalizedId.includes("/node_modules/react-redux/") || normalizedId.includes("/node_modules/redux/")) return "redux";
 
-            // Redux stack
-            if (id.includes("@reduxjs/toolkit") || id.includes("react-redux") || id.includes("redux")) {
-              return "redux";
-            }
+            // Isolate substantial optional UI packages; route-level lazy loading keeps
+            // page-only dependencies from inflating the initial dashboard bundle.
+            if (normalizedId.includes("/node_modules/@tiptap/") || normalizedId.includes("/node_modules/prosemirror-")) return "editor";
+            if (normalizedId.includes("/node_modules/@headlessui/")) return "headless-ui";
+            if (normalizedId.includes("/node_modules/emoji-picker-react/")) return "emoji-picker";
 
-            // Real-time
-            if (id.includes("socket.io-client") || id.includes("engine.io-client")) {
-              return "socket";
-            }
+            // Real-time and presentation libraries.
+            if (normalizedId.includes("/node_modules/socket.io-client/") || normalizedId.includes("/node_modules/engine.io-client/")) return "socket";
+            if (normalizedId.includes("/node_modules/react-hot-toast/")) return "toast";
+            if (normalizedId.includes("/node_modules/lucide-react/") || normalizedId.includes("/node_modules/react-icons/")) return "icons";
+            if (normalizedId.includes("/node_modules/framer-motion/")) return "motion";
+            if (normalizedId.includes("/node_modules/recharts/") || normalizedId.includes("/node_modules/chart.js/") || normalizedId.includes("/node_modules/d3-")) return "charts";
+            if (normalizedId.includes("/node_modules/date-fns/") || normalizedId.includes("/node_modules/dayjs/") || normalizedId.includes("/node_modules/moment/")) return "date";
+            if (normalizedId.includes("/node_modules/axios/")) return "http";
 
-            // UI libs
-            if (id.includes("react-hot-toast")) return "toast";
-            if (id.includes("lucide-react") || id.includes("react-icons")) return "icons";
-            if (id.includes("framer-motion")) return "motion";
-
-            // Charts (if you use any)
-            if (id.includes("recharts") || id.includes("chart.js") || id.includes("d3")) {
-              return "charts";
-            }
-
-            // Date libs
-            if (id.includes("date-fns") || id.includes("dayjs") || id.includes("moment")) {
-              return "date";
-            }
-
-            // HTTP
-            if (id.includes("axios")) return "http";
-
-            // Everything else from node_modules
             return "vendor";
           },
 
