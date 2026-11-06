@@ -21,6 +21,7 @@ export default function Modal({
   children,
   footer,
   icon,
+  iconWrapperClassName = '',
   noPadding = false,
   closable  = true,
   className = '',
@@ -80,8 +81,7 @@ export default function Modal({
             {(title || closable) && (
               <div className="flex items-start gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-4 border-b border-surface-100 flex-shrink-0 min-w-0">
                 {icon && (
-                  <div className="flex-shrink-0 w-10 h-10 rounded-2xl
-                                  bg-primary-50 flex items-center justify-center">
+                  <div className={iconWrapperClassName || "flex-shrink-0 w-10 h-10 rounded-2xl bg-primary-50 flex items-center justify-center"}>
                     <span className="text-primary-600">{icon}</span>
                   </div>
                 )}
