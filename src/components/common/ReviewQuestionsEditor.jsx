@@ -11,6 +11,52 @@ const QUESTION_TYPES = [
   { value: 'rating', label: '1–5 rating' },
 ]
 
+const QUESTION_TEMPLATES = [
+  {
+    label: 'Safety incident or accident (Yes / No)',
+    prompt: 'Did you experience any safety incident or accident during this activity?',
+    type: 'yes_no',
+    help_text: 'Please consider any unexpected event or concern that affected your safety or wellbeing.',
+    options: [],
+  },
+  {
+    label: 'How an incident was handled (Choose one)',
+    prompt: 'If an incident occurred, how effectively was it handled by the team?',
+    type: 'choice',
+    help_text: 'Choose the response that best reflects the outcome. Select “No incident occurred” when not applicable.',
+    options: ['Fully resolved to my satisfaction', 'Partly resolved', 'Not resolved', 'No incident occurred'],
+  },
+  {
+    label: 'Guide knowledge and support (1–5 rating)',
+    prompt: 'How would you rate the knowledge, communication and support provided by your guide?',
+    type: 'rating',
+    help_text: '1 means poor; 5 means excellent.',
+    options: [],
+  },
+  {
+    label: 'Services delivered as promised (Yes / No)',
+    prompt: 'Were the services and activities delivered as they were described before your trip?',
+    type: 'yes_no',
+    help_text: 'Consider the itinerary, accommodation, transport and included activities.',
+    options: [],
+  },
+  {
+    label: 'Experience improvement (Long text)',
+    prompt: 'What is one improvement that would make this experience better for future travellers?',
+    type: 'long_text',
+    help_text: 'Share practical suggestions or details you would have appreciated knowing in advance.',
+    options: [],
+  },
+  {
+    label: 'Travel duration (Number)',
+    prompt: 'How many hours did the main activity take?',
+    type: 'number',
+    help_text: 'Enter the approximate duration.',
+    unit: 'hours',
+    options: [],
+  },
+]
+
 const makeId = () => {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -51,6 +97,27 @@ export default function ReviewQuestionsEditor({ value = [], onChange }) {
         <button type="button" onClick={add} disabled={questions.length >= 12} className="btn-primary btn-sm shrink-0 self-start">
           <Plus size={14} /> Add question
         </button>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+        <label className="input-group">
+          <span className="input-label">Suggested question templates <span className="font-normal text-slate-400">· optional shortcuts</span></span>
+          <select
+            className="input"
+            value=""
+            disabled={questions.length >= 12}
+            onChange={event => {
+              const template = QUESTION_TEMPLATES[Number(event.target.value)]
+              if (!template || questions.length >= 12) return
+              if (questions.some(question => String(question.prompt || '').trim().toLowerCase() === template.prompt.toLowerCase())) return
+              onChange([...questions, { ...template, id: makeId() }])
+            }}
+          >
+            <option value="">Choose a professional prompt to add…</option>
+            {QUESTION_TEMPLATES.map((template, index) => <option key={template.label} value={index}>{template.label}</option>)}
+          </select>
+        </label>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Includes safety and incident follow-up, guide support, service quality, improvement suggestions and numeric responses. You can edit every suggested prompt before saving.</p>
       </div>
 
       {questions.length === 0 ? (
