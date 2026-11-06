@@ -532,10 +532,10 @@ export function NotificationProvider({ children }) {
     failsRef.current   = 0;
 
     fetchNotifications(1);
-    pollRef.current = setInterval(() => {
-      if (socketConnected) fetchUnreadCount();
-      else fetchNotifications(1);
-    }, POLL_MS);
+    // Reconcile the actual notification rows as well as counts. Socket events
+    // keep delivery immediate; this short fallback protects against dropped
+    // events, sleeping mobile browsers, or a temporarily unavailable socket room.
+    pollRef.current = setInterval(() => fetchNotifications(1), POLL_MS);
 
     return () => {
       mountedRef.current = false;
