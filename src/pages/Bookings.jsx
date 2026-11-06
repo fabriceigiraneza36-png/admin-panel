@@ -886,28 +886,41 @@ export default function Bookings() {
   const handleDelete = async () => {
     try {
       if (deleteTarget.bulk && deleteTarget.bulk.length > 1) {
-        const deletedBookingIds = [...deleteTarget.bulk]
-        for (const id of deletedBookingIds) {
-          await bookingsAPI.remove(id, { skipAdminDeletionNotification: true })
+        const selectedBookingIds = [...deleteTarget.bulk]
+        const deletionResults = await Promise.allSettled(
+          selectedBookingIds.map((id) => bookingsAPI.remove(id, { skipAdminDeletionNotification: true }))
+        )
+        const deletedBookingIds = selectedBookingIds.filter((id, index) => deletionResults[index].status === 'fulfilled')
+        const failedBookingIds = selectedBookingIds.filter((id, index) => deletionResults[index].status === 'rejected')
+
+        if (deletedBookingIds.length) {
+          try {
+            await notificationsAPI.create({
+              type: deletedBookingIds.length > 1 ? 'warning' : 'system',
+              category: 'admin_activity',
+              priority: deletedBookingIds.length > 1 ? 'high' : 'normal',
+              target_scope: 'admin',
+              title: deletedBookingIds.length + (deletedBookingIds.length === 1 ? ' booking deleted' : ' bookings deleted'),
+              message: 'A selected-booking deletion completed. ' + deletedBookingIds.length
+                + ' of ' + selectedBookingIds.length + ' selected bookings were successfully removed from the Bookings workspace.',
+              action_url: '/bookings',
+              action_label: 'Open bookings',
+              metadata: { action: 'bulk_delete', resource: 'bookings', count: deletedBookingIds.length, record_ids: deletedBookingIds, failed_record_ids: failedBookingIds },
+              send_email: false,
+            })
+          } catch (notificationError) {
+            console.warn('[Bookings] Could not create bulk-deletion notification:', notificationError)
+          }
         }
-        try {
-          await notificationsAPI.create({
-            type: 'warning',
-            category: 'admin_activity',
-            priority: 'high',
-            target_scope: 'admin',
-            title: `${deletedBookingIds.length} bookings deleted`,
-            message: `A bulk deletion successfully removed ${deletedBookingIds.length} selected bookings from the Bookings workspace.`,
-            action_url: '/bookings',
-            action_label: 'Open bookings',
-            metadata: { action: 'bulk_delete', resource: 'bookings', count: deletedBookingIds.length, record_ids: deletedBookingIds },
-            send_email: false,
-          })
-        } catch (notificationError) {
-          console.warn('[Bookings] Could not create bulk-deletion notification:', notificationError)
+
+        if (failedBookingIds.length) {
+          setSelectedIds(new Set(failedBookingIds))
+          toast.error(deletedBookingIds.length + ' of ' + selectedBookingIds.length
+            + ' bookings were deleted; ' + failedBookingIds.length + ' could not be deleted.')
+        } else {
+          toast.success(deletedBookingIds.length + ' bookings deleted')
+          clearSelection()
         }
-        toast.success(`${deletedBookingIds.length} bookings deleted`)
-        clearSelection()
       } else {
         await bookingsAPI.remove(deleteTarget.id)
         toast.success('Booking deleted')
