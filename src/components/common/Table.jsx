@@ -317,6 +317,7 @@ export default function Table({
                     return (
                       <tr
                         key={rowKeyVal}
+                        data-table-row-id={String(rowKeyVal)}
                         onClick={() => onRowClick?.(row)}
                         onMouseEnter={() => setHoveredRow(rowKeyVal)}
                         onMouseLeave={() => setHoveredRow(null)}
@@ -392,6 +393,7 @@ export default function Table({
             return (
               <div
                 key={rowKeyVal}
+                data-table-row-id={String(rowKeyVal)}
                 onTouchStart={() => startLongPress(rowKeyVal)}
                 onTouchEnd={endLongPress}
                 onTouchMove={endLongPress}
