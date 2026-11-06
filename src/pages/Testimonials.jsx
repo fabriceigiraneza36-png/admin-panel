@@ -301,7 +301,11 @@ export default function Testimonials() {
       const payload = formToPayload(form);
 
       if (editing) {
-        await testimonialsAPI.update(editing.id, payload);
+        const reviewId = editing.id ?? editing.testimonial_id;
+        if (!reviewId) throw new Error("This review is missing its record ID. Refresh the list and try again.");
+        // Keep the submitted author name when an optional edit field is left blank.
+        payload.name = form.author_name.trim() || editing.name || editing.author_name || undefined;
+        await testimonialsAPI.update(reviewId, payload);
         toast.success("Testimonial updated successfully.");
       } else {
         await testimonialsAPI.create(payload);
@@ -309,8 +313,7 @@ export default function Testimonials() {
       }
 
       formModal.close();
-      load();
-      loadStats();
+      await Promise.all([load(), loadStats()]);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
