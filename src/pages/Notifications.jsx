@@ -49,7 +49,7 @@ const TYPE_META = {
 
 const typeMeta = (type = "") => {
   if (type.startsWith("booking")) return TYPE_META.booking;
-  if (type.includes("alert"))     return TYPE_META.alert;
+  if (type.includes("alert") || type.includes("auth") || type.includes("diagnostic") || type.includes("error")) return TYPE_META.alert;
   if (type.includes("success"))   return TYPE_META.success;
   if (type.includes("warning"))   return TYPE_META.warning;
   if (type.includes("info"))      return TYPE_META.info;
