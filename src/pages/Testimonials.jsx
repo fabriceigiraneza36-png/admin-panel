@@ -211,6 +211,16 @@ export default function Testimonials() {
 
   const dSearch = useDebounce(search, 400);
 
+  // Keep every submitted review as its own manageable record while highlighting repeat submitters.
+  const repeatReviewCounts = useMemo(() => {
+    const counts = new Map();
+    items.forEach((row) => {
+      const key = row.user_id != null ? `user:${row.user_id}` : (row.email || row.user_email) ? `email:${String(row.email || row.user_email).trim().toLowerCase()}` : null;
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }, [items]);
+
   // ── Build query params from current filter tab ──────────────────────────
   const filterParams = useMemo(() => {
     switch (filter) {
@@ -396,14 +406,15 @@ export default function Testimonials() {
               rounded="full"
             />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">
-                {name || "—"}
-              </p>
+              <p className="text-sm font-semibold text-slate-800 truncate">{name || "—"}</p>
               {(row.location || row.author_location) && (
-                <p className="text-xs text-slate-400 truncate">
-                  {row.location || row.author_location}
-                </p>
+                <p className="text-xs text-slate-400 truncate">{row.location || row.author_location}</p>
               )}
+              {(() => {
+                const key = row.user_id != null ? `user:${row.user_id}` : (row.email || row.user_email) ? `email:${String(row.email || row.user_email).trim().toLowerCase()}` : null;
+                const count = key ? repeatReviewCounts.get(key) || 0 : 0;
+                return count > 1 ? <span className="mt-1 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">{count} reviews from this user</span> : null;
+              })()}
             </div>
           </div>
         );
@@ -459,7 +470,7 @@ export default function Testimonials() {
     },
   ], [
     handleToggleFeatured, handleApprove,
-    viewModal, deleteModal, openEdit,
+    viewModal, deleteModal, openEdit, repeatReviewCounts,
   ]);
 
   // ── Derive display name for the viewed/deleted item ───────────────────────
