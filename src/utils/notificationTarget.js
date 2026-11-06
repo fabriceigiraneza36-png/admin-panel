@@ -72,6 +72,8 @@ export function getNotificationTarget(notification) {
     notification.booking_id,
   );
   const packageId = firstValue(metadata.packageId, metadata.package_id, notification.package_id);
+  const bookingType = firstValue(metadata.bookingType, metadata.booking_type, notification.booking_type);
+  const bookingSource = firstValue(metadata.bookingSource, metadata.booking_source, metadata.source_table, notification.source_table);
   const requestId = firstValue(
     metadata.requestId, metadata.request_id,
     metadata.bookingId, metadata.booking_id, notification.request_id,
@@ -112,7 +114,12 @@ export function getNotificationTarget(notification) {
       bookingId,
     );
     if (explicitBooking && /^\/bookings(?:\?|$)/.test(explicitBooking)) return explicitBooking;
-    if (bookingId) return queryTarget('/bookings', { bookingId });
+    if (bookingId) return queryTarget('/bookings', {
+      bookingId,
+      ...(bookingType ? { bookingType } : {}),
+      ...(packageId ? { packageId } : {}),
+      ...(bookingSource ? { bookingSource } : {}),
+    });
   }
 
   const explicit = firstValue(notification.action_url, notification.actionUrl, notification.link, notification.url);
@@ -128,7 +135,12 @@ export function getNotificationTarget(notification) {
     return queryTarget('/messages', { conversationId });
   }
   if ((type.includes('booking') || category.includes('booking')) && bookingId) {
-    return queryTarget('/bookings', { bookingId });
+    return queryTarget('/bookings', {
+      bookingId,
+      ...(bookingType ? { bookingType } : {}),
+      ...(packageId ? { packageId } : {}),
+      ...(bookingSource ? { bookingSource } : {}),
+    });
   }
   if ((type.includes('package') || category.includes('package')) && packageId) {
     return queryTarget('/packages', { packageId, requestId });
