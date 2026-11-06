@@ -573,15 +573,20 @@ function AdminNotificationBell() {
                       className={`anb-item${!n.is_read ? ' anb-item--u' : ''}`}
                       onClick={() => handleClick(n)}
                     >
-                      {(String(n.type || '').toLowerCase().includes('message') || String(n.category || '').toLowerCase().includes('message')) ? (
-                        <div className="anb-user-avatar" aria-label={n.senderName || n.metadata?.senderName || 'User'}>
-                          {(n.senderAvatar || n.sender_avatar || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl || n.metadata?.sender_avatar_url) ? (
-                            <img src={n.senderAvatar || n.sender_avatar || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl || n.metadata?.sender_avatar_url} alt="" />
-                          ) : (
-                            <span>{String(n.senderName || n.metadata?.senderName || 'U').trim().split(/\s+/).map(part => part[0]).join('').slice(0,2).toUpperCase()}</span>
-                          )}
-                        </div>
-                      ) : <div className="anb-ico" style={{ background: meta.bg }}>{meta.icon}</div>}
+                      {(() => {
+                        const actor = n.metadata?.user || n.metadata?.actor || n.metadata?.users?.[0] || {}
+                        const avatar = n.image_url || n.imageUrl || n.senderAvatar || n.sender_avatar
+                          || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl
+                          || n.metadata?.sender_avatar_url || actor.avatarUrl || actor.avatar_url || ''
+                        const actorName = actor.name || actor.full_name || n.senderName || n.metadata?.senderName || 'Altuvera member'
+                        const isUserActivity = Boolean(avatar || actor.id || actor.email || n.category === 'review'
+                          || String(n.type || '').toLowerCase().includes('message'))
+                        return isUserActivity ? (
+                          <div className="anb-user-avatar" aria-label={actorName}>
+                            {avatar ? <img src={avatar} alt="" /> : <span>{String(actorName).trim().split(/\\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toUpperCase()}</span>}
+                          </div>
+                        ) : <div className="anb-ico" style={{ background: meta.bg }}>{meta.icon}</div>
+                      })()}
                       <div className="anb-body">
                         <p className="anb-ttl">{String(n.title || '').replace(/\bguest(?: user)?\b/ig, n.senderName || n.metadata?.senderName || 'User')}</p>
                         <p className="anb-msg">{n.message}</p>
