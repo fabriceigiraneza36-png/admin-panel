@@ -113,7 +113,15 @@ export function getNotificationTarget(notification) {
       notification.action_url || notification.actionUrl || notification.link || notification.url,
       bookingId,
     );
-    if (explicitBooking && /^\/bookings(?:\?|$)/.test(explicitBooking)) return explicitBooking;
+    if (explicitBooking && /^\/bookings(?:\\?|$)/.test(explicitBooking)) {
+      const parsedBookingTarget = new URL(explicitBooking, 'https://altuverapanel.vercel.app');
+      return queryTarget('/bookings', {
+        bookingId: firstValue(parsedBookingTarget.searchParams.get('bookingId'), bookingId),
+        bookingType: firstValue(parsedBookingTarget.searchParams.get('bookingType'), bookingType),
+        packageId: firstValue(parsedBookingTarget.searchParams.get('packageId'), packageId),
+        bookingSource: firstValue(parsedBookingTarget.searchParams.get('bookingSource'), bookingSource),
+      });
+    }
     if (bookingId) return queryTarget('/bookings', {
       bookingId,
       ...(bookingType ? { bookingType } : {}),
