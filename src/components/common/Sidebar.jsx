@@ -46,6 +46,7 @@ const NOTIF_TYPES = {
   review_posted:     { icon: Star, color: '#d97706', bg: '#fffbeb', label: 'Review' },
   checklist_request: { icon: ClipboardCheck, color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
   auth_diagnostic_created: { icon: ShieldCheck, color: '#dc2626', bg: '#fef2f2', label: 'Auth Defect' },
+  admin_data_deleted: { icon: Trash2, color: '#be123c', bg: '#fff1f2', label: 'Deletion' },
   system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
   push_enabled:      { icon: Bell, color: '#7c3aed', bg: '#faf5ff', label: 'Push' },
 }
