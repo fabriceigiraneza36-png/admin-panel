@@ -241,12 +241,17 @@ const notifyAdminOfDeletion = (response) => {
     : [...segments].reverse().find((part) => /^\d+$/.test(part) || /^[a-f0-9-]{16,}$/i.test(part)) || null;
   const isBulk = count > 1;
   const quotedName = name ? " “" + String(name).slice(0, 120) + "”" : "";
-  const title = isBulk
-    ? count + " " + resource.plural + " deleted"
-    : resource.singular + (name ? " deleted: " + String(name).slice(0, 100) : " deleted");
-  const message = isBulk
-    ? "A bulk deletion completed successfully. " + count + " selected " + resource.plural + " were removed from the " + resource.plural + " workspace."
-    : resource.singular + (quotedName || (recordId ? " #" + recordId : "")) + " was successfully removed from the " + resource.plural + " workspace.";
+  const title = clearingNotifications
+    ? "Notification centre cleared"
+    : isBulk
+      ? count + " " + resource.plural + " deleted"
+      : resource.singular + (name ? " deleted: " + String(name).slice(0, 100) : " deleted");
+  const message = clearingNotifications
+    ? count + " existing admin notification" + (count === 1 ? " was" : "s were")
+      + " cleared from the notification centre. This audit entry was retained for your records."
+    : isBulk
+      ? "A bulk deletion completed successfully. " + count + " selected " + resource.plural + " were removed from the " + resource.plural + " workspace."
+      : resource.singular + (quotedName || (recordId ? " #" + recordId : "")) + " was successfully removed from the " + resource.plural + " workspace.";
 
   void apiClient.post("/notifications", {
     type: isBulk ? "warning" : "system",
