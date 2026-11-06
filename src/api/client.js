@@ -137,10 +137,141 @@ const attemptRefresh = async (refreshToken) => {
   throw new Error('No token returned from any refresh endpoint')
 }
 
+
+/* ── Admin audit notification for successful deletions ─────────────────────
+   Centralize deletion alerts so successful deletes across admin pages receive
+   consistent, persisted notifications without duplicating page-level code.
+*/
+const deletionResources = [
+  { pattern: /\/destinations\/[^/]+\/images(?:\/[^/]+)?$/i, key: "destination_image", singular: "destination image", plural: "destination images", actionUrl: "/gallery" },
+  { pattern: /\/destinations\/[^/]+\/reviews(?:\/[^/]+)?$/i, key: "destination_review", singular: "destination review", plural: "destination reviews", actionUrl: "/reviews" },
+  { pattern: /\/destinations\/[^/]+\/comments(?:\/[^/]+)?$/i, key: "destination_comment", singular: "destination comment", plural: "destination comments", actionUrl: "/comments" },
+  { pattern: /\/package_bookings(?:\/|$)|\/package-bookings(?:\/|$)/i, key: "package_booking", singular: "package booking", plural: "package bookings", actionUrl: "/bookings" },
+  { pattern: /\/bookings(?:\/|$)/i, key: "booking", singular: "booking", plural: "bookings", actionUrl: "/bookings" },
+  { pattern: /\/destinations(?:\/|$)/i, key: "destination", singular: "destination", plural: "destinations", actionUrl: "/destinations" },
+  { pattern: /\/countries(?:\/|$)/i, key: "country", singular: "country", plural: "countries", actionUrl: "/countries" },
+  { pattern: /\/packages(?:\/|$)/i, key: "package", singular: "package", plural: "packages", actionUrl: "/packages" },
+  { pattern: /\/testimonials(?:\/|$)/i, key: "testimonial", singular: "testimonial", plural: "testimonials", actionUrl: "/testimonials" },
+  { pattern: /\/reviews(?:\/|$)/i, key: "review", singular: "review", plural: "reviews", actionUrl: "/testimonials" },
+  { pattern: /\/posts(?:\/|$)/i, key: "post", singular: "post", plural: "posts", actionUrl: "/posts" },
+  { pattern: /\/comments(?:\/|$)/i, key: "comment", singular: "comment", plural: "comments", actionUrl: "/comments" },
+  { pattern: /\/gallery(?:\/|$)/i, key: "gallery_image", singular: "gallery image", plural: "gallery images", actionUrl: "/gallery" },
+  { pattern: /\/faqs?(?:\/|$)/i, key: "faq", singular: "FAQ", plural: "FAQs", actionUrl: "/faqs" },
+  { pattern: /\/pages(?:\/|$)/i, key: "page", singular: "page", plural: "pages", actionUrl: "/pages" },
+  { pattern: /\/tips(?:\/|$)/i, key: "tip", singular: "tip", plural: "tips", actionUrl: "/tips" },
+  { pattern: /\/team(?:_members)?(?:\/|$)/i, key: "team_member", singular: "team member", plural: "team members", actionUrl: "/team" },
+  { pattern: /\/subscribers?(?:\/|$)/i, key: "subscriber", singular: "subscriber", plural: "subscribers", actionUrl: "/subscribers" },
+  { pattern: /\/users?(?:\/|$)/i, key: "user", singular: "user", plural: "users", actionUrl: "/users" },
+  { pattern: /\/(?:messages|conversations)(?:\/|$)/i, key: "message", singular: "message or conversation", plural: "messages and conversations", actionUrl: "/messages" },
+  { pattern: /\/contact(?:_messages)?(?:\/|$)/i, key: "contact_message", singular: "contact message", plural: "contact messages", actionUrl: "/contact" },
+  { pattern: /\/services(?:\/|$)/i, key: "service", singular: "service", plural: "services", actionUrl: "/services" },
+];
+
+const parseDeletionBody = (value) => {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  if (typeof value === "string") {
+    try { return JSON.parse(value) || {}; } catch { return {}; }
+  }
+  return {};
+};
+
+const notifyAdminOfDeletion = (response) => {
+  const config = response?.config;
+  if (String(config?.method || "").toLowerCase() !== "delete") return;
+  if (config?.skipAdminDeletionNotification) return;
+
+  const rawUrl = String(config?.url || "");
+  const path = rawUrl
+    .replace(/^https?:\\/\\/[^/]+/i, "")
+    .split("?")[0]
+    .replace(/\\/+$/, "")
+    .replace(/^\\/api(?=\\/)/i, "");
+  // Deleting an alert must not create another alert about deleting that alert.
+  if (!path || /\\/notifications(?:\\/|$)/i.test(path)) return;
+
+  const descriptor = deletionResources.find((item) => item.pattern.test(path));
+  const segments = path.split("/").filter(Boolean);
+  const routeName = segments[0] || "records";
+  const fallbackLabel = routeName
+    .replace(/[_-]+/g, " ")
+    .replace(/s$/i, "")
+    .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+  const resource = descriptor || {
+    key: routeName,
+    singular: fallbackLabel || "record",
+    plural: routeName.replace(/[_-]+/g, " "),
+    actionUrl: "/" + routeName,
+  };
+
+  const requestBody = parseDeletionBody(config?.data);
+  const responseBody = response?.data && typeof response.data === "object" ? response.data : {};
+  const nestedBody = responseBody.data && typeof responseBody.data === "object" ? responseBody.data : {};
+  const ids = [
+    requestBody.ids,
+    requestBody.record_ids,
+    requestBody.selected_ids,
+    requestBody.selectedIds,
+  ].find(Array.isArray) || [];
+  const reportedCount = responseBody.deletedCount ?? responseBody.deleted_count
+    ?? nestedBody.deletedCount ?? nestedBody.deleted_count
+    ?? responseBody.count ?? nestedBody.count;
+  const count = ids.length > 1
+    ? ids.length
+    : (reportedCount != null && Number.isFinite(Number(reportedCount)) && Number(reportedCount) > 1
+      ? Math.floor(Number(reportedCount))
+      : 1);
+  const returnedRecord = Array.isArray(nestedBody) ? nestedBody[0]
+    : nestedBody.record || nestedBody.item || nestedBody;
+  const name = returnedRecord && typeof returnedRecord === "object"
+    ? (returnedRecord.name || returnedRecord.title || returnedRecord.full_name
+      || returnedRecord.fullName || returnedRecord.email || returnedRecord.booking_number
+      || returnedRecord.package_name || returnedRecord.destination_name || "")
+    : "";
+  const recordId = ids.length === 1
+    ? ids[0]
+    : [...segments].reverse().find((part) => /^\\d+$/.test(part) || /^[a-f0-9-]{16,}$/i.test(part)) || null;
+  const isBulk = count > 1;
+  const quotedName = name ? " “" + String(name).slice(0, 120) + "”" : "";
+  const title = isBulk
+    ? count + " " + resource.plural + " deleted"
+    : resource.singular + (name ? " deleted: " + String(name).slice(0, 100) : " deleted");
+  const message = isBulk
+    ? "A bulk deletion completed successfully. " + count + " selected " + resource.plural + " were removed from the " + resource.plural + " workspace."
+    : resource.singular + (quotedName || (recordId ? " #" + recordId : "")) + " was successfully removed from the " + resource.plural + " workspace.";
+
+  void apiClient.post("/notifications", {
+    type: isBulk ? "warning" : "system",
+    category: "admin_activity",
+    priority: isBulk ? "high" : "normal",
+    target_scope: "admin",
+    title,
+    message,
+    action_url: resource.actionUrl,
+    action_label: "Open " + resource.plural,
+    metadata: {
+      action: isBulk ? "bulk_delete" : "delete",
+      resource: resource.key,
+      count,
+      record_id: recordId,
+      record_ids: ids,
+      record_name: name || null,
+      request_path: path,
+      deleted_at: new Date().toISOString(),
+    },
+    send_email: false,
+  }).catch((error) => {
+    console.warn("[Admin audit] Could not create deletion notification:", error?.message || error);
+  });
+};
+
 // ── Response interceptor ──────────────────────────────────────────────────────
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    notifyAdminOfDeletion(response);
+    return response;
+  },
   async (error) => {
     const original = error.config
 
@@ -258,7 +389,7 @@ export const createEndpoint = (base) => ({
   create: (data)     => apiClient.post(`${base}`,        data),
   update: (id, data) => apiClient.put(`${base}/${id}`,   data),
   patch:  (id, data) => apiClient.patch(`${base}/${id}`, data),
-  remove: (id)       => apiClient.delete(`${base}/${id}`),
+  remove: (id, config = {}) => apiClient.delete(`${base}/${id}`, config),
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
