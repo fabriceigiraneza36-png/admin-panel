@@ -88,6 +88,9 @@ export function SocketProvider({ children }) {
     });
 
     socket.on("connect", () => {
+      // The backend validates socket.data.isAdmin before admitting this socket.
+      // Rejoin the privileged room after every reconnect.
+      socket.emit("join:admin");
       setConnected(true);
       setSocketId(socket.id);
       if (import.meta.env.DEV) {
