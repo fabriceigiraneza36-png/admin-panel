@@ -183,12 +183,12 @@ const notifyAdminOfDeletion = (response) => {
 
   const rawUrl = String(config?.url || "");
   const path = rawUrl
-    .replace(/^https?:\\/\\/[^/]+/i, "")
+    .replace(/^https?:\/\/[^/]+/i, "")
     .split("?")[0]
-    .replace(/\\/+$/, "")
-    .replace(/^\\/api(?=\\/)/i, "");
+    .replace(/\/+$/, "")
+    .replace(/^\/api(?=\/)/i, "");
   // Deleting an alert must not create another alert about deleting that alert.
-  if (!path || /\\/notifications(?:\\/|$)/i.test(path)) return;
+  if (!path || /\/notifications(?:\/|$)/i.test(path)) return;
 
   const descriptor = deletionResources.find((item) => item.pattern.test(path));
   const segments = path.split("/").filter(Boolean);
@@ -196,7 +196,7 @@ const notifyAdminOfDeletion = (response) => {
   const fallbackLabel = routeName
     .replace(/[_-]+/g, " ")
     .replace(/s$/i, "")
-    .replace(/\\b\\w/g, (letter) => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const resource = descriptor || {
     key: routeName,
     singular: fallbackLabel || "record",
@@ -230,7 +230,7 @@ const notifyAdminOfDeletion = (response) => {
     : "";
   const recordId = ids.length === 1
     ? ids[0]
-    : [...segments].reverse().find((part) => /^\\d+$/.test(part) || /^[a-f0-9-]{16,}$/i.test(part)) || null;
+    : [...segments].reverse().find((part) => /^\d+$/.test(part) || /^[a-f0-9-]{16,}$/i.test(part)) || null;
   const isBulk = count > 1;
   const quotedName = name ? " “" + String(name).slice(0, 120) + "”" : "";
   const title = isBulk
