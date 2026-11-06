@@ -50,6 +50,10 @@ export const testimonialsAPI = {
   submitPublic: (data) =>
     apiClient.post(`${BASE}/submit`, data),
 
+  // Admin update is explicitly PATCH: the backend exposes this as the canonical update method.
+  // Keep PUT support on the server for older clients, but use the documented PATCH route here.
+  update: (id, data) => apiClient.patch(`${BASE}/${id}`, data),
+
   // ── Admin toggle actions ──────────────────────────────────────────────────
   toggleFeatured: (id) =>
     apiClient.patch(`${BASE}/${id}/toggle-featured`),
