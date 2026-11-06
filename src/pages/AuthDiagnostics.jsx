@@ -4,6 +4,7 @@ import {
   Filter, RefreshCw, ShieldAlert, Wifi, Clock3,
 } from 'lucide-react'
 import { getToken } from '@utils/helpers'
+import { useSearchParams } from 'react-router-dom'
 
 const RAW_API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'https://backend-jd8f.onrender.com/api'
 const API_BASE = (() => {
@@ -59,6 +60,8 @@ const Badge = ({ children, tone = 'slate' }) => {
 }
 
 export default function AuthDiagnostics() {
+  const [searchParams] = useSearchParams()
+  const requestedReference = searchParams.get('referenceId')
   const [rows, setRows] = useState([])
   const [summary, setSummary] = useState([])
   const [total, setTotal] = useState(0)
@@ -96,6 +99,16 @@ export default function AuthDiagnostics() {
   }, [provider, category])
 
   useEffect(() => { fetchRows(0) }, [fetchRows])
+
+  useEffect(() => {
+    if (!requestedReference) return
+    const match = rows.find(row => String(row.reference_id) === String(requestedReference))
+    if (!match) return
+    setExpanded(match.reference_id)
+    window.setTimeout(() => {
+      document.getElementById('auth-incident-' + match.reference_id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+  }, [requestedReference, rows])
 
   const providerCounts = useMemo(() => Object.fromEntries(summary.map(item => [item.provider, item.total])), [summary])
 
@@ -183,7 +196,7 @@ export default function AuthDiagnostics() {
             {rows.map(row => {
               const isOpen = expanded === row.reference_id
               return (
-                <article key={row.reference_id} className="px-4 py-4 sm:px-5">
+                <article id={"auth-incident-" + row.reference_id} key={row.reference_id} className="px-4 py-4 sm:px-5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
