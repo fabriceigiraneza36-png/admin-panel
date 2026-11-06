@@ -78,6 +78,7 @@ const ItineraryBuilder = lazyRoute(() => import('@pages/ItineraryBuilder'))
 const AccountRecovery = lazyRoute(() => import('@pages/AccountRecovery'))
 const AccountActivityReview = lazyRoute(() => import('@pages/AccountActivityReview'))
 const AuthDiagnostics = lazyRoute(() => import('@pages/AuthDiagnostics'))
+const ActivityHistory = lazyRoute(() => import('@pages/ActivityHistory'))
 
 /**
  * AdminLayout — eager import ensures Sidebar is bundled in the main chunk.
@@ -307,6 +308,10 @@ const router = createBrowserRouter(
                 {
                     path:    'auth-diagnostics',
                     element: <Page title="Auth Diagnostics"><AuthDiagnostics /></Page>,
+                },
+                {
+                    path:    'activity-history',
+                    element: <Page title="Activity History"><ActivityHistory /></Page>,
                 },
                 {
                     path:    'maintenance',
