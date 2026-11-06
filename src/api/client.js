@@ -144,7 +144,7 @@ const attemptRefresh = async (refreshToken) => {
 */
 const deletionResources = [
   { pattern: /\/destinations\/[^/]+\/images(?:\/[^/]+)?$/i, key: "destination_image", singular: "destination image", plural: "destination images", actionUrl: "/gallery" },
-  { pattern: /\/destinations\/[^/]+\/reviews(?:\/[^/]+)?$/i, key: "destination_review", singular: "destination review", plural: "destination reviews", actionUrl: "/reviews" },
+  { pattern: /\/destinations\/[^/]+\/reviews(?:\/[^/]+)?$/i, key: "destination_review", singular: "destination review", plural: "destination reviews", actionUrl: "/testimonials" },
   { pattern: /\/destinations\/[^/]+\/comments(?:\/[^/]+)?$/i, key: "destination_comment", singular: "destination comment", plural: "destination comments", actionUrl: "/comments" },
   { pattern: /\/package_bookings(?:\/|$)|\/package-bookings(?:\/|$)/i, key: "package_booking", singular: "package booking", plural: "package bookings", actionUrl: "/bookings" },
   { pattern: /\/bookings(?:\/|$)/i, key: "booking", singular: "booking", plural: "bookings", actionUrl: "/bookings" },
