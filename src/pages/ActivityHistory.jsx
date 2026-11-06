@@ -295,7 +295,7 @@ export default function ActivityHistory() {
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           { label: 'All recorded actions', value: stats.total, note: 'Stored in the journal', icon: FileClock, tone: 'emerald' },
-          { label: 'Today', value: stats.today, note: 'Since local server midnight', icon: CalendarDays, tone: 'blue' },
+          { label: 'Today', value: stats.today, note: 'Since midnight (server time)', icon: CalendarDays, tone: 'blue' },
           { label: 'Last 7 days', value: stats.last_seven_days, note: 'Recent admin activity', icon: Activity, tone: 'violet' },
         ].map((card, index) => {
           const Icon = card.icon
