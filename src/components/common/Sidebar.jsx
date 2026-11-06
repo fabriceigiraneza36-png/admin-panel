@@ -20,7 +20,7 @@ import {
   Image, MessageSquare, Mail, MessagesSquare, Settings,
   Menu, ChevronLeft, X, LogOut, MapPinned, Package,
   Bell, Check, Trash2, RefreshCw, ExternalLink, Megaphone, ClipboardCheck,
-  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity,
+  Heart, Sparkles, ChevronRight, Search, Database, ShieldCheck, Activity, CheckCircle2, XCircle, CreditCard, UserRound, MessageCircle,
 } from 'lucide-react'
 import { useAuth } from '@hooks/useAuth'
 import { useToast } from '@hooks/useToast'
@@ -37,16 +37,16 @@ import EmailCampaignHistoryNotice from './EmailCampaignHistoryNotice'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-jd8f.onrender.com/api'
 
 const NOTIF_TYPES = {
-  booking_new:       { icon: '📋', color: '#059669', bg: '#ecfdf5', label: 'New Booking' },
-  booking_confirmed: { icon: '✅', color: '#0891b2', bg: '#f0f9ff', label: 'Confirmed' },
-  booking_cancelled: { icon: '❌', color: '#dc2626', bg: '#fef2f2', label: 'Cancelled' },
-  payment_received:  { icon: '💰', color: '#d97706', bg: '#fffbeb', label: 'Payment' },
-  user_registered:   { icon: '👤', color: '#7c3aed', bg: '#faf5ff', label: 'New User' },
-  contact_message:   { icon: '💬', color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
-  review_posted:     { icon: '⭐', color: '#d97706', bg: '#fffbeb', label: 'Review' },
-  checklist_request: { icon: '📝', color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
-  system:            { icon: '🔧', color: '#64748b', bg: '#f8fafc', label: 'System' },
-  push_enabled:      { icon: '🔔', color: '#7c3aed', bg: '#faf5ff', label: 'Push' },
+  booking_new:       { icon: CalendarCheck, color: '#059669', bg: '#ecfdf5', label: 'New Booking' },
+  booking_confirmed: { icon: CheckCircle2, color: '#0891b2', bg: '#f0f9ff', label: 'Confirmed' },
+  booking_cancelled: { icon: XCircle, color: '#dc2626', bg: '#fef2f2', label: 'Cancelled' },
+  payment_received:  { icon: CreditCard, color: '#d97706', bg: '#fffbeb', label: 'Payment' },
+  user_registered:   { icon: UserRound, color: '#7c3aed', bg: '#faf5ff', label: 'New User' },
+  contact_message:   { icon: MessageCircle, color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
+  review_posted:     { icon: Star, color: '#d97706', bg: '#fffbeb', label: 'Review' },
+  checklist_request: { icon: ClipboardCheck, color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
+  system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
+  push_enabled:      { icon: Bell, color: '#7c3aed', bg: '#faf5ff', label: 'Push' },
 }
 
 const getToken = () =>
@@ -577,7 +577,7 @@ function AdminNotificationBell() {
                         const actor = n.metadata?.user || n.metadata?.actor || n.metadata?.users?.[0] || {}
                         const avatar = n.image_url || n.imageUrl || n.senderAvatar || n.sender_avatar
                           || n.metadata?.senderAvatar || n.metadata?.sender_avatar || n.metadata?.senderAvatarUrl
-                          || n.metadata?.sender_avatar_url || actor.avatarUrl || actor.avatar_url || ''
+                          || n.metadata?.sender_avatar_url || n.metadata?.avatar_url || n.metadata?.avatarUrl || n.metadata?.profile_picture_url || n.metadata?.profilePictureUrl || actor.avatarUrl || actor.avatar_url || actor.profile_picture_url || ''
                         const actorName = actor.name || actor.full_name || n.senderName || n.metadata?.senderName || 'Altuvera member'
                         const isUserActivity = Boolean(avatar || actor.id || actor.email || n.category === 'review'
                           || String(n.type || '').toLowerCase().includes('message'))
@@ -585,7 +585,7 @@ function AdminNotificationBell() {
                           <div className="anb-user-avatar" aria-label={actorName}>
                             {avatar ? <img src={avatar} alt="" /> : <span>{String(actorName).trim().split(/\\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toUpperCase()}</span>}
                           </div>
-                        ) : <div className="anb-ico" style={{ background: meta.bg }}>{meta.icon}</div>
+                        ) : <div className="anb-ico" style={{ background: meta.bg, color: meta.color }}>{React.createElement(meta.icon || Bell, { size: 18, strokeWidth: 2.1 })}</div>
                       })()}
                       <div className="anb-body">
                         <p className="anb-ttl">{String(n.title || '').replace(/\bguest(?: user)?\b/ig, n.senderName || n.metadata?.senderName || 'User')}</p>
@@ -685,7 +685,6 @@ const NAV_GROUPS = [
   {
     label: 'System',
     items: [
-      { path: '/notifications', label: 'Notifications', icon: 'Bell', badge: 'notif' },
       { path: '/account-recovery', label: 'Account Recovery', icon: 'ShieldCheck' },
       { path: '/account-activity-review', label: 'Account Activity Review', icon: 'ShieldCheck' },
       { path: '/auth-diagnostics', label: 'Auth Diagnostics', icon: 'Activity' },
