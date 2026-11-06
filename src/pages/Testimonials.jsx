@@ -23,7 +23,7 @@ import React, {
 } from "react";
 import {
   Star, Plus, Pencil, Trash2, RefreshCw,
-  Eye, CheckCircle, XCircle,
+  Eye, Quote, CheckCircle, XCircle,
   BarChart2, Clock, Filter, Database,
 } from "lucide-react";
 
@@ -621,7 +621,7 @@ export default function Testimonials() {
       {/* ══════════════════════════════════════════════════════════════════
           VIEW MODAL
       ══════════════════════════════════════════════════════════════════ */}
-      <      <Modal
+      <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
         title="Review Preview"
