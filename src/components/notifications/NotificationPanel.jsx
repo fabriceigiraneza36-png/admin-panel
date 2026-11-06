@@ -66,6 +66,11 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
   const swipeDeltaX = useRef(0);
   const { dot, badge } = typeStyles(notif?.type);
   const notifId = getNotifId(notif);
+  const actor = notif?.metadata?.user || notif?.metadata?.actor || notif?.metadata?.users?.[0] || {};
+  const avatarUrl = notif?.image_url || notif?.imageUrl || notif?.sender_avatar || notif?.senderAvatar
+    || notif?.metadata?.senderAvatar || notif?.metadata?.sender_avatar || actor.avatarUrl || actor.avatar_url || "";
+  const actorName = actor.name || actor.full_name || notif?.sender_name || notif?.senderName || "Altuvera member";
+  const initials = String(actorName).trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "A";
 
   const handleRowClick = () => {
     if (!notif.is_read && notifId && typeof onMarkRead === "function") {
@@ -101,12 +106,15 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
       onTouchMove={(e) => { if (swipeStartX.current === null) return; swipeDeltaX.current = e.touches[0].clientX - swipeStartX.current; e.currentTarget.style.transform = "translateX(" + swipeDeltaX.current + "px)"; e.currentTarget.style.opacity = String(Math.max(.25, 1 - Math.abs(swipeDeltaX.current) / 260)); }}
       onTouchEnd={(e) => { const delta = swipeDeltaX.current; swipeStartX.current = null; swipeDeltaX.current = 0; if (Math.abs(delta) > 95) { if (notifId && typeof onDelete === "function") onDelete(notifId); } else { e.currentTarget.style.transform = ""; e.currentTarget.style.opacity = ""; } }}
     >
-      {/* Dot indicators */}
-      <span
-        className={`mt-1.5 flex-shrink-0 h-2 w-2 rounded-full transition-all ${
-          notif.is_read ? "bg-gray-300" : dot
-        }`}
-      />
+      {avatarUrl ? (
+        <span className="mt-0.5 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border border-emerald-100 bg-emerald-50 shadow-sm">
+          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+        </span>
+      ) : actor.id || actor.email || notif?.category === "review" ? (
+        <span className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-xs font-extrabold text-emerald-800">{initials}</span>
+      ) : (
+        <span className={`mt-1.5 flex-shrink-0 h-2 w-2 rounded-full transition-all ${notif.is_read ? "bg-gray-300" : dot}`} />
+      )}
 
       {/* Body contents */}
       <div className="flex-1 min-w-0">
