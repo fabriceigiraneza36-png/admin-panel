@@ -705,7 +705,8 @@ export default function Testimonials() {
                   )}
                   {row.trip && (
                     <p className="text-xs text-primary-600 font-medium mt-1">
-                      🧭 {row.trip}
+                      {row.trip}
+                      {row.trip_entity_type && <span className="ml-1 text-slate-400 font-normal capitalize">· {row.trip_entity_type}</span>}
                     </p>
                   )}
                 </div>
@@ -718,12 +719,30 @@ export default function Testimonials() {
               <blockquote className="text-slate-600 italic text-sm leading-relaxed text-center border-l-4 border-primary-200 pl-4 py-2">
                 &ldquo;{text}&rdquo;
               </blockquote>
+              {(row.expectations_met || (Array.isArray(row.review_answers) && row.review_answers.length > 0)) && (
+                <section className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">Additional traveller feedback</h3>
+                  {row.expectations_met && (
+                    <div className="rounded-lg border border-emerald-100 bg-white p-3">
+                      <p className="text-[11px] font-semibold text-slate-400">Did the experience meet expectations?</p>
+                      <p className="mt-1 text-sm font-bold text-slate-800">{row.expectations_met === "met" ? "Yes, expectations were met" : row.expectations_met === "partly_met" ? "Partly met expectations" : "Did not meet expectations"}</p>
+                    </div>
+                  )}
+                  {Array.isArray(row.review_answers) && row.review_answers.filter(answer => answer && answer.answer !== null && answer.answer !== undefined && String(answer.answer) !== "").map((answer, index) => (
+                    <div key={answer.question_id || index} className="rounded-lg border border-slate-100 bg-white p-3">
+                      <p className="text-[11px] font-semibold text-slate-400">{answer.prompt || `Additional question ${index + 1}`}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800">{String(answer.answer)}{answer.unit ? ` ${answer.unit}` : ""}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">{String(answer.type || "text").replace("_", " ")}</p>
+                    </div>
+                  ))}
+                </section>
+              )}
 
               {/* Meta */}
               <dl className="grid grid-cols-2 gap-2 text-xs text-slate-500 border-t border-slate-100 pt-3">
                 <div>
                   <dt className="font-semibold text-slate-400 mb-0.5">Featured</dt>
-                  <dd>{row.is_featured ? "✅ Yes" : "No"}</dd>
+                  <dd>{row.is_featured ? "Yes" : "No"}</dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-slate-400 mb-0.5">Status</dt>
