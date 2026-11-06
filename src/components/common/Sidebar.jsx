@@ -452,16 +452,16 @@ function AdminNotificationBell() {
   } = useNotifications()
   const { isOnline: connected } = useSocket()
   const NOTIF_TYPES = {
-    booking_new:       { icon: '📋', color: '#059669', bg: '#ecfdf5', label: 'New Booking' },
-    booking_confirmed: { icon: '✅', color: '#0891b2', bg: '#f0f9ff', label: 'Confirmed' },
-    booking_cancelled: { icon: '❌', color: '#dc2626', bg: '#fef2f2', label: 'Cancelled' },
-    payment_received:  { icon: '💰', color: '#d97706', bg: '#fffbeb', label: 'Payment' },
-    user_registered:   { icon: '👤', color: '#7c3aed', bg: '#faf5ff', label: 'New User' },
-    contact_message:   { icon: '💬', color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
-    review_posted:     { icon: '⭐', color: '#d97706', bg: '#fffbeb', label: 'Review' },
-    checklist_request: { icon: '📝', color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
-    package_request:   { icon: '📦', color: '#059669', bg: '#ecfdf5', label: 'Package Request' },
-    system:            { icon: '🔧', color: '#64748b', bg: '#f8fafc', label: 'System' },
+    booking_new:       { icon: CalendarCheck, color: '#059669', bg: '#ecfdf5', label: 'New Booking' },
+    booking_confirmed: { icon: CheckCircle2, color: '#0891b2', bg: '#f0f9ff', label: 'Confirmed' },
+    booking_cancelled: { icon: XCircle, color: '#dc2626', bg: '#fef2f2', label: 'Cancelled' },
+    payment_received:  { icon: CreditCard, color: '#d97706', bg: '#fffbeb', label: 'Payment' },
+    user_registered:   { icon: UserRound, color: '#7c3aed', bg: '#faf5ff', label: 'New User' },
+    contact_message:   { icon: MessageCircle, color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
+    review_posted:     { icon: Star, color: '#d97706', bg: '#fffbeb', label: 'Review' },
+    checklist_request: { icon: ClipboardCheck, color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
+    package_request:   { icon: Package, color: '#059669', bg: '#ecfdf5', label: 'Package Request' },
+    system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
   }
 
   const [open, setOpen] = useState(false)
@@ -494,6 +494,19 @@ function AdminNotificationBell() {
       return true
     }), [notifications, tab])
 
+  const handleBellToggle = useCallback(async () => {
+    const willOpen = !open
+    setOpen(willOpen)
+    if (willOpen) {
+      try {
+        await refresh()
+        await markAllRead()
+      } catch (error) {
+        console.warn('[AdminNotificationBell] Could not mark notifications as read:', error)
+      }
+    }
+  }, [open, refresh, markAllRead])
+
   const handleClick = useCallback((n) => {
     if (!n.is_read) markRead(n.id)
     const path = getNotificationTarget(n)
@@ -510,7 +523,7 @@ function AdminNotificationBell() {
             unreadCount > 0 ? 'anb-bell--unread' : '',
             pulse ? 'anb-bell--pulse' : '',
           ].join(' ')}
-          onClick={() => setOpen(o => !o)}
+          onClick={handleBellToggle}
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
           <Bell size={18} strokeWidth={2.2} />
@@ -561,7 +574,7 @@ function AdminNotificationBell() {
                 <div className="anb-loading"><div className="anb-spin" /></div>
               ) : filtered.length === 0 ? (
                 <div className="anb-empty">
-                  <div className="anb-empty-i">🔔</div>
+                  <div className="anb-empty-i"><Bell size={24} /></div>
                   <p>{tab === 'unread' ? "You're all caught up!" : 'No notifications yet'}</p>
                 </div>
               ) : (
