@@ -21,14 +21,17 @@ const makeId = () => {
 export default function ReviewQuestionsEditor({ value = [], onChange }) {
   const questions = Array.isArray(value) ? value : []
   const update = (index, patch) => onChange(questions.map((question, i) => i === index ? { ...question, ...patch } : question))
-  const add = () => onChange([...questions, {
-    id: makeId(),
-    prompt: '',
-    type: 'long_text',
-    help_text: '',
-    unit: '',
-    options: [],
-  }])
+  const add = () => {
+    if (questions.length >= 12) return
+    onChange([...questions, {
+      id: makeId(),
+      prompt: '',
+      type: 'long_text',
+      help_text: '',
+      unit: '',
+      options: [],
+    }])
+  }
   const remove = (index) => onChange(questions.filter((_, i) => i !== index))
 
   return (
@@ -45,7 +48,7 @@ export default function ReviewQuestionsEditor({ value = [], onChange }) {
             </p>
           </div>
         </div>
-        <button type="button" onClick={add} className="btn-primary btn-sm shrink-0 self-start">
+        <button type="button" onClick={add} disabled={questions.length >= 12} className="btn-primary btn-sm shrink-0 self-start">
           <Plus size={14} /> Add question
         </button>
       </div>
@@ -55,7 +58,7 @@ export default function ReviewQuestionsEditor({ value = [], onChange }) {
           <ListChecks size={22} className="mx-auto mb-2 text-slate-300" />
           <p className="text-sm font-semibold text-slate-700">No custom questions yet</p>
           <p className="mt-1 text-xs text-slate-500">Travellers will still see the standard expectations question. Add prompts to collect more specific feedback.</p>
-          <button type="button" onClick={add} className="btn-secondary btn-sm mt-3">
+          <button type="button" onClick={add} disabled={questions.length >= 12} className="btn-secondary btn-sm mt-3">
             <Plus size={13} /> Create the first question
           </button>
         </div>
