@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNotifications } from "../../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
 import { getNotificationTarget } from "../../utils/notificationTarget";
+import { CalendarCheck, MessageCircle, Star, UserRound, CreditCard, ShieldAlert, CheckCircle2, Package, MapPin, Bell } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -66,9 +67,10 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
   const swipeDeltaX = useRef(0);
   const { dot, badge } = typeStyles(notif?.type);
   const notifId = getNotifId(notif);
-  const actor = notif?.metadata?.user || notif?.metadata?.actor || notif?.metadata?.users?.[0] || {};
+  const metadata = notif?.metadata || notif?.metadata_json || {};
+  const actor = metadata.user || metadata.actor || metadata.users?.[0] || {};
   const avatarUrl = notif?.image_url || notif?.imageUrl || notif?.sender_avatar || notif?.senderAvatar
-    || notif?.metadata?.senderAvatar || notif?.metadata?.sender_avatar || actor.avatarUrl || actor.avatar_url || "";
+    || metadata.avatar_url || metadata.avatarUrl || metadata.profile_picture_url || metadata.profilePictureUrl || metadata.userAvatar || metadata.user_avatar || metadata.senderAvatar || metadata.sender_avatar || actor.avatarUrl || actor.avatar_url || actor.profile_picture_url || "";
   const actorName = actor.name || actor.full_name || notif?.sender_name || notif?.senderName || "Altuvera member";
   const initials = String(actorName).trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "A";
 
@@ -113,7 +115,7 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
       ) : actor.id || actor.email || notif?.category === "review" ? (
         <span className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-xs font-extrabold text-emerald-800">{initials}</span>
       ) : (
-        <span className={`mt-1.5 flex-shrink-0 h-2 w-2 rounded-full transition-all ${notif.is_read ? "bg-gray-300" : dot}`} />
+        <span className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border ${notif.is_read ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}><ContextIcon size={18} strokeWidth={2} /></span>
       )}
 
       {/* Body contents */}
@@ -303,9 +305,14 @@ export default function NotificationPanel() {
     }
   }, [clearAll]);
 
-  const handleToggle = useCallback(() => {
-    dispatch({ type: "notifications/togglePanel" });
-  }, [dispatch]);
+  const handleToggle = useCallback(async () => {
+    if (!panelOpen) {
+      dispatch({ type: "notifications/setPanelOpen", payload: true });
+      try { await refresh(); await markAllRead(); } catch (err) { console.error("Could not mark notifications as read:", err); }
+      return;
+    }
+    dispatch({ type: "notifications/setPanelOpen", payload: false });
+  }, [dispatch, panelOpen, refresh, markAllRead]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
