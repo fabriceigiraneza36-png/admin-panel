@@ -298,11 +298,12 @@ export function NotificationProvider({ children }) {
     setUnreadCount(0);
 
     try {
-      await authFetch(`${API_BASE}/notifications/mark-all-read`, {
-        method: "PATCH",
-      });
+      const response = await authFetch(`${API_BASE}/notifications/mark-all-read`, { method: "PATCH" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setUnreadCount(0);
     } catch (err) {
       console.warn("[NotificationContext] markAllRead error:", err.message);
+      fetchUnreadCount();
     }
   }, []);
 
