@@ -35,9 +35,8 @@ jobs:
         run: npx --yes update-browserslist-db@latest
       - name: Build production bundle
         run: npm run build
-      - name: Report remaining high-severity advisories
-        run: npm audit --audit-level=high
-        continue-on-error: true
+      - name: Require a clean dependency audit
+        run: npm audit
       - name: Commit refreshed dependency lockfile
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
