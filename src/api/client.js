@@ -273,6 +273,7 @@ const notifyAdminOfDeletion = (response) => {
       deleted_at: new Date().toISOString(),
     },
     send_email: false,
+    __skip_admin_activity_log: true,
   }).catch((error) => {
     console.warn("[Admin audit] Could not create deletion notification:", error?.message || error);
   });
