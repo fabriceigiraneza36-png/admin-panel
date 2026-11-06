@@ -647,16 +647,16 @@ export default function Testimonials() {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <button
                 type="button"
                 onClick={viewModal.close}
-                className="btn-secondary w-full justify-center sm:w-auto"
+                className="btn-secondary flex-1 justify-center sm:flex-none"
               >
                 Close
               </button>
               {viewModal.data?.user_id == null && (
-                <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data); }} className="btn-primary">
+                <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data); }} className="btn-primary flex-1 justify-center sm:flex-none">
                   <Pencil size={14} /> Edit
                 </button>
               )}
