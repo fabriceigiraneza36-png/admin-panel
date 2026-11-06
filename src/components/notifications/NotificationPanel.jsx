@@ -23,7 +23,7 @@ const typeStyles = (type = "") => {
   const t = String(type || "").toLowerCase();
   if (t.startsWith("booking") || t.includes("booking"))
     return { dot: "bg-blue-500", badge: "bg-emerald-600 text-white shadow-sm" };
-  if (t.includes("alert") || t.includes("error") || t.includes("fail") || t.includes("critical"))
+  if (t.includes("alert") || t.includes("error") || t.includes("fail") || t.includes("critical") || t.includes("auth") || t.includes("diagnostic"))
     return { dot: "bg-red-500", badge: "bg-red-100 text-red-700" };
   if (t.includes("success") || t.includes("done") || t.includes("complete"))
     return { dot: "bg-green-500", badge: "bg-green-100 text-green-700" };
