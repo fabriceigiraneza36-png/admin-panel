@@ -23,7 +23,7 @@ import React, {
 } from "react";
 import {
   Star, Plus, Pencil, Trash2, RefreshCw,
-  Eye, Quote, CheckCircle, XCircle,
+  Eye, CheckCircle, XCircle,
   BarChart2, Clock, Filter, Database,
 } from "lucide-react";
 
@@ -621,15 +621,18 @@ export default function Testimonials() {
       {/* ══════════════════════════════════════════════════════════════════
           VIEW MODAL
       ══════════════════════════════════════════════════════════════════ */}
-      <Modal
+      <      <Modal
         isOpen={viewModal.isOpen}
         onClose={viewModal.close}
         title="Review Preview"
-        size="sm"
-        icon={<Quote size={20} />}
+        subtitle="A clear view of the traveller's feedback"
+        size="md"
+        className="max-h-[min(92dvh,820px)] rounded-2xl sm:rounded-3xl"
+        icon={<img src="https://raw.githubusercontent.com/fabriceigiraneza36-png/altuvera/main/public/altuvera.png" alt="Altuvera official logo" className="block h-9 w-9 object-contain" />}
+        iconWrapperClassName="flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm"
         footer={
-          <div className="flex justify-between w-full gap-2">
-            <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               {viewModal.data && !viewModal.data.is_active && (
                 <button
                   type="button"
@@ -637,18 +640,18 @@ export default function Testimonials() {
                     handleApprove(viewModal.data);
                     viewModal.close();
                   }}
-                  className="btn-primary text-sm"
+                  className="btn-primary w-full justify-center text-sm sm:w-auto"
                 >
                   <CheckCircle size={14} />
                   Approve &amp; Publish
                 </button>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <button
                 type="button"
                 onClick={viewModal.close}
-                className="btn-secondary"
+                className="btn-secondary w-full justify-center sm:w-auto"
               >
                 Close
               </button>
@@ -753,9 +756,7 @@ export default function Testimonials() {
             </div>
           );
         })()}
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════════
+      </Modal> {/* ══════════════════════════════════════════════════════════════════
           FORM MODAL (Create / Edit)
       ══════════════════════════════════════════════════════════════════ */}
       <Modal
