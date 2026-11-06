@@ -19,6 +19,7 @@ import { useAuth }   from '@context/AuthContext'
 import { useSocket } from '@context/SocketContext'
 import { API_BASE }  from '@utils/constants'
 import { maintenanceAPI } from '@api/maintenance'
+import { notificationsAPI } from '@api/notifications'
 import ConfirmDialog from '@components/common/ConfirmDialog'
 import { useToast } from '@hooks/useToast'
 import '../messaging-phase2.css'
@@ -59,6 +60,21 @@ const authFetch = (url, opts = {}) => {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...opts.headers,
     },
+  })
+}
+
+const notifyAdminDeletion = (payload) => {
+  void notificationsAPI.create({
+    type: 'system',
+    category: 'admin_activity',
+    priority: 'normal',
+    target_scope: 'admin',
+    action_url: '/messages',
+    action_label: 'Open messages',
+    send_email: false,
+    ...payload,
+  }).catch((error) => {
+    console.warn('[Messages] Could not create deletion notification:', error)
   })
 }
 
@@ -1788,6 +1804,11 @@ export default function Messages() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message || 'Failed to unsend message')
       setMessages(prev => prev.map(m => String(m.id) === String(messageId) ? data.data : m))
+      notifyAdminDeletion({
+        title: 'Message unsent',
+        message: 'A message was unsent in conversation ' + activeId + '. The conversation remains available and the message is now shown as an unsent marker.',
+        metadata: { action: 'message_unsent', resource: 'message', conversation_id: activeId, message_id: messageId },
+      })
     } catch (e) { toast.error(e.message) }
   }, [activeId, toast])
 
@@ -1878,6 +1899,13 @@ export default function Messages() {
       if (!res.ok) throw new Error(data.message || "Could not start the recycle countdown")
       setActiveConv(prev => prev && String(prev.id) === String(activeId) ? { ...prev, recycleDeadline: data.deadlineAt || prev.recycleDeadline } : prev)
       setConversations(prev => prev.map(item => String(item.id) === String(activeId) ? { ...item, recycleDeadline: data.deadlineAt || item.recycleDeadline } : item))
+      notifyAdminDeletion({
+        type: 'warning',
+        priority: 'normal',
+        title: 'Conversation moved to Recycle Bin',
+        message: 'Conversation ' + activeId + ' was moved out of the active messaging workspace and its 20-second recycle warning has started.',
+        metadata: { action: 'soft_delete', resource: 'conversation', conversation_id: activeId, recycle_deadline: data.deadlineAt || null },
+      })
       toast.success(data.message || "The 20-second recycle countdown has started.")
     } catch (e) { toast.error(e.message) }
   }, [activeId, activeConv, filter, user?.id, toast])
@@ -1914,6 +1942,13 @@ export default function Messages() {
       if (!res.ok) throw new Error(data.message || "Could not permanently delete conversation")
       setConversations(prev => prev.filter(item => String(item.id) !== String(activeId)))
       setActiveId(null); setActiveConv(null); setMessages([])
+      notifyAdminDeletion({
+        type: 'alert',
+        priority: 'high',
+        title: 'Conversation permanently deleted',
+        message: 'Conversation ' + activeId + ' and its message history were permanently removed from the messaging workspace.',
+        metadata: { action: 'permanent_delete', resource: 'conversation', conversation_id: activeId },
+      })
       toast.success(data.message || "Conversation permanently deleted.")
       await loadConversations()
     } catch (error) { toast.error(error.message || "Could not permanently delete conversation") }
@@ -1926,12 +1961,20 @@ export default function Messages() {
       const res = await authFetch(API_BASE + "/messages/conversations/recycle-bin", { method: "DELETE" })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message || "Could not empty Recycle Bin")
+      const removedConversationCount = Number(data.deletedCount ?? data.deleted_count ?? data.count ?? conversations.length) || 0
       setConversations([]); setMessages([]); setActiveId(null); setActiveConv(null)
+      notifyAdminDeletion({
+        type: 'alert',
+        priority: 'high',
+        title: 'Messaging Recycle Bin emptied',
+        message: 'The messaging Recycle Bin was permanently cleared. ' + removedConversationCount + ' recycled conversation(s) were removed from the workspace.',
+        metadata: { action: 'recycle_bin_purge', resource: 'conversations', count: removedConversationCount },
+      })
       toast.success(data.message || "Recycle Bin emptied.")
       await loadConversations()
     } catch (error) { toast.error(error.message || "Could not empty Recycle Bin") }
     finally { setClearing(false) }
-  }, [filter, toast, loadConversations])
+  }, [filter, toast, loadConversations, conversations])
 
   const handleClearAll = useCallback(async () => {
     setClearing(true)
