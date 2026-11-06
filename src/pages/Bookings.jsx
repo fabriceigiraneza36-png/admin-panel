@@ -393,6 +393,21 @@ export default function Bookings() {
   const [searchParams] = useSearchParams()
   const deepLinkHandled = useRef(false)
   const deepLinkRequest = useRef(null)
+  const [highlightedBookingId, setHighlightedBookingId] = useState(null)
+
+  useEffect(() => {
+    if (view !== VIEWS.LIST || highlightedBookingId == null) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const row = Array.from(document.querySelectorAll('[data-table-row-id]'))
+        .find((element) => element.getAttribute('data-table-row-id') === String(highlightedBookingId))
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        row.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl')
+      }
+    })
+    const timer = window.setTimeout(() => setHighlightedBookingId(null), 4200)
+    return () => { window.cancelAnimationFrame(frame); window.clearTimeout(timer) }
+  }, [view, highlightedBookingId, items])
 
   const updateBookingActionsPosition = useCallback(() => {
     const trigger = bookingActionsRef.current?.getBoundingClientRect()
@@ -584,14 +599,22 @@ export default function Bookings() {
     const displayBooking = (booking) => {
       if (!booking || !booking.id) throw new Error('Booking could not be found.');
       deepLinkHandled.current = true;
-      // Use the same detail loader as a deliberate table click so notification
-      // deep links show the complete booking in the responsive view modal.
-      void goView({
+      const linkedBooking = {
         ...booking,
         booking_type: booking.booking_type || (isPackageBooking ? 'package' : booking.booking_type),
         package_id: booking.package_id || (isPackageBooking ? packageId : booking.package_id),
         source_table: booking.source_table || (isPackageBooking ? bookingSource : booking.source_table),
-      });
+      };
+      // On phones keep the bookings list in place and bring the exact record
+      // into view. Desktop keeps the richer booking-detail popup workflow.
+      const visibleOnCurrentPage = items.some((item) => String(item.id) === String(booking.id));
+      if (window.matchMedia('(max-width: 767px)').matches && visibleOnCurrentPage) {
+        setView(VIEWS.LIST);
+        setSelected(null);
+        setHighlightedBookingId(booking.id);
+        return;
+      }
+      void goView(linkedBooking);
     };
 
     if (match) {
