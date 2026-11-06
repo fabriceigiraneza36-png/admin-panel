@@ -24,7 +24,7 @@ import React, {
 import {
   Star, Plus, Pencil, Trash2, RefreshCw,
   Eye, Quote, CheckCircle, XCircle,
-  BarChart2, Clock, Filter, Database, Lock,
+  BarChart2, Clock, Filter, Database,
 } from "lucide-react";
 
 import { testimonialsAPI }  from "@api/testimonials";
@@ -652,14 +652,10 @@ export default function Testimonials() {
               >
                 Close
               </button>
-              {viewModal.data?.user_id == null ? (
+              {viewModal.data?.user_id == null && (
                 <button type="button" onClick={() => { viewModal.close(); openEdit(viewModal.data); }} className="btn-primary">
                   <Pencil size={14} /> Edit
                 </button>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                  <Lock size={13} /> User-submitted · Read-only
-                </span>
               )}
             </div>
           </div>
@@ -674,13 +670,6 @@ export default function Testimonials() {
 
           return (
             <div className="space-y-5">
-              {row.user_id != null && (
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  <Lock size={15} className="shrink-0" />
-                  This public user-submitted review is read-only. Its original text, rating and author details cannot be edited.
-                </div>
-              )}
-
               {/* Status banner */}
               {!row.is_active && row.user_id && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium">
