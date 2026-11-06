@@ -146,6 +146,7 @@ const deletionResources = [
   { pattern: /\/destinations\/[^/]+\/images(?:\/[^/]+)?$/i, key: "destination_image", singular: "destination image", plural: "destination images", actionUrl: "/gallery" },
   { pattern: /\/destinations\/[^/]+\/reviews(?:\/[^/]+)?$/i, key: "destination_review", singular: "destination review", plural: "destination reviews", actionUrl: "/testimonials" },
   { pattern: /\/destinations\/[^/]+\/comments(?:\/[^/]+)?$/i, key: "destination_comment", singular: "destination comment", plural: "destination comments", actionUrl: "/comments" },
+  { pattern: /\/packages\/[^/]+\/bookings(?:\/[^/]+)?$/i, key: "package_booking", singular: "package booking", plural: "package bookings", actionUrl: "/bookings" },
   { pattern: /\/package_bookings(?:\/|$)|\/package-bookings(?:\/|$)/i, key: "package_booking", singular: "package booking", plural: "package bookings", actionUrl: "/bookings" },
   { pattern: /\/bookings(?:\/|$)/i, key: "booking", singular: "booking", plural: "bookings", actionUrl: "/bookings" },
   { pattern: /\/destinations(?:\/|$)/i, key: "destination", singular: "destination", plural: "destinations", actionUrl: "/destinations" },
@@ -187,8 +188,11 @@ const notifyAdminOfDeletion = (response) => {
     .split("?")[0]
     .replace(/\/+$/, "")
     .replace(/^\/api(?=\/)/i, "");
-  // Deleting an alert must not create another alert about deleting that alert.
-  if (!path || /\/notifications(?:\/|$)/i.test(path)) return;
+  // Individual notification dismissals must not generate an infinite stream
+  // of new alerts. Clearing the whole notification centre is a bulk deletion
+  // and receives one final audit entry instead.
+  const clearingNotifications = /\/notifications\/clear-all$/i.test(path);
+  if (!path || (/\/notifications(?:\/|$)/i.test(path) && !clearingNotifications)) return;
 
   const descriptor = deletionResources.find((item) => item.pattern.test(path));
   const segments = path.split("/").filter(Boolean);
@@ -197,12 +201,14 @@ const notifyAdminOfDeletion = (response) => {
     .replace(/[_-]+/g, " ")
     .replace(/s$/i, "")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  const resource = descriptor || {
-    key: routeName,
-    singular: fallbackLabel || "record",
-    plural: routeName.replace(/[_-]+/g, " "),
-    actionUrl: "/" + routeName,
-  };
+  const resource = clearingNotifications
+    ? { key: "notification", singular: "notification", plural: "notifications", actionUrl: "/notifications" }
+    : descriptor || {
+      key: routeName,
+      singular: fallbackLabel || "record",
+      plural: routeName.replace(/[_-]+/g, " "),
+      actionUrl: "/" + routeName,
+    };
 
   const requestBody = parseDeletionBody(config?.data);
   const responseBody = response?.data && typeof response.data === "object" ? response.data : {};
@@ -215,7 +221,9 @@ const notifyAdminOfDeletion = (response) => {
   ].find(Array.isArray) || [];
   const reportedCount = responseBody.deletedCount ?? responseBody.deleted_count
     ?? nestedBody.deletedCount ?? nestedBody.deleted_count
-    ?? responseBody.count ?? nestedBody.count;
+    ?? responseBody.count ?? nestedBody.count
+    ?? responseBody.deleted ?? nestedBody.deleted;
+  if (clearingNotifications && reportedCount != null && Number(reportedCount) === 0) return;
   const count = ids.length > 1
     ? ids.length
     : (reportedCount != null && Number.isFinite(Number(reportedCount)) && Number(reportedCount) > 1
@@ -250,7 +258,7 @@ const notifyAdminOfDeletion = (response) => {
     action_url: resource.actionUrl,
     action_label: "Open " + resource.plural,
     metadata: {
-      action: isBulk ? "bulk_delete" : "delete",
+      action: clearingNotifications ? "clear_all" : isBulk ? "bulk_delete" : "delete",
       resource: resource.key,
       count,
       record_id: recordId,
