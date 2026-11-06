@@ -23,6 +23,7 @@ import Modal, { ModalSection, ModalGrid, ModalField, DetailValue } from '@compon
 import Badge, { BooleanBadge } from '@components/common/Badge'
 import Avatar              from '@components/common/Avatar'
 import ImageUpload         from '@components/common/ImageUpload'
+import ReviewQuestionsEditor from '@components/common/ReviewQuestionsEditor'
 import TagInput            from '@components/common/TagInput'
 import { useModal }        from '@hooks/useModal'
 import { useToast }        from '@hooks/useToast'
@@ -65,6 +66,11 @@ const INITIAL_FORM = {
   // Arrays / lists
   activities: [], attractions: [], highlights: [], experiences: [], wildlife: [],
   local_tips: [], tags: [], faqs: [], itinerary: [],
+  review_questions: [
+    { id: 'destination-preparedness', prompt: 'Did the information provided before your visit help you feel prepared for this destination?', type: 'yes_no', help_text: 'Think about practical guidance, what to bring and what to expect.', options: [] },
+    { id: 'destination-safety-support', prompt: 'How would you rate the safety guidance and support you received during your visit?', type: 'rating', help_text: '1 means poor; 5 means excellent.', options: [] },
+    { id: 'destination-highlight', prompt: 'What was the most memorable part of your experience here?', type: 'long_text', help_text: 'Share a moment that future travellers may find useful.', options: [] },
+  ],
 
   // Details
   description: '', short_description: '', overview: '', getting_there: '',
@@ -1462,6 +1468,7 @@ const normaliseGalleries = (dest) => {
       library_images: [],
       itinerary:          Array.isArray(dest.itinerary) ? dest.itinerary : [],
       faqs:               Array.isArray(dest.faqs)      ? dest.faqs      : [],
+      review_questions:   Array.isArray(dest.review_questions) ? dest.review_questions : [],
 
       meta_title:         dest.metaTitle          || dest.meta_title || '',
       meta_description:   dest.metaDescription    || dest.meta_description || '',
@@ -1893,6 +1900,10 @@ if (editing && savedDestination?.id && uniqueNewImages.length) {
            <div className="p-5 rounded-2xl border-2 border-gray-100 bg-white">
              <ItineraryEditor items={form.itinerary} onChange={v=>upd('itinerary',v)}/>
            </div>
+           <ReviewQuestionsEditor
+             value={form.review_questions || []}
+             onChange={value => upd('review_questions', value)}
+           />
         </motion.div>
       )
 
