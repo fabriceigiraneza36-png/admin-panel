@@ -397,15 +397,19 @@ export default function Bookings() {
 
   useEffect(() => {
     if (view !== VIEWS.LIST || highlightedBookingId == null) return undefined
+    let highlightedRow = null
     const frame = window.requestAnimationFrame(() => {
-      const row = Array.from(document.querySelectorAll('[data-table-row-id]'))
+      highlightedRow = Array.from(document.querySelectorAll('[data-table-row-id]'))
         .find((element) => element.getClientRects().length > 0 && element.getAttribute('data-table-row-id') === String(highlightedBookingId))
-      if (row) {
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        row.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl')
+      if (highlightedRow) {
+        highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        highlightedRow.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl')
       }
     })
-    const timer = window.setTimeout(() => setHighlightedBookingId(null), 4200)
+    const timer = window.setTimeout(() => {
+      highlightedRow?.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2', 'rounded-xl')
+      setHighlightedBookingId(null)
+    }, 8000)
     return () => { window.cancelAnimationFrame(frame); window.clearTimeout(timer) }
   }, [view, highlightedBookingId, items])
 
