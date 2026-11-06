@@ -12,7 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Globe2, MapPin, CalendarCheck, Users, BarChart3,
@@ -446,6 +446,7 @@ const BELL_TABS = [
 ]
 
 function AdminNotificationBell() {
+  const navigate = useNavigate();
   const {
     notifications, unreadCount, loading,
     markRead, markAllRead, deleteOne, refresh,
@@ -510,8 +511,11 @@ function AdminNotificationBell() {
   const handleClick = useCallback((n) => {
     if (!n.is_read) markRead(n.id)
     const path = getNotificationTarget(n)
-    if (path) window.location.href = path
-  }, [markRead])
+    if (!path) return
+    setOpen(false)
+    if (/^https?:\/\//i.test(path)) window.location.assign(path)
+    else navigate(path)
+  }, [markRead, navigate])
 
   return (
     <>
