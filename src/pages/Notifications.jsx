@@ -14,6 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bell, RefreshCw, CheckCheck, Trash2, Search, X,
   Info, AlertCircle, CheckCircle2, AlertTriangle, Calendar,
@@ -127,7 +128,7 @@ function TypePill({ type }) {
 }
 
 const NotificationRow = React.memo(function NotificationRow({
-  notif, busy, onMarkRead, onDelete, clockNow, onOpenUser,
+  notif, busy, onMarkRead, onDelete, clockNow, onOpenUser, onNavigate,
 }) {
   const target = getNotificationTarget(notif);
   const notificationUsers = getNotificationUsers(notif);
@@ -140,7 +141,7 @@ const NotificationRow = React.memo(function NotificationRow({
   };
   const openTarget = () => {
     if (!notif.is_read) onMarkRead(notif.id)
-    if (target) window.location.href = target;
+    if (target) onNavigate?.(target);
     else if (firstUser?.id) openUser(firstUser);
   };
   return (
@@ -345,6 +346,8 @@ export default function Notifications() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const navigate = useNavigate();
+
   const {
     notifications,
     grouped,
@@ -438,8 +441,8 @@ export default function Notifications() {
 
   const openUserProfile = useCallback((userId) => {
     if (!userId) return;
-    window.location.href = "/users?userId=" + encodeURIComponent(userId);
-  }, []);
+    navigate("/users?userId=" + encodeURIComponent(userId));
+  }, [navigate]);
 
   /* ── Filtering ─────────────────────────────────────────────────────────── */
 
@@ -646,6 +649,7 @@ export default function Notifications() {
               onDelete={askDelete}
               clockNow={clockNow}
               onOpenUser={openUserProfile}
+              onNavigate={(target) => /^https?:\/\//i.test(target) ? window.location.assign(target) : navigate(target)}
             />
           ))}
         </div>
