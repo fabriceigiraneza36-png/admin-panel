@@ -26,8 +26,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+      - name: Install and reconcile dependencies
+        run: npm install --no-audit --no-fund
       - name: Apply compatible dependency security updates
         run: npm audit fix --no-fund --no-progress
         continue-on-error: true

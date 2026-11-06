@@ -116,7 +116,7 @@ export default defineConfig(({ mode }) => {
           // ── Smart chunk splitting ─────────────────────────────────────────
           manualChunks(id) {
             if (!id.includes("node_modules")) return;
-            const normalizedId = id.replace(/\\\\/g, "/");
+            const normalizedId = id.split(String.fromCharCode(92)).join("/");
 
             // Keep framework and state packages in stable shared chunks.
             if (normalizedId.includes("/node_modules/react-dom/")) return "react-dom";
