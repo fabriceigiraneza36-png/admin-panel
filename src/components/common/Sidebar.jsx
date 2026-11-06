@@ -45,6 +45,7 @@ const NOTIF_TYPES = {
   contact_message:   { icon: MessageCircle, color: '#0891b2', bg: '#f0f9ff', label: 'Message' },
   review_posted:     { icon: Star, color: '#d97706', bg: '#fffbeb', label: 'Review' },
   checklist_request: { icon: ClipboardCheck, color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
+  auth_diagnostic_created: { icon: ShieldCheck, color: '#dc2626', bg: '#fef2f2', label: 'Auth Defect' },
   system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
   push_enabled:      { icon: Bell, color: '#7c3aed', bg: '#faf5ff', label: 'Push' },
 }
@@ -462,7 +463,8 @@ function AdminNotificationBell() {
     review_posted:     { icon: Star, color: '#d97706', bg: '#fffbeb', label: 'Review' },
     checklist_request: { icon: ClipboardCheck, color: '#059669', bg: '#ecfdf5', label: 'Checklist' },
     package_request:   { icon: Package, color: '#059669', bg: '#ecfdf5', label: 'Package Request' },
-    system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
+    auth_diagnostic_created: { icon: ShieldCheck, color: '#dc2626', bg: '#fef2f2', label: 'Auth Defect' },
+  system:            { icon: Settings, color: '#64748b', bg: '#f8fafc', label: 'System' },
   }
 
   const [open, setOpen] = useState(false)
