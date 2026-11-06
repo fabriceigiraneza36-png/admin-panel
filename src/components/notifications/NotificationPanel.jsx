@@ -1,5 +1,6 @@
 // src/components/notifications/NotificationPanel.jsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useNotifications } from "../../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
@@ -62,7 +63,7 @@ function BellIcon({ className = "w-5 h-5" }) {
 
 // ── Single Notification Row ────────────────────────────────────────────────
 
-function NotifRow({ notif, onMarkRead, onDelete }) {
+function NotifRow({ notif, onMarkRead, onDelete, onOpenTarget }) {
   const swipeStartX = useRef(null);
   const swipeDeltaX = useRef(0);
   const { dot, badge } = typeStyles(notif?.type);
@@ -79,10 +80,7 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
       onMarkRead(notifId);
     }
     const redirectUrl = getNotificationTarget(notif);
-    if (redirectUrl) {
-      // Standard fallback redirection (SPA routers can hook into this easily)
-      window.location.href = redirectUrl;
-    }
+    if (redirectUrl) onOpenTarget?.(redirectUrl);
   };
 
   const handleKeyDown = (e) => {
@@ -146,7 +144,7 @@ function NotifRow({ notif, onMarkRead, onDelete }) {
             onClick={(e) => {
               e.stopPropagation();
               if (!notif.is_read && notifId && typeof onMarkRead === "function") onMarkRead(notifId);
-              window.location.href = getNotificationTarget(notif);
+              onOpenTarget?.(getNotificationTarget(notif));
             }}
             className="mt-2 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
@@ -202,6 +200,7 @@ function EmptyState() {
 
 export default function NotificationPanel() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const isMounted = useRef(true);
 
   // Track component lifecycle safety
@@ -229,6 +228,12 @@ export default function NotificationPanel() {
     deleteOne = async () => {},
     clearAll = async () => {},
   } = notificationContext || {};
+
+  const openNotificationTarget = useCallback((target) => {
+    dispatch({ type: "notifications/setPanelOpen", payload: false });
+    if (/^https?:\/\//i.test(target)) window.location.assign(target);
+    else navigate(target);
+  }, [dispatch, navigate]);
 
   const [filter, setFilter] = useState("all"); // all | unread
   const [actionLoading, setActionLoading] = useState(false);
@@ -444,6 +449,7 @@ export default function NotificationPanel() {
                   notif={notif}
                   onMarkRead={markRead}
                   onDelete={deleteOne}
+                  onOpenTarget={openNotificationTarget}
                 />
               ))
             )}
