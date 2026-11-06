@@ -584,15 +584,14 @@ export default function Bookings() {
     const displayBooking = (booking) => {
       if (!booking || !booking.id) throw new Error('Booking could not be found.');
       deepLinkHandled.current = true;
-      setSelected({
+      // Use the same detail loader as a deliberate table click so notification
+      // deep links show the complete booking in the responsive view modal.
+      void goView({
         ...booking,
         booking_type: booking.booking_type || (isPackageBooking ? 'package' : booking.booking_type),
         package_id: booking.package_id || (isPackageBooking ? packageId : booking.package_id),
         source_table: booking.source_table || (isPackageBooking ? bookingSource : booking.source_table),
       });
-      setReview({ decision: null, response: '' });
-      setView(VIEWS.VIEW);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     if (match) {
@@ -633,7 +632,7 @@ export default function Bookings() {
 
     void openBookingFromLink();
     return () => { cancelled = true; };
-  }, [items, loading, searchParams, search]);
+  }, [items, loading, searchParams, search, goView]);
 
   // ── Update status quick-action ─────────────────────────────────────────
 
