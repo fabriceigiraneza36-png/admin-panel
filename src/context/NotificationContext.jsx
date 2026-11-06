@@ -17,7 +17,7 @@ const NotificationContext = createContext(null);
 ───────────────────────────────────────────────────────────────*/
 const API_BASE  = import.meta.env.VITE_API_URL || "https://backend-jd8f.onrender.com/api";
 const TOKEN_KEY = "altuvera_admin_token";
-const POLL_MS   = 60_000;          // unread-count poll interval
+const POLL_MS   = 20_000;          // reconnect/offline reconciliation interval
 const MAX_FAILS = 3;               // stop polling after N consecutive errors
 
 /* ─────────────────────────────────────────────────────────────
@@ -166,14 +166,14 @@ export function NotificationProvider({ children }) {
   const [total,         setTotal]         = useState(0);
 
   /* ── Socket — always read from the provider unconditionally ── */
-  const { on: socketOn, off: socketOff } = useSocket();
+  const { on: socketOn, off: socketOff, connected: socketConnected } = useSocket();
 
   /* ══════════════════════════════════════════════════════════
      FETCH — list
      GET /api/notifications/admin?page=&limit=
   ══════════════════════════════════════════════════════════*/
   const fetchNotifications = useCallback(async (pageNum = 1) => {
-    if (failsRef.current >= MAX_FAILS) return;   // stop hammering
+    // Always allow a later retry; transient failures must never freeze the inbox.
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
 
@@ -235,7 +235,7 @@ export function NotificationProvider({ children }) {
      GET /api/notifications/admin/unread-count
   ══════════════════════════════════════════════════════════*/
   const fetchUnreadCount = useCallback(async () => {
-    if (failsRef.current >= MAX_FAILS) return;
+    // Always retry on the next reconciliation interval.
     try {
       const res = await authFetch(
         `${API_BASE}/notifications/admin/unread-count`,
@@ -513,6 +513,13 @@ export function NotificationProvider({ children }) {
     };
   }, [socketOn, socketOff]);
 
+  // Fetch missed notifications immediately after initial socket connection or reconnect.
+  useEffect(() => {
+    if (!socketConnected) return;
+    failsRef.current = 0;
+    refresh();
+  }, [socketConnected, refresh]);
+
   useEffect(() => {
     notificationsRef.current = notifications;
   }, [notifications]);
@@ -525,14 +532,17 @@ export function NotificationProvider({ children }) {
     failsRef.current   = 0;
 
     fetchNotifications(1);
-    pollRef.current = setInterval(fetchUnreadCount, POLL_MS);
+    pollRef.current = setInterval(() => {
+      if (socketConnected) fetchUnreadCount();
+      else fetchNotifications(1);
+    }, POLL_MS);
 
     return () => {
       mountedRef.current = false;
       clearInterval(pollRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, [fetchNotifications, fetchUnreadCount, socketConnected]);
 
   /* ══════════════════════════════════════════════════════════
      DERIVED
