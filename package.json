@@ -37,7 +37,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.14.0",
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-react": "^6.0.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^10.14.0",
